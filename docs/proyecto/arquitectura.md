@@ -27,18 +27,37 @@ Decidido el 2026-10-06: el gateway consume **GESCOM** y el **gateway de Axum**, 
 
 | Fuente | Qué aporta | Estado |
 |---|---|---|
-| **GESCOM** | Los criterios de venta (`get-promociones`) **y el motor que los aplica** (`eval-pedido`). Es la única que sabe de bonificaciones. | Verificado en vivo |
-| **Axum** | Atributos de cliente y artículo, listas de precio. **Su gateway no expone promociones ni descuentos** — verificado contra los shapes reales de `/clientes` y `/articulos` en `integracion-axum.md`. | Falta definir qué le pedimos |
+| **GESCOM** | Los criterios de venta (`get-promociones`) **y el motor que los aplica** (`eval-pedido`). | Verificado en vivo |
+| **Axum** | Atributos de cliente y artículo, listas de precio, **y un endpoint de bonificaciones** que el usuario le pidió al equipo del gateway. | **Falta ver su contrato** |
 | **Chess** | Desconocido. No hay ni una mención en `C:\Dev\docs`. | Sin información |
+
+> ⚠️ `C:\Dev\docs\axum\integracion-axum.md` está **desactualizado** en este punto: su tabla de
+> endpoints es del 2026-08-19 y no incluye el de bonificaciones. El propio documento avisa que
+> eso pasa (a `/percepciones` le agregaron `GET` después de que la tabla dijera 405). Cuando
+> tengamos el contrato del endpoint nuevo, hay que actualizar esa doc — es la fuente de verdad
+> cross-project y hoy induce al error.
 
 **Por eso el modelo no tiene un enum `Erp` ni un conector por ERP que devuelva todos lo mismo.**
 Tiene una `Fuente`, y cada distribuidora configura las que le aplican (puede tener varias a la
-vez). El puerto `CatalogoDeCriterios` lo implementa **solo** quien efectivamente tenga criterios;
-hoy, solo GESCOM.
+vez). El puerto `CatalogoDeCriterios` lo implementa quien efectivamente tenga criterios — hoy
+GESCOM, y posiblemente también Axum según qué devuelva su endpoint nuevo.
 
-La trampa que esto evita: definir un conector genérico "de ERP" y después descubrir que Axum no
-puede implementarlo porque no tiene el dato. Es el mismo error que `axum-referencias.md` marca
-como caro — abstraer antes de conocer el segundo caso.
+### La pregunta que abre el endpoint de Axum
+
+Si Axum ya entrega bonificaciones normalizadas de cada ERP, **¿qué agrega este gateway?** La
+hipótesis más probable, por analogía directa con algo ya documentado: el `Hallazgo 1` de
+`integracion-axum.md` dice que **Axum transporta impuestos, no los calcula** — los recibe ya
+resueltos del ERP. Si con las bonificaciones pasa lo mismo, Axum entrega **las definiciones** y
+sigue sin existir quien las **aplique a un carrito concreto**. Ese sería nuestro lugar, y encaja
+con que `eval-pedido` (el motor) solo exista en GESCOM.
+
+**Es una hipótesis, no un hecho.** Se confirma mirando qué devuelve el endpoint, y la respuesta
+cambia bastante el proyecto:
+
+- si Axum entrega solo definiciones → el gateway aplica y explica, y Axum puede reemplazar a
+  `get-promociones` como fuente del catálogo (una integración menos, y ya normalizada);
+- si Axum además entrega el descuento aplicado por ítem → hay que ver si eso vuelve redundante la
+  Fase 2, o si sigue haciendo falta para los ERP sin motor propio.
 
 ## Dónde encaja en el entorno Axum
 

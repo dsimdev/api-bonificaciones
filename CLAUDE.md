@@ -147,12 +147,15 @@ base de datos por ahora (ver `docs/proyecto/decisiones-abiertas.md`). Detalle en
 `docs/proyecto/arquitectura.md`.
 
 **Las fuentes no son intercambiables.** Se consumen GESCOM y el gateway de Axum, y más adelante
-Chess — pero no son tres implementaciones de lo mismo: **solo GESCOM tiene criterios y el motor
-que los aplica**. El gateway de Axum no expone promociones ni descuentos (verificado contra los
-shapes reales de `/clientes` y `/articulos`), aporta atributos y listas. De Chess no sabemos
-nada todavía. Por eso el modelo tiene `Fuente` y no un enum `Erp`, y el puerto
-`CatalogoDeCriterios` lo implementa solo quien realmente tenga criterios. **No inventar
-abstracciones multi-fuente antes de conocer el segundo caso.**
+Chess — pero no son tres implementaciones de lo mismo: **solo GESCOM tiene el motor que aplica
+los criterios** (`eval-pedido`). Axum aporta atributos, listas y **un endpoint de bonificaciones
+nuevo, pedido por el usuario, cuyo contrato todavía no vimos** — qué devuelva es hoy la decisión
+abierta más importante del proyecto. De Chess no sabemos nada. Por eso el modelo tiene `Fuente` y
+no un enum `Erp`. **No inventar abstracciones multi-fuente antes de conocer el segundo caso.**
+
+> ⛔ **`C:\Dev\docs\axum\integracion-axum.md` está desactualizado** en cuanto a qué endpoints
+> existen (tabla del 2026-08-19; el de bonificaciones no figura). **Antes de afirmar qué expone
+> Axum: preguntar o probar en vivo, no leer la tabla.** Ya indujo a error una vez.
 
 **La restricción dominante es que dependemos de APIs que no controlamos**: sin Swagger, con
 errores genéricos, token de 5 minutos y un backend .NET+Unity que responde

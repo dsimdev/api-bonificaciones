@@ -71,22 +71,32 @@ negocio**, porque la alternativa es perder la venta.
 
 ---
 
-## 5. ¿Para qué consumimos el gateway de Axum? — **bloquea su conector**
+## 5. ¿Qué devuelve el endpoint de bonificaciones de Axum? — **la decisión más importante abierta**
 
-Dato verificado: **el gateway de Axum no expone promociones, criterios ni descuentos.** Lo que
-tiene son atributos de cliente y artículo (`/clientes`, `/articulos`) y listas. Así que
-"consumir Axum" no es traer bonificaciones de otro lado: es traer otra cosa.
+El usuario le pidió al equipo del gateway de Axum un **endpoint de bonificaciones**, y existe. No
+está en `integracion-axum.md` (esa tabla es del 2026-08-19 y quedó vieja). **Todavía no vimos su
+contrato**, y lo que devuelva cambia el proyecto:
 
-Los usos que tendrían sentido:
+| Si devuelve… | Entonces… |
+|---|---|
+| **las definiciones** de las bonificaciones, normalizadas por tenant | Axum puede reemplazar a `get-promociones` como fuente del catálogo: una integración menos y ya normalizada. El valor del gateway pasa a ser **aplicarlas y explicarlas**, que es lo que nadie hace. |
+| **el descuento ya aplicado** por ítem de un pedido | Se superpone con la Fase 2. Hay que ver si sigue haciendo falta para los ERP sin motor propio, o si el proyecto se reenfoca. |
+| solo lo que **un ERP empujó**, sin normalizar entre ERPs | Seguimos necesitando el conector de GESCOM, y Axum queda como una fuente más. |
+
+La analogía que hace pensar que es el primer caso: el `Hallazgo 1` de `integracion-axum.md` dice
+que **Axum transporta impuestos, no los calcula** — y eso fue exactamente lo que hizo que
+MotorFiscal tuviera lugar. Si con bonificaciones pasa lo mismo, nuestro lugar es el mismo.
+
+**Recomendación**: **antes de escribir una línea del conector**, conseguir el contrato o pegarle
+una vez y guardar el JSON. Es media hora que puede ahorrar o redirigir fases enteras. Después,
+actualizar `C:\Dev\docs\axum\integracion-axum.md`, que hoy induce al error.
+
+### Qué más podríamos querer de Axum (aparte de bonificaciones)
 
 - **resolver atributos de cliente/artículo desde Axum** en vez de desde GESCOM, si la tienda ya
   los tiene ahí y queremos ahorrarnos llamadas;
-- **enriquecer la respuesta** con descripción, rubro o línea del artículo, para que la tienda no
-  tenga que cruzarlo;
+- **enriquecer la respuesta** con descripción, rubro o línea del artículo;
 - **validar** que lo que ve la tienda y lo que ve GESCOM es el mismo artículo.
-
-**Recomendación**: **no construir el conector de Axum hasta saber cuál de los tres es.** Los tres
-tienen implementaciones distintas y el riesgo de elegir mal es construir algo que nadie usa.
 
 ---
 

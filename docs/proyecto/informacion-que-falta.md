@@ -72,13 +72,24 @@ que es justo donde el parser se puede romper en silencio.
 | Servidor destino, puerto, y si va detrás de IIS (y con qué ruta virtual) | Si hay IIS anidado, el prefijo de ruta se resuelve desde el día uno. En `api-impuestos` eso llegó a producción tres veces. |
 | Quién va a consumir el gateway y desde dónde | Define la auth (decisión abierta #2) y si hace falta HTTPS propio o lo termina el IIS. |
 
-## Para sumar el gateway de Axum como fuente
+## Lo más urgente: el endpoint de bonificaciones de Axum
+
+El usuario lo pidió al equipo del gateway y **existe**. No está en `integracion-axum.md` (tabla
+del 2026-08-19, quedó vieja). Lo que devuelva puede ahorrar o redirigir fases enteras, así que
+esto va **antes** de escribir el conector de GESCOM.
 
 | Qué | Para qué |
 |---|---|
-| **Qué le vamos a pedir a Axum** | Su gateway **no tiene promociones ni descuentos** (verificado contra los shapes reales de `/clientes` y `/articulos`). Lo que sí tiene son atributos de cliente/artículo y listas. Hace falta decidir para qué lo queremos: ¿enriquecer la respuesta?, ¿resolver atributos sin pegarle a GESCOM?, ¿otra cosa? |
+| **La ruta exacta y el método** | Confirmar si es consulta (`GET`) o ingesta (`POST`). Varios endpoints de Axum son `405 Allow: POST` porque son de carga, no de lectura. |
+| **Una respuesta real, el JSON completo** | Es lo único que resuelve la pregunta clave: ¿entrega las **definiciones** de las bonificaciones, o el **descuento ya aplicado** a un pedido? Ver `decisiones-abiertas.md` #5. |
+| Si está normalizado **entre ERPs** o es lo que empujó cada ERP tal cual | Define si seguimos necesitando el conector de GESCOM para el catálogo. |
+| Si llega a nivel de **condiciones** (cliente/marca/rubro) o solo el resultado | Define si podemos explicar *por qué* aplica, que es la Fase 3. |
 | `x-api-key` y nombre de tenant en Axum por distribuidora | Para configurar la fuente. |
-| Si el `GET` de los endpoints que necesitamos está habilitado | Al 2026-08-19 varios devolvían `405 Allow: POST` (son de ingesta, no de consulta). `/percepciones` lo habilitaron después, así que la tabla puede estar vieja: hay que reprobarlo. |
+
+> Cuando tengamos esto, hay que **actualizar `C:\Dev\docs\axum\integracion-axum.md`**: es la
+> fuente de verdad cross-project y hoy induce al error (me pasó en esta misma sesión).
+
+## Lo demás que podríamos querer de Axum
 
 ## Para sumar Chess
 
