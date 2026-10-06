@@ -42,22 +42,42 @@ Tiene una `Fuente`, y cada distribuidora configura las que le aplican (puede ten
 vez). El puerto `CatalogoDeCriterios` lo implementa quien efectivamente tenga criterios — hoy
 GESCOM, y posiblemente también Axum según qué devuelva su endpoint nuevo.
 
-### La pregunta que abre el endpoint de Axum
+### Confirmado: Axum transporta las bonificaciones, no las aplica
 
-Si Axum ya entrega bonificaciones normalizadas de cada ERP, **¿qué agrega este gateway?** La
-hipótesis más probable, por analogía directa con algo ya documentado: el `Hallazgo 1` de
-`integracion-axum.md` dice que **Axum transporta impuestos, no los calcula** — los recibe ya
-resueltos del ERP. Si con las bonificaciones pasa lo mismo, Axum entrega **las definiciones** y
-sigue sin existir quien las **aplique a un carrito concreto**. Ese sería nuestro lugar, y encaja
-con que `eval-pedido` (el motor) solo exista en GESCOM.
+Se vio una respuesta real del endpoint (2026-10-06, análisis completo en
+[fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md)): devuelve **definiciones** —
+filas de bonificación con sus filtros y su porcentaje— y **nada que valorice un pedido**. No
+existe del lado de Axum un equivalente a `eval-pedido`.
 
-**Es una hipótesis, no un hecho.** Se confirma mirando qué devuelve el endpoint, y la respuesta
-cambia bastante el proyecto:
+Es el mismo patrón que el `Hallazgo 1` de `integracion-axum.md` (*"Axum transporta impuestos, no
+los calcula"*), que es justamente lo que le dio lugar a MotorFiscal. **Acá pasa lo mismo, y eso
+confirma el lugar de este gateway** — pero con una consecuencia que cambia el diseño.
 
-- si Axum entrega solo definiciones → el gateway aplica y explica, y Axum puede reemplazar a
-  `get-promociones` como fuente del catálogo (una integración menos, y ya normalizada);
-- si Axum además entrega el descuento aplicado por ítem → hay que ver si eso vuelve redundante la
-  Fase 2, o si sigue haciendo falta para los ERP sin motor propio.
+## La regla de delegar, corregida
+
+La regla original era "el gateway no calcula descuentos, los delega en `eval-pedido`". Con lo que
+sabemos ahora, **eso solo se puede cumplir donde hay un motor**:
+
+| Fuente | ¿Tiene motor? | Qué hace el gateway |
+|---|---|---|
+| **GESCOM** | sí (`eval-pedido`) | **delega.** El número lo da el ERP. La regla original vale tal cual. |
+| **Axum** | **no** | **no hay a quién delegar.** Si queremos valorizar, hay que evaluar acá. |
+
+Entonces la regla pasa a ser: **donde hay motor, se delega; donde no, se evalúa acá y se dice en
+la respuesta que el número lo calculamos nosotros.** El consumidor tiene que poder distinguir
+"esto lo dijo el ERP" de "esto lo calculamos nosotros con las definiciones que nos dio Axum" —
+no son lo mismo y no valen lo mismo frente a un reclamo.
+
+Consecuencias, y no son chicas:
+
+1. **Hay que construir un motor de evaluación** para las bonificaciones de Axum. Eso estaba
+   explícitamente fuera de alcance; ahora es el corazón del camino Axum.
+2. **El riesgo que la regla original evitaba sigue existiendo, pero cambia de forma.** Con GESCOM
+   el riesgo era desviarnos del ERP; con Axum no hay contra qué desviarse — el riesgo es que
+   nuestra interpretación de las filas no sea la que la distribuidora tiene en la cabeza. Se
+   mitiga con casos de prueba acordados con negocio, no con tests que escribimos solos.
+3. **El modelo de Axum es más simple que el de GESCOM** (filtros en AND, sin combinadores), así
+   que el motor para Axum es acotado. No es reimplementar `eval-pedido`.
 
 ## Dónde encaja en el entorno Axum
 

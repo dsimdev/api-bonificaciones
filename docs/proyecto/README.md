@@ -5,6 +5,7 @@ El método portable vive en `docs/metodo/`. Acá va todo lo que es de este proye
 | Archivo | Qué contiene |
 |---|---|
 | [arquitectura.md](arquitectura.md) | Las piezas, cómo se hablan, y la decisión más cara con sus alternativas descartadas |
+| [fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md) | El endpoint de bonificaciones de Axum: campos, diferencias con GESCOM, y lo que falta |
 | [plan-de-fases.md](plan-de-fases.md) | Qué se construye y en qué orden, con el criterio de salida de cada fase |
 | [decisiones-abiertas.md](decisiones-abiertas.md) | Lo que falta decidir, cada una con recomendación. Se vacía a medida que se cierran |
 | [informacion-que-falta.md](informacion-que-falta.md) | Datos y accesos concretos que hacen falta para avanzar, y quién los tiene |

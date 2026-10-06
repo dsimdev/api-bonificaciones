@@ -71,27 +71,58 @@ negocio**, porque la alternativa es perder la venta.
 
 ---
 
-## 5. ¿Qué devuelve el endpoint de bonificaciones de Axum? — **la decisión más importante abierta**
+## ✅ Resuelta el 2026-10-06: qué devuelve el endpoint de Axum
 
-El usuario le pidió al equipo del gateway de Axum un **endpoint de bonificaciones**, y existe. No
-está en `integracion-axum.md` (esa tabla es del 2026-08-19 y quedó vieja). **Todavía no vimos su
-contrato**, y lo que devuelva cambia el proyecto:
+**Definiciones, no resultados.** Filas de bonificación con filtros y porcentaje; nada que
+valorice un pedido. Axum no tiene motor. Análisis completo en
+[fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md); la consecuencia de diseño está en
+`arquitectura.md` → "La regla de delegar, corregida".
 
-| Si devuelve… | Entonces… |
-|---|---|
-| **las definiciones** de las bonificaciones, normalizadas por tenant | Axum puede reemplazar a `get-promociones` como fuente del catálogo: una integración menos y ya normalizada. El valor del gateway pasa a ser **aplicarlas y explicarlas**, que es lo que nadie hace. |
-| **el descuento ya aplicado** por ítem de un pedido | Se superpone con la Fase 2. Hay que ver si sigue haciendo falta para los ERP sin motor propio, o si el proyecto se reenfoca. |
-| solo lo que **un ERP empujó**, sin normalizar entre ERPs | Seguimos necesitando el conector de GESCOM, y Axum queda como una fuente más. |
+Lo que **sigue abierto** de esa misma respuesta son tres cosas concretas, abajo (#5, #6, #7).
 
-La analogía que hace pensar que es el primer caso: el `Hallazgo 1` de `integracion-axum.md` dice
-que **Axum transporta impuestos, no los calcula** — y eso fue exactamente lo que hizo que
-MotorFiscal tuviera lugar. Si con bonificaciones pasa lo mismo, nuestro lugar es el mismo.
+---
 
-**Recomendación**: **antes de escribir una línea del conector**, conseguir el contrato o pegarle
-una vez y guardar el JSON. Es media hora que puede ahorrar o redirigir fases enteras. Después,
-actualizar `C:\Dev\docs\axum\integracion-axum.md`, que hoy induce al error.
+## 5. ¿Qué distingue `ordenManual` 50 de `ordenManual` 90? — **bloquea el motor de Axum**
 
-### Qué más podríamos querer de Axum (aparte de bonificaciones)
+Decenas de filas vienen en pares idénticos salvo por el descuento y el `ordenManual`, y **la
+diferencia es siempre exactamente 3 puntos** (18/15, 11/8, 26/23, 28/25, 23/20). La única fila con
+`listaDePrecios` cargada (lista 5, proveedor 00009, orden 100) tiene `descuento: "3"`.
+
+**Hipótesis**: ese 3% está incluido en la variante de orden 50 y no en la de 90, y algo que no
+está en estas filas decide cuál gana.
+
+**No se puede resolver leyendo el payload.** Y elegir mal es cobrar 15% donde iba 18%.
+**Recomendación**: preguntarle al equipo del gateway qué significa `ordenManual` y cómo se
+resuelve el empate, antes de escribir el motor.
+
+---
+
+## 6. ¿Dónde están el cliente y la vigencia de una bonificación de Axum?
+
+Las filas **no tienen nada de cliente** (ni código, ni tag, ni lista asignada) **ni fechas**.
+Todas cuelgan de un `bonifId`, cuya entidad padre no vimos.
+
+Si la segmentación y la vigencia no están en el padre, entonces **no existen**, y eso repite el
+`Hallazgo 2` de `integracion-axum.md`: sin vigencia no se puede reconstruir qué bonificación
+aplicaba en una fecha pasada.
+
+**Recomendación**: conseguir el shape del padre antes de modelar nada. Si efectivamente no hay
+vigencia, es un hallazgo para negocio —no un problema técnico— y es el mismo hueco que MotorFiscal
+terminó llenando versionando al ingerir.
+
+---
+
+## 7. ¿Los descuentos de Axum se acumulan?
+
+`topeDescuento` es idéntico a `descuento` en todas las filas observadas. O es redundante, o solo
+difiere cuando varios descuentos se apilan y el tope los limita.
+
+**Recomendación**: pedir un caso donde difieran. Si se acumulan, el orden de aplicación pasa a ser
+parte del contrato y hay que testearlo explícitamente.
+
+---
+
+## 8. ¿Qué más le pedimos a Axum, aparte de bonificaciones?
 
 - **resolver atributos de cliente/artículo desde Axum** en vez de desde GESCOM, si la tienda ya
   los tiene ahí y queremos ahorrarnos llamadas;
@@ -100,7 +131,7 @@ actualizar `C:\Dev\docs\axum\integracion-axum.md`, que hoy induce al error.
 
 ---
 
-## 6. ¿Qué es Chess y qué aporta?
+## 9. ¿Qué es Chess y qué aporta?
 
 No hay una sola mención en `C:\Dev\docs`. **Recomendación**: cuando se acerque, arrancar por el
 método de reversing que ya funcionó con GESCOM y escribir la referencia en `C:\Dev\docs` antes de
@@ -109,7 +140,7 @@ hecha para un sistema que nadie vio casi siempre sale mal.
 
 ---
 
-## 7. ¿Dónde se deploya?
+## 10. ¿Dónde se deploya?
 
 Falta definir servidor, puerto, y si va detrás de IIS. Si va detrás de un IIS que lo cuelga como
 aplicación anidada, **hay que resolver el prefijo de ruta desde el día uno**: en `api-impuestos`
@@ -122,7 +153,7 @@ donde ya corre MotorFiscal, por una razón boba pero real: la tienda ya le pega 
 
 ---
 
-## 8. ¿El descuento se expone como fracción (0.1) o como porcentaje (10)?
+## 11. ¿El descuento se expone como fracción o como porcentaje?
 
 **Recomendación**: **fracción**, igual que GESCOM. Que el número del gateway sea comparable uno a
 uno con el del ERP ahorra una clase entera de bugs de conversión. Queda documentado en el

@@ -69,10 +69,15 @@ capas que no se pidieron explícitamente.
 
 Estas no se negocian: son el motivo de existir del servicio.
 
-- **El gateway no inventa números.** Si la respuesta dice 10%, es porque el ERP lo dijo. Mientras
-  no exista una decisión explícita de calcular acá, **todo descuento se delega a `eval-pedido`**:
-  reimplementar la evaluación de criterios parece fácil y es la forma más rápida de devolver un
-  precio que el ERP no reconoce.
+- **Donde hay motor, se delega; donde no, se evalúa acá y se dice.** GESCOM tiene `eval-pedido`:
+  ahí el número lo da el ERP y **no se reimplementa la evaluación de criterios** — es la forma más
+  rápida de devolver un precio que el ERP no reconoce. Axum **no tiene motor** (verificado: su
+  endpoint entrega definiciones, no resultados), así que ahí evaluamos nosotros. **La respuesta
+  siempre dice cuál de las dos cosas fue**: "lo dijo el ERP" y "lo calculamos nosotros" no valen
+  lo mismo frente a un reclamo.
+- **El descuento se normaliza en el conector, nunca después.** GESCOM lo da como fracción
+  (`0.1` = 10%) y Axum como porcentaje (`46.57` = 46,57%). Un `46.57` leído como fracción es
+  4657%. La convención de salida se declara una sola vez en el contrato.
 - **Toda respuesta dice de dónde salió**: qué ERP, qué distribuidora, qué criterio (id y nombre) y
   cuándo se consultó. Un descuento que no se puede explicar frente al preventista es un problema
   de soporte, no un resultado. La traza es parte del contrato, no un extra de debug.

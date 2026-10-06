@@ -21,45 +21,64 @@ versión real embebida por el build y las distribuidoras configuradas.
 
 ---
 
-## Fase 1 — Hablar con GESCOM · v0.2.0
+## Fase 1 — Leer el catálogo de las dos fuentes · v0.2.0
 
-Lo mínimo para que el gateway deje de ser un cascarón.
+`GET /v1/{tenant}/criterios`, alimentado por las dos fuentes y normalizado al mismo `Criterio`.
+
+**GESCOM**
 
 1. `ServicioDeToken` — Keycloak grant `password` por distribuidora, cache Caffeine con refresco a
    los ~4 min. Nunca loguea el token.
 2. `ConectorGescom` — `RestClient` sobre `https://<distri>.gescom.online/data/cmd/`, con timeouts
    explícitos y la clasificación de errores de `arquitectura.md`.
-3. `GET /v1/{tenant}/criterios` — trae `get-promociones` y lo normaliza al `Criterio` de
-   `bonif-core`, incluido el parseo de `configuracionJson` (que viene como **string**, no como
-   objeto). Lo no reconocido sale como `TipoCondicion.DESCONOCIDA` con su crudo.
-4. Tests de conector con WireMock usando respuestas reales capturadas.
+3. Normalizar `get-promociones`, incluido el parseo de `configuracionJson` (viene como **string**,
+   no como objeto). Lo no reconocido sale como `TipoCondicion.DESCONOCIDA` con su crudo.
 
-**Criterio de salida**: contra las dos distribuidoras reales (dyssa y senderolaser), el endpoint
-devuelve todos los criterios y **el informe de parseo no pierde nada**: cantidad de criterios,
-condiciones y modificadores leídos = los que trae el ERP, y la lista de tipos que cayeron en
-`DESCONOCIDA` es explícita y está revisada.
+**Axum**
 
-**Necesita**: credenciales de las dos distribuidoras (ver `informacion-que-falta.md`).
+4. `ConectorAxum` — `x-api-key`, tenant en la ruta. Normalizar las filas de bonificación: cada
+   fila = N condiciones en AND (los campos no vacíos) + 1 modificador. **Convertir el porcentaje
+   a la convención de salida acá**, nunca después (`46.57` de Axum ≠ `0.1` de GESCOM).
+5. Mapear `"S"`/`"N"` a booleanos y `""` a ausente, en el borde.
+
+**Las dos**: tests de conector con WireMock usando las respuestas reales capturadas.
+
+**Criterio de salida**: para una distribuidora real de cada fuente, el endpoint devuelve todos los
+criterios y **el informe de parseo no pierde nada**: lo leído = lo que trae la fuente, y la lista
+de lo que cayó en `DESCONOCIDA` es explícita y está revisada. Más un test que falla si un
+porcentaje de Axum sale sin convertir.
+
+**Necesita**: credenciales de una distribuidora GESCOM, y la ruta + api-key de Axum
+(ver `informacion-que-falta.md`).
 
 ---
 
 ## Fase 2 — Valorizar un pedido · v0.3.0
 
-El endpoint que justifica el proyecto.
+El endpoint que justifica el proyecto. `POST /v1/{tenant}/valorizaciones`, contrato propio
+(cliente + ítems), con validación que falle **antes** de gastar una llamada a la fuente (ítems
+vacíos, cantidad ≤ 0, tenant desconocido), con códigos de dominio.
 
-1. `POST /v1/{tenant}/valorizaciones` — contrato propio (cliente + ítems), por dentro
-   `eval-pedido` con el `Pedido` envuelto, `Identificador` GUID generado por nosotros.
-2. Respuesta normalizada: por línea, neto, neto con descuento, descuento (fracción) y
-   **el detalle de qué criterio lo otorgó, con su nombre**, enriquecido desde el catálogo de la
-   Fase 1 (el ERP devuelve `promoId` y `promoNombre`; el gateway puede devolver además las
-   condiciones que lo dispararon).
-3. Validación de entrada que falle antes de gastar una llamada al ERP (ítems vacíos, cantidad
-   ≤ 0, distribuidora desconocida), con códigos de dominio.
+**Dos caminos distintos por dentro, uno solo hacia afuera** (ver `arquitectura.md` → "La regla de
+delegar, corregida"):
 
-**Criterio de salida**: un test etiquetado `erp` reproduce **exactamente** los dos casos ya
-verificados — dyssa cliente 8380 / ítem 5000014792 / lista 2 → `58424.22` → `52581.80` (10%), y
-senderolaser cliente 301 / ítem 610030 / lista 1 → `6201.06` → `5456.93` (12%) — pasando por
-nuestro endpoint, no por curl.
+| Fuente | Cómo |
+|---|---|
+| **GESCOM** | **Delega** en `eval-pedido` (`Pedido` envuelto, `Identificador` GUID nuestro). El número lo da el ERP. |
+| **Axum** | **Evalúa acá**: no hay motor del otro lado. Filtros en AND, umbral por `cantidadSuperior`, bultos vs unidades, y la resolución de `ordenManual` (decisión abierta #5). |
+
+La respuesta **dice cuál de los dos fue**, y en los dos casos trae el detalle de qué criterio
+otorgó el descuento, con su nombre.
+
+**Criterio de salida**, dos partes:
+
+- **GESCOM**: un test etiquetado `erp` reproduce **exactamente** los dos casos ya verificados —
+  dyssa cliente 8380 / ítem 5000014792 / lista 2 → `58424.22` → `52581.80` (10%), y senderolaser
+  cliente 301 / ítem 610030 / lista 1 → `6201.06` → `5456.93` (12%) — pasando por nuestro
+  endpoint, no por curl.
+- **Axum**: un set de casos **acordados con negocio**, no inventados por nosotros. Acá no hay
+  contra qué contrastar: si nuestra interpretación de las filas no es la que la distribuidora
+  tiene en la cabeza, nadie lo detecta hasta la factura.
 
 ---
 

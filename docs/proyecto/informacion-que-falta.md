@@ -72,22 +72,29 @@ que es justo donde el parser se puede romper en silencio.
 | Servidor destino, puerto, y si va detrás de IIS (y con qué ruta virtual) | Si hay IIS anidado, el prefijo de ruta se resuelve desde el día uno. En `api-impuestos` eso llegó a producción tres veces. |
 | Quién va a consumir el gateway y desde dónde | Define la auth (decisión abierta #2) y si hace falta HTTPS propio o lo termina el IIS. |
 
-## Lo más urgente: el endpoint de bonificaciones de Axum
+## Lo más urgente: terminar de entender la fuente Axum
 
-El usuario lo pidió al equipo del gateway y **existe**. No está en `integracion-axum.md` (tabla
-del 2026-08-19, quedó vieja). Lo que devuelva puede ahorrar o redirigir fases enteras, así que
-esto va **antes** de escribir el conector de GESCOM.
+Ya vimos una respuesta real (análisis en [fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md)).
+Lo que queda, en orden de urgencia:
 
 | Qué | Para qué |
 |---|---|
-| **La ruta exacta y el método** | Confirmar si es consulta (`GET`) o ingesta (`POST`). Varios endpoints de Axum son `405 Allow: POST` porque son de carga, no de lectura. |
-| **Una respuesta real, el JSON completo** | Es lo único que resuelve la pregunta clave: ¿entrega las **definiciones** de las bonificaciones, o el **descuento ya aplicado** a un pedido? Ver `decisiones-abiertas.md` #5. |
-| Si está normalizado **entre ERPs** o es lo que empujó cada ERP tal cual | Define si seguimos necesitando el conector de GESCOM para el catálogo. |
-| Si llega a nivel de **condiciones** (cliente/marca/rubro) o solo el resultado | Define si podemos explicar *por qué* aplica, que es la Fase 3. |
+| **Qué distingue `ordenManual` 50 de 90** | Las filas vienen en pares con 3 puntos de diferencia y nada que las distinga. Es cobrar 18% o 15%. **Bloquea el motor de Axum.** |
+| **La entidad padre `bonifId`**: su endpoint y su shape | Ahí tendrían que estar el **cliente** y la **vigencia**, que no están en las filas. Sin eso no sabemos a quién aplica ni desde cuándo. |
+| **La ruta exacta y el método** del endpoint | Para configurar el conector. |
+| **El JSON completo**, guardado en `fixtures/axum-bonificaciones-<tenant>.json` | Es el fixture de los tests con WireMock. Lo que vi vino pegado y truncado. |
+| Si **pagina** | Con una distribuidora real pueden ser miles de filas. |
+| Un caso donde `topeDescuento` **difiera** de `descuento` | Define si los descuentos se acumulan. |
+| Un caso con `precio` o con `cantidadSinCargo` cargados | Son otros dos tipos de bonificación (precio fijo, producto sin cargo) que no se ven usados en la muestra. |
 | `x-api-key` y nombre de tenant en Axum por distribuidora | Para configurar la fuente. |
 
-> Cuando tengamos esto, hay que **actualizar `C:\Dev\docs\axum\integracion-axum.md`**: es la
-> fuente de verdad cross-project y hoy induce al error (me pasó en esta misma sesión).
+> Hay que **actualizar `C:\Dev\docs\axum\integracion-axum.md`** con este endpoint: es la fuente de
+> verdad cross-project y hoy induce al error (me pasó en esta misma sesión).
+
+## Qué distribuidoras van por GESCOM y cuáles por Axum
+
+No lo sabemos. Cambia por dónde empezar: si la mayoría va por Axum, el motor propio es lo urgente
+y `eval-pedido` pasa a segundo plano; si va por GESCOM, al revés.
 
 ## Lo demás que podríamos querer de Axum
 
