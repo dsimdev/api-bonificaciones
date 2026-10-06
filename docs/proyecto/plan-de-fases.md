@@ -65,7 +65,7 @@ delegar, corregida"):
 | Fuente | Cómo |
 |---|---|
 | **GESCOM** | **Delega** en `eval-pedido` (`Pedido` envuelto, `Identificador` GUID nuestro). El número lo da el ERP. |
-| **Axum** | **Evalúa acá**: no hay motor del otro lado. Filtros en AND, umbral por `cantidadSuperior`, bultos vs unidades, y la resolución de `ordenManual` (decisión abierta #5). |
+| **Axum** | **Evalúa acá**: no hay motor del otro lado. Reglas documentadas en [fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md): filtros en AND; jerarquía de desempate (canasta → orden manual → artículo → línea → rubro → grupo → marca → proveedor, y **gana el `ordenManual` más bajo**); umbral `cantidadSuperior` **agregado sobre el grupo**, no por ítem; bultos vs unidades; y las tres operaciones (descuento con tope, precio fijo, unidades sin cargo). Condicionado por los settings de la distribuidora (decisión abierta #5). |
 
 La respuesta **dice cuál de los dos fue**, y en los dos casos trae el detalle de qué criterio
 otorgó el descuento, con su nombre.

@@ -1,127 +1,172 @@
-# Fuente Axum — endpoint de bonificaciones
+# Fuente Axum — bonificaciones
 
-> Reconstruido el 2026-10-06 a partir de una respuesta real que pasó el usuario (~84 filas
-> visibles, `bonifId` 1, sucursal `0001`). **No está en `C:\Dev\docs\axum\integracion-axum.md`**:
-> esa doc es del 2026-08-19 y quedó vieja. Esto es análisis del payload, no contrato oficial.
+> Armado el 2026-10-06 con (a) una respuesta real del endpoint (~84 filas, `bonifId` 1, sucursal
+> `0001`) y (b) la documentación funcional de Axum que pasó el usuario. **No está en
+> `C:\Dev\docs\axum\integracion-axum.md`**, que es del 2026-08-19 y quedó vieja.
 >
-> ⚠️ Falta la ruta exacta, el método, y la **entidad padre** (`bonifId`). Ver "Lo que falta".
+> Lo que viene de la doc de Axum está marcado 📘. Lo que es interpretación nuestra, ⚠️.
 
-## Qué devuelve
+## Qué es
 
-Una **lista plana de filas de bonificación**, todas colgando de un `bonifId`. Cada fila es una
-regla: *"si se cumplen estos filtros, aplicá este descuento"*.
+Una **política de bonificación por fila**. Cada fila dice: *"si se cumplen estos filtros, aplicá
+esta operación"*. Entran al sistema por **`Bonificaciones.csv`** 📘 y bajan al celular del
+vendedor junto con los clientes (`BajarClientesPic`) 📘.
 
-**Son definiciones, no resultados.** No hay nada en la respuesta que valorice un pedido. Esto
-**confirma la hipótesis** que veníamos manejando y que es el mismo patrón del `Hallazgo 1` de
-`integracion-axum.md` (*"Axum transporta impuestos, no los calcula"*): Axum transporta también las
-bonificaciones, y **no existe del lado de Axum un equivalente a `eval-pedido`**.
+**Son definiciones, no resultados.** No hay nada que valorice un pedido: **Axum no tiene
+equivalente a `eval-pedido`**. Es el mismo patrón del `Hallazgo 1` de `integracion-axum.md`
+(*"Axum transporta impuestos, no los calcula"*), que es lo que le dio lugar a MotorFiscal.
 
-## Campos
+## Los filtros, por categoría 📘
 
-| Campo | Qué es | Observado |
+| Categoría | Campos (doc / payload) | Qué hace |
 |---|---|---|
-| `id` | id de la fila | único entero real del payload |
-| `bonifId` | **la bonificación a la que pertenece la fila** | `"1"` en todas |
-| `codigo` | ¿código de la bonificación? | vacío en todas |
-| `codigoArticulo` | filtro: artículo puntual | `"2020"`, `"78"`, o vacío |
-| `codigoGrupoArticulo` / `grupoArticulo` | filtro: agrupación comercial, con descripción | `"111"` / `"SKIP CONC DP 800"` |
-| `codigoRubroArticulo` / `rubroArticulo` | filtro: rubro | vacíos |
-| `lineaArticulo`, `marca` | filtros | vacíos |
-| `canasta` / `canastaDescripcion` | filtro: canasta de productos | `"PAPEL"` |
-| `codigoProveedor` | filtro: proveedor | `"00009"` en una fila |
-| `codigoVendedor` | filtro: vendedor | vacío |
-| `empresa`, `sucursal` | alcance | `sucursal: "0001"` |
-| `listaDePrecios` | filtro: lista | `"5"` en una fila |
-| `cantidadSuperior` | **umbral de cantidad** para que dispare | `"0"`, `"1"`, `"2"`, `"3"`, `"4"` |
-| `esCantidadEnBultos` | si el umbral se cuenta en bultos o unidades | `"S"` / `"N"` |
-| `porBulto` | si el descuento se aplica por bulto | `"S"` / `"N"` |
-| `descuento` | **porcentaje** | `"3"`, `"5.03"`, `"46.57"` |
-| `topeDescuento` | tope del descuento | **idéntico a `descuento` en todas las filas** |
-| `precio` | precio fijo en vez de descuento | vacío en todas |
-| `cantidadSinCargo` / `multiploSinCargo` | **bonificación en producto** (lleva N paga M) | `"0"` / vacío |
-| `ordenManual` | prioridad / orden de resolución | `"1"`, `"50"`, `"90"`, `"100"` |
+| **Cliente** | `bonifId`, `empresa`, `listaP` / `listaDePrecios` | A qué clientes les aplica |
+| **Vendedor** | `vendedor` / `codigoVendedor`, `sucursal` | Solo si coincide el vendedor |
+| **Artículo** | `codArt` / `codigoArticulo`, `grupoArticulo`, `rubroArticulo`, `lineaArticulo`, `marca`, `codigoProveedor`, `canasta` | Sobre qué productos |
+| **Cantidad** | `cantSuperior` / `cantidadSuperior`, `porBulto`, `esCantidadEnBultos` | Cuándo se activa |
+| **Operación** | `desc` / `descuento`, `precio`, `sinCargo` / `cantidadSinCargo`, `topeDesc` / `topeDescuento` | Qué hace |
 
-### Los filtros son un AND implícito
+> ⚠️ **Los nombres de la doc y los del API no coinciden**: la doc describe las columnas del CSV
+> (`desc`, `codArt`, `listaP`, `cantSuperior`, `topeDesc`, `sinCargo`) y el endpoint devuelve
+> nombres largos (`descuento`, `codigoArticulo`, `listaDePrecios`, …). Al leer la doc de Axum hay
+> que traducir. El conector trabaja con los del API.
 
-No hay condiciones tipadas ni combinadores como en GESCOM. **Un campo lleno = un filtro activo;
-vacío = no restringe.** Una fila con `codigoGrupoArticulo: "111"` y todo lo demás vacío aplica a
-todo el grupo 111.
+### `bonifId` es el filtro por cliente, no un id de agrupación
 
-Eso hace el modelo de Axum **más simple pero menos expresivo** que el de GESCOM: no hay `Any`, no
-hay `inverted`, no hay condiciones compartidas entre modificadores. A cambio, cada fila es
-autocontenida y se mapea derecho a nuestro `Criterio` (N condiciones en AND + 1 modificador).
+📘 La doc lo lista como campo de **"Filtro Por Cliente"**. O sea: **el cliente lleva su `bonifId`
+asignado** y las filas con ese `bonifId` son las que le aplican.
 
-## Diferencias con GESCOM que hay que resolver en el conector
+⚠️ Es exactamente el mismo diseño que el `Hallazgo 3` de `integracion-axum.md` para impuestos
+(*"la percepción se asigna por cliente, no se resuelve por padrón"*: el cliente lleva `percepId`).
+Axum repite el patrón. **Consecuencia práctica**: para saber qué bonificaciones le aplican a un
+cliente hay que leer su `bonifId` desde `/clientes` y filtrar las filas. No hay entidad padre que
+buscar — esto cierra una pregunta que teníamos abierta.
+
+## Las tres operaciones posibles 📘
+
+No es solo descuento:
+
+| Operación | Campo | Nota |
+|---|---|---|
+| **Descuento %** | `descuento`, con tope en `topeDescuento` | |
+| **Precio fijo** | `precio` | 📘 Cuando se fija precio, **el descuento queda en 0** y lo que cambia es el precio |
+| **Unidades sin cargo** | `cantidadSinCargo`, `multiploSinCargo` | "lleva 10, paga 9" |
+
+En la muestra que vimos solo se usa descuento; las otras dos están vacías. **Hacen falta ejemplos
+reales de las otras dos** antes de modelarlas en firme.
+
+## Jerarquía: quién gana cuando varias aplican 📘
+
+De mayor a menor prioridad, *"según importancia y existencia"*:
+
+1. **Canasta**
+2. **Orden manual**
+3. Código Artículo
+4. Línea Artículo
+5. Rubro Artículo
+6. Grupo Artículo
+7. Marca Artículo
+8. Proveedor Artículo
+
+📘 **"El valor más bajo de Orden Manual es el de mayor jerarquía"** cuando hay varias
+bonificaciones aplicables con orden manual.
+
+> ⚠️ **Corrección de una hipótesis previa.** Yo había observado que las filas vienen en pares con
+> `ordenManual` 50 y 90 y exactamente 3 puntos de diferencia, y especulé que el 3% de la fila de
+> proveedor estaba "incluido" en la variante de orden 50. **Eso no tiene respaldo en la doc y lo
+> descarto.** La regla real es más simple: **gana el `ordenManual` más bajo**, o sea la fila de
+> orden 50 (el descuento mayor). Por qué existe además la fila de 90 sigue sin explicarse — puede
+> ser un fallback para cuando la de 50 no califica por otro filtro. No bloquea el motor: la regla
+> de desempate ya la tenemos.
+
+⚠️ Lectura de "importancia y existencia": se recorre la lista en orden y **gana la primera
+bonificación aplicable cuyo filtro de ese nivel esté presente**. Una bonificación por canasta le
+gana a una por marca aunque la de marca tenga mejor descuento.
+
+## Canasta 📘
+
+Una agrupación de artículos **totalmente libre**, sin las restricciones de rubro o línea, que
+**siempre tiene máxima prioridad**.
+
+Requiere que el archivo de artículos traiga la columna `canasta`, y que la bonificación la use
+como filtro.
+
+**El umbral de cantidad se evalúa sobre la suma de la canasta, no por ítem.** Es el ejemplo de la
+doc: canasta "Bebidas" = Coca, Pepsi, Sprite; bonificación a partir de más de 9 unidades.
+
+- 5 Coca + 5 Pepsi → **aplica** (10 unidades de la canasta)
+- 5 Coca + 5 Fanta → **no aplica** (solo 5, Fanta no está en la canasta)
+
+> ⚠️ **Esto es lo más fácil de implementar mal.** Si el motor evalúa `cantidadSuperior` por línea
+> en vez de por el total del grupo, el primer caso no dispara y nadie se entera hasta el reclamo.
+> **Pregunta abierta**: ¿la misma agregación vale para grupo, rubro, línea, marca y proveedor? El
+> ejemplo de la doc solo cubre canasta.
+
+Limitaciones que la propia doc reconoce 📘, y que son **una oportunidad para nuestro gateway**:
+no se ve qué artículos están dentro de la canasta, no se ve en tiempo real si está aplicando, y
+recién se ve en el resumen del pedido.
+
+## Settings que cambian el resultado 📘
+
+**El mismo payload puede dar descuentos distintos según cómo esté configurada la distribuidora.**
+Esto no está en las filas y hay que conseguirlo aparte.
+
+| Setting | ✔ Activado | ❌ Desactivado |
+|---|---|---|
+| `Bonificaciones.HabilitarOrdenManual` | se usa `ordenManual` | se usa la **prioridad automática** (la jerarquía de arriba sin el paso 2) |
+| `Bonificaciones.HabilitarFiltroSucursalVendedor` | solo aplica si coincide la sucursal | se ignora el filtro de sucursal |
+| **LP + cantidad de listas** | evalúa **todas** las listas disponibles y aplica **la de mayor beneficio**, ignorando el filtro de lista | aplica **solo** la lista del cliente |
+
+El tercero es el más fuerte: convierte la resolución en un `max()` por beneficio sobre las
+candidatas. ⚠️ Puede ser otra explicación de los pares 50/90, aunque en la muestra esas filas
+tienen `listaDePrecios` vacío.
+
+📘 Además, el cliente puede traer una columna `listasASeleccionar` que condiciona qué listas puede
+elegir el vendedor; sin esa columna, puede elegir en orden ascendente desde la 1.
+
+## Cómo se comporta en la app de Axum 📘
+
+Sirve como especificación de referencia de lo que el motor tiene que reproducir:
+
+1. El vendedor ingresa el código del artículo → se muestran las bonificaciones disponibles **como
+   cards**.
+2. Ingresa la cantidad → el sistema evalúa y **asigna el descuento automáticamente**.
+3. **Se borra la card del descuento aplicado y quedan las que todavía se podrían aplicar.**
+
+⚠️ El paso 3 sugiere que **aplica una bonificación por vez** y las demás siguen ofrecidas como
+posibles si se agrega cantidad. Hay que confirmar si pueden **acumularse** sobre el mismo ítem o
+si siempre gana una sola.
+
+## Diferencias con GESCOM que resuelve el conector
 
 | | GESCOM | Axum |
 |---|---|---|
 | **Descuento** | fracción (`0.1` = 10%) | **porcentaje (`46.57` = 46,57%)** |
-| **Tipos** | todo string JSON anidado (`configuracionJson`) | todo string plano, incluso los números |
-| **Booleanos** | booleanos reales | `"S"` / `"N"` |
+| **Tipos** | JSON anidado como string (`configuracionJson`) | todo string plano, incluso números |
+| **Booleanos** | reales | `"S"` / `"N"` |
 | **Vacío** | ausente o lista vacía | `""` |
-| **Condiciones** | tipadas, combinables (`All`/`Any`, `inverted`) | campos opcionales en AND |
+| **Condiciones** | tipadas y combinables (`All`/`Any`, `inverted`) | campos opcionales en AND + jerarquía de desempate |
+| **Operaciones** | `DescuentoItem` | descuento, **precio fijo**, **unidades sin cargo** |
 | **Motor** | **sí** (`eval-pedido`) | **no** |
 
-> ⛔ **La convención del descuento es opuesta entre las dos fuentes.** Un `46.57` de Axum leído
-> como fracción es 4657%. Esto se normaliza **en el conector**, y la convención de salida se
-> declara una sola vez en el contrato. Es la clase de bug que no se detecta en code review y sí
-> en una factura.
+> ⛔ **La convención del descuento es opuesta entre las dos fuentes.** Un `46.57` leído como
+> fracción es 4657%. Se normaliza **en el conector** y la convención de salida se declara una sola
+> vez en el contrato.
 
-## Lo que el payload NO tiene
+## Lo que sigue sin resolverse
 
-Y que hace falta para poder usarlo:
-
-1. **Nada de cliente.** Ni código, ni tag, ni subramo, ni lista asignada. Si la bonificación se
-   segmenta por cliente, eso vive en la entidad padre (`bonifId`) que no vimos.
-2. **Nada de vigencia.** Ni `desde` ni `hasta`. Es exactamente el `Hallazgo 2` de
-   `integracion-axum.md` (*"ni iva ni percepciones tienen vigencia"*) repitiéndose: **no se puede
-   reconstruir qué bonificación estaba vigente en una fecha pasada.**
-3. **`codigo` vacío en todas las filas** — no sabemos para qué está.
-
-## Dos hallazgos del payload que hay que confirmar
-
-### 1. Las filas vienen en pares, y la diferencia es siempre 3 puntos
-
-Decenas de pares comparten **todos** los campos salvo `descuento` y `ordenManual`:
-
-| grupo | `ordenManual` 50 | `ordenManual` 90 | delta |
-|---|---|---|---|
-| 111 SKIP CONC DP 800 | 18 | 15 | 3 |
-| 113 KNORR PASTA-ARROZ | 11 | 8 | 3 |
-| 208 GRANBY DIL 500 | 26 | 23 | 3 |
-| 805 REXONA ANTIB LIQ 220 | 28 | 25 | 3 |
-| 931 COMF 500 | 23 | 20 | 3 |
-
-**En todos los pares observados la diferencia es exactamente 3.** Y la fila `id: 1` —la única con
-`listaDePrecios: "5"` y `codigoProveedor: "00009"`, con `ordenManual: "100"`— tiene
-`descuento: "3"`.
-
-**Hipótesis**: el 3% de proveedor/lista está **incluido** en la variante de orden 50 y **no** en
-la de orden 90, y `ordenManual` decide cuál gana según alguna dimensión que no está en estas
-filas (probablemente la lista de precios del cliente, o el padre `bonifId`).
-
-**No se puede resolver con este payload.** Y es crítico: elegir mal entre 18% y 15% es plata.
-
-### 2. `topeDescuento` es igual a `descuento` en todas las filas
-
-O es redundante en este dataset, o solo difiere cuando varios descuentos se acumulan y el tope
-los limita. Si es lo segundo, **confirma que los descuentos se apilan** — y entonces el orden de
-aplicación importa todavía más.
-
-## Lo que falta
-
-| Qué | Para qué |
+| Qué | Por qué importa |
 |---|---|
-| **Ruta exacta y método** del endpoint | Configurar el conector. |
-| **La entidad padre `bonifId`** (su endpoint y su shape) | Ahí tienen que estar el cliente, la vigencia y el nombre. Sin eso no se puede saber a quién le aplica ni desde cuándo. |
-| **Qué distingue `ordenManual` 50 de 90** | Es la diferencia entre cobrar 18% o 15%. Ver hallazgo 1. |
-| **Cuándo `topeDescuento` difiere de `descuento`** | Define si los descuentos se acumulan. |
-| **Qué significa `codigo`** (vacío en todas) | |
-| **Si pagina** | Con una distribuidora real pueden ser miles de filas. |
-| **Una respuesta con `precio` y con `cantidadSinCargo` cargados** | Son otros dos tipos de bonificación (precio fijo, y producto gratis) que acá no se ven usados. |
+| **Cómo leemos los settings** (`HabilitarOrdenManual`, `HabilitarFiltroSucursalVendedor`, LP+listas) **por distribuidora** | Cambian el resultado y no vienen en el payload. ¿Hay endpoint? ¿Se configuran de nuestro lado? |
+| **¿Hay vigencia?** | No aparece ni en el payload ni en la doc. Si no existe, no se puede reconstruir qué aplicaba en una fecha pasada — el `Hallazgo 2` de Axum repitiéndose. |
+| **¿La agregación por grupo/rubro/línea/marca/proveedor funciona como la de canasta?** | Define si el umbral se suma o se mira por ítem. |
+| **¿Se acumulan varias bonificaciones sobre un ítem?** | La jerarquía sugiere que gana una; el flujo de cards sugiere secuencial. |
+| **Ruta exacta y método** del endpoint, y si **pagina** | Para el conector. |
+| **Ejemplos reales de `precio` y de `cantidadSinCargo`** | Son dos de las tres operaciones y no las vimos en uso. |
+| **Un caso donde `topeDescuento` difiera de `descuento`** | En la muestra son siempre iguales. |
 
 ## El archivo de ejemplo
 
-Guardar la respuesta completa en `fixtures/axum-bonificaciones-<tenant>.json`. Es el fixture de
-los tests con WireMock. **Ojo**: contiene la estructura de descuentos real de una distribuidora —
-decidir explícitamente si eso se commitea o se mantiene fuera del repo.
+Guardar la respuesta completa en `fixtures/axum-bonificaciones-<tenant>.json`: es el fixture de los
+tests con WireMock. **Contiene la estructura de descuentos real de una distribuidora** — decidir
+explícitamente si se commitea o se mantiene fuera del repo.

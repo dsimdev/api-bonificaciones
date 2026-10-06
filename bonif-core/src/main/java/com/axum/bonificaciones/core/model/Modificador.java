@@ -1,20 +1,17 @@
 package com.axum.bonificaciones.core.model;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Que hace el criterio cuando aplica.
+ * Lo que hace el criterio cuando aplica, y sobre que items cae.
  *
- * @param descuento           fraccion, no porcentaje: 0.1 = 10%. Asi lo devuelve GESCOM y asi se
- *                            expone, para que el numero del gateway sea comparable uno a uno con
- *                            el de la respuesta de eval-pedido sin conversiones en el medio.
- * @param condicionesDeDatos  a que items cae el descuento (codigos de condicion); vacio = a todos
- *                            los que califican
+ * @param operacion            descuento, precio fijo o unidades sin cargo
+ * @param condicionesDeDatos   a que items cae (codigos de condicion); vacio = a todos los que
+ *                             califican. Es de GESCOM; en Axum cada fila es autocontenida
  * @param permiteSuperposicion si apila con otros criterios sobre el mismo item
  */
 public record Modificador(
-        BigDecimal descuento,
+        Operacion operacion,
         List<Integer> condicionesDeDatos,
         boolean permiteSuperposicion) {
 

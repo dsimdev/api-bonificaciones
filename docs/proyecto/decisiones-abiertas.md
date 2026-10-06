@@ -5,6 +5,17 @@ anota en la memoria del proyecto (`MEMORY.md` → "Temas CERRADOS") con fecha y 
 
 ---
 
+## ✅ Cerradas con la doc de Axum (2026-10-06)
+
+- **`ordenManual`**: gana el **valor más bajo**. Mi hipótesis previa (que el 3% de la fila de
+  proveedor estaba incluido en la variante de orden 50) **no tenía respaldo y queda descartada**.
+- **Dónde está el cliente**: `bonifId` **es** el filtro por cliente — el cliente lo lleva
+  asignado, igual que `percepId` para percepciones. No hay entidad padre que buscar.
+- **Qué hace una bonificación**: tres operaciones, no una — descuento (con tope), precio fijo y
+  unidades sin cargo. Ya está modelado en `Operacion` (`bonif-core`).
+- **Jerarquía de desempate**: canasta → orden manual → artículo → línea → rubro → grupo → marca →
+  proveedor.
+
 ## ✅ Cerradas el 2026-10-06
 
 - **Quién consume el gateway** → **el entorno de Axum**: la tienda virtual o alguna app de la
@@ -71,54 +82,49 @@ negocio**, porque la alternativa es perder la venta.
 
 ---
 
-## ✅ Resuelta el 2026-10-06: qué devuelve el endpoint de Axum
+## 5. ¿Cómo leemos los settings de bonificaciones de cada distribuidora? — **bloquea el motor de Axum**
 
-**Definiciones, no resultados.** Filas de bonificación con filtros y porcentaje; nada que
-valorice un pedido. Axum no tiene motor. Análisis completo en
-[fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md); la consecuencia de diseño está en
-`arquitectura.md` → "La regla de delegar, corregida".
+La doc de Axum documenta tres configuraciones que **cambian el resultado** y que **no vienen en el
+payload de bonificaciones**:
 
-Lo que **sigue abierto** de esa misma respuesta son tres cosas concretas, abajo (#5, #6, #7).
+- `Bonificaciones.HabilitarOrdenManual` — si está off, se usa la prioridad automática en vez de
+  `ordenManual`;
+- `Bonificaciones.HabilitarFiltroSucursalVendedor` — si está off, se ignora el filtro de sucursal;
+- **LP + cantidad de listas** — si está on, evalúa **todas** las listas y aplica **la de mayor
+  beneficio**, ignorando el filtro de lista. Eso convierte la resolución en un `max()`.
 
----
+Con el mismo payload y distintos settings, el descuento que corresponde es distinto.
 
-## 5. ¿Qué distingue `ordenManual` 50 de `ordenManual` 90? — **bloquea el motor de Axum**
-
-Decenas de filas vienen en pares idénticos salvo por el descuento y el `ordenManual`, y **la
-diferencia es siempre exactamente 3 puntos** (18/15, 11/8, 26/23, 28/25, 23/20). La única fila con
-`listaDePrecios` cargada (lista 5, proveedor 00009, orden 100) tiene `descuento: "3"`.
-
-**Hipótesis**: ese 3% está incluido en la variante de orden 50 y no en la de 90, y algo que no
-está en estas filas decide cuál gana.
-
-**No se puede resolver leyendo el payload.** Y elegir mal es cobrar 15% donde iba 18%.
-**Recomendación**: preguntarle al equipo del gateway qué significa `ordenManual` y cómo se
-resuelve el empate, antes de escribir el motor.
+**Recomendación**: preguntar si hay endpoint que los exponga. Si no lo hay, van como configuración
+nuestra por tenant, **explícita y visible en `/health`** — un setting mal puesto que nadie ve es
+un descuento mal calculado que nadie ve.
 
 ---
 
-## 6. ¿Dónde están el cliente y la vigencia de una bonificación de Axum?
+## 6. ¿La agregación por cantidad vale para todos los agrupadores o solo para canasta?
 
-Las filas **no tienen nada de cliente** (ni código, ni tag, ni lista asignada) **ni fechas**.
-Todas cuelgan de un `bonifId`, cuya entidad padre no vimos.
+La doc muestra el ejemplo solo con **canasta**: el umbral (`cantidadSuperior`) se evalúa sobre la
+**suma de los ítems del grupo**, no por ítem — 5 Coca + 5 Pepsi dispara una bonificación de "más
+de 9", 5 Coca + 5 Fanta no.
 
-Si la segmentación y la vigencia no están en el padre, entonces **no existen**, y eso repite el
-`Hallazgo 2` de `integracion-axum.md`: sin vigencia no se puede reconstruir qué bonificación
-aplicaba en una fecha pasada.
+Falta confirmar si lo mismo vale para grupo, rubro, línea, marca y proveedor.
 
-**Recomendación**: conseguir el shape del padre antes de modelar nada. Si efectivamente no hay
-vigencia, es un hallazgo para negocio —no un problema técnico— y es el mismo hueco que MotorFiscal
-terminó llenando versionando al ingerir.
+**Recomendación**: asumir que **sí** agrega (es lo coherente) pero **no darlo por cierto**:
+confirmarlo antes de la Fase 2 y dejar un test por cada agrupador. Si el motor evalúa por línea
+donde debía agregar, la bonificación no dispara y nadie se entera hasta el reclamo.
 
 ---
 
-## 7. ¿Los descuentos de Axum se acumulan?
+## 7. ¿Se acumulan varias bonificaciones sobre el mismo ítem?
 
-`topeDescuento` es idéntico a `descuento` en todas las filas observadas. O es redundante, o solo
-difiere cuando varios descuentos se apilan y el tope los limita.
+La jerarquía de Axum sugiere que **gana una sola** (la del filtro de mayor prioridad presente).
+El flujo de la app —*"se borra la card del descuento aplicado y quedan las que se podrían
+aplicar"*— sugiere que las demás siguen disponibles.
 
-**Recomendación**: pedir un caso donde difieran. Si se acumulan, el orden de aplicación pasa a ser
-parte del contrato y hay que testearlo explícitamente.
+**Recomendación**: confirmarlo antes de escribir el motor. Si se acumulan, el orden de aplicación
+es parte del contrato y hay que testearlo. Relacionado: `topeDescuento` es idéntico a `descuento`
+en toda la muestra — **pedir un caso donde difieran**, porque un tope que nunca se activa o es
+redundante, o es la señal de que sí se apilan.
 
 ---
 
