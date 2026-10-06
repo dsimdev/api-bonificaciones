@@ -20,6 +20,26 @@ traza.
                           (bonif-core)          (Caffeine)
 ```
 
+## Las fuentes no son intercambiables
+
+Decidido el 2026-10-06: el gateway consume **GESCOM** y el **gateway de Axum**, y más adelante
+**Chess**. Pero no son tres implementaciones de lo mismo:
+
+| Fuente | Qué aporta | Estado |
+|---|---|---|
+| **GESCOM** | Los criterios de venta (`get-promociones`) **y el motor que los aplica** (`eval-pedido`). Es la única que sabe de bonificaciones. | Verificado en vivo |
+| **Axum** | Atributos de cliente y artículo, listas de precio. **Su gateway no expone promociones ni descuentos** — verificado contra los shapes reales de `/clientes` y `/articulos` en `integracion-axum.md`. | Falta definir qué le pedimos |
+| **Chess** | Desconocido. No hay ni una mención en `C:\Dev\docs`. | Sin información |
+
+**Por eso el modelo no tiene un enum `Erp` ni un conector por ERP que devuelva todos lo mismo.**
+Tiene una `Fuente`, y cada distribuidora configura las que le aplican (puede tener varias a la
+vez). El puerto `CatalogoDeCriterios` lo implementa **solo** quien efectivamente tenga criterios;
+hoy, solo GESCOM.
+
+La trampa que esto evita: definir un conector genérico "de ERP" y después descubrir que Axum no
+puede implementarlo porque no tiene el dato. Es el mismo error que `axum-referencias.md` marca
+como caro — abstraer antes de conocer el segundo caso.
+
 ## Dónde encaja en el entorno Axum
 
 El consumidor es **el entorno de Axum**: la tienda virtual o alguna app de la suite (decidido el
@@ -76,7 +96,7 @@ Están listados en `axum-referencias.md` como "lo que cuesta caro". Los que nos 
 | Módulo | Responsabilidad | Reglas |
 |---|---|---|
 | `bonif-core` | El modelo normalizado (`Criterio`, `Condicion`, `Modificador`, `Vigencia`) y los puertos (`CatalogoDeCriterios`, y después el de valorización). | **Sin Spring, sin HTTP, sin JSON.** Solo JDK. Se testea sin levantar nada. |
-| `bonif-app` | La API REST, la configuración por distribuidora, el cache y **un conector por ERP**. | Todas las rarezas del ERP mueren acá. Nada de `CodigoItem` ni `configuracionJson` cruza hacia afuera. |
+| `bonif-app` | La API REST, la configuración por distribuidora, el cache y **un conector por fuente**. | Todas las rarezas de la fuente mueren acá. Nada de `CodigoItem` ni `configuracionJson` cruza hacia afuera. |
 
 Es la misma división que `api-impuestos` (`fiscal-core` / `fiscal-app`) y por el mismo motivo: el
 dominio tiene que ser testeable sin levantar el framework.

@@ -100,14 +100,20 @@ una valorización end-to-end.
 
 ---
 
-## Fase 5 — Segundo ERP · v1.0.0
+## Fase 5 — Las otras fuentes · v1.0.0
 
-SIGMA / GEWINN detrás del mismo contrato, reusando el método de reversing
-(`metodo-reversing-gescom-api`).
+Dos cosas distintas, en este orden:
 
-**Criterio de salida**: el mismo request del consumidor, cambiando solo la distribuidora, devuelve
-la misma forma de respuesta contra otro ERP. **Hasta que esto no pase, "contrato único" es una
-hipótesis, no un hecho** — y por eso no se inventan abstracciones multi-ERP antes de tiempo.
+1. **Gateway de Axum**. No aporta criterios (no los tiene): aporta atributos de cliente/artículo
+   y listas. Entra cuando esté decidido **para qué lo queremos** — ver
+   `informacion-que-falta.md`. Puede adelantarse a la Fase 3 si resulta que conviene resolver los
+   atributos por Axum en vez de por GESCOM.
+2. **Chess**. Hoy no sabemos qué es. Arranca con el método de reversing
+   (`metodo-reversing-gescom-api`), igual que se hizo con GESCOM.
+
+**Criterio de salida**: el mismo request del consumidor, cambiando solo el tenant, devuelve la
+misma forma de respuesta contra otra fuente. **Hasta que eso no pase, "contrato único" es una
+hipótesis, no un hecho** — y por eso no se inventan abstracciones multi-fuente antes de tiempo.
 
 ---
 

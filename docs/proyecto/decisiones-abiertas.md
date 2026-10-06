@@ -71,15 +71,35 @@ negocio**, porque la alternativa es perder la venta.
 
 ---
 
-## 5. ¿Qué pasa con SIGMA / GEWINN?
+## 5. ¿Para qué consumimos el gateway de Axum? — **bloquea su conector**
 
-**Recomendación**: diseñar el puerto (ya está) e **implementar solo GESCOM**. No inventar
-abstracciones para un ERP que nadie vio. Cuando SIGMA entre de verdad, el puerto se ajusta con
-información real — y si hay que romperlo, se rompe, es código interno.
+Dato verificado: **el gateway de Axum no expone promociones, criterios ni descuentos.** Lo que
+tiene son atributos de cliente y artículo (`/clientes`, `/articulos`) y listas. Así que
+"consumir Axum" no es traer bonificaciones de otro lado: es traer otra cosa.
+
+Los usos que tendrían sentido:
+
+- **resolver atributos de cliente/artículo desde Axum** en vez de desde GESCOM, si la tienda ya
+  los tiene ahí y queremos ahorrarnos llamadas;
+- **enriquecer la respuesta** con descripción, rubro o línea del artículo, para que la tienda no
+  tenga que cruzarlo;
+- **validar** que lo que ve la tienda y lo que ve GESCOM es el mismo artículo.
+
+**Recomendación**: **no construir el conector de Axum hasta saber cuál de los tres es.** Los tres
+tienen implementaciones distintas y el riesgo de elegir mal es construir algo que nadie usa.
 
 ---
 
-## 6. ¿Dónde se deploya?
+## 6. ¿Qué es Chess y qué aporta?
+
+No hay una sola mención en `C:\Dev\docs`. **Recomendación**: cuando se acerque, arrancar por el
+método de reversing que ya funcionó con GESCOM y escribir la referencia en `C:\Dev\docs` antes de
+escribir código. Mientras tanto, **no reservar lugar para Chess en el modelo**: una abstracción
+hecha para un sistema que nadie vio casi siempre sale mal.
+
+---
+
+## 7. ¿Dónde se deploya?
 
 Falta definir servidor, puerto, y si va detrás de IIS. Si va detrás de un IIS que lo cuelga como
 aplicación anidada, **hay que resolver el prefijo de ruta desde el día uno**: en `api-impuestos`
@@ -92,7 +112,7 @@ donde ya corre MotorFiscal, por una razón boba pero real: la tienda ya le pega 
 
 ---
 
-## 7. ¿El descuento se expone como fracción (0.1) o como porcentaje (10)?
+## 8. ¿El descuento se expone como fracción (0.1) o como porcentaje (10)?
 
 **Recomendación**: **fracción**, igual que GESCOM. Que el número del gateway sea comparable uno a
 uno con el del ERP ahorra una clase entera de bugs de conversión. Queda documentado en el

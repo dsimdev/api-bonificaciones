@@ -9,7 +9,7 @@ import java.util.List;
  * configuracionJson ya parseado. El modelo es el mismo para cualquier ERP que se sume despues.
  */
 public record Criterio(
-        Erp erp,
+        Fuente fuente,
         String distribuidora,
         String id,
         String nombre,

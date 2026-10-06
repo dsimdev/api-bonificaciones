@@ -13,7 +13,27 @@ ya lo tenemos.
 
 | Qué | Dónde está / quién lo tiene | Para qué |
 |---|---|---|
-| **Usuario y clave de API por distribuidora** (del client `gcw-web-api`) de al menos `dyssa` y `senderolaser` | colección Postman de cada distribuidora | Sin esto el conector no se puede probar contra nada real. Van al `.env` local, nunca al repo. **No vencen.** |
+| **Usuario y clave de API de UNA distribuidora** — se recomienda `dyssa` | colección Postman de la distribuidora | Alcanza para construir y probar toda la Fase 1. Van al `.env` local, nunca al repo. **No vencen.** |
+| **Una segunda distribuidora** (`senderolaser`) — *más adelante, no ahora* | ídem | **No hace falta para construir, sí para confiar.** Ver abajo. |
+
+### Por qué en algún momento hacen falta dos (pero no para arrancar)
+
+Con una sola distribuidora **no se puede distinguir** "esto funciona" de "esto funciona para la
+configuración particular de dyssa". Tres cosas que una sola distri no prueba:
+
+1. **El aislamiento entre tenants.** El cache de tokens está indexado por distribuidora. Un bug
+   que le devuelva a la distribuidora B el token de la A es invisible con una sola, y es el peor
+   bug posible acá: datos comerciales de una distribuidora servidos a otra.
+2. **La cobertura del parser.** Cada distribuidora configura los tipos de condición que usa. Con
+   una sola mapeamos lo que usa dyssa y el resto aparece en producción.
+3. **Que el host y el realm estén bien parametrizados** y no haya nada de dyssa hardcodeado sin
+   que nos demos cuenta.
+
+**Recomendación**: arrancar con `dyssa` y sumar `senderolaser` antes de cerrar la Fase 1. Se
+elige `dyssa` porque es la que tiene el caso más rico ya verificado: la promo "GRUPO 10", con
+doble descuento en un mismo criterio (10% a marcas Pepsico con `dataConditionCodes:[102]` + 5% a
+Pehuamar con `[103]`). Ese caso ejercita condiciones combinadas y varios modificadores a la vez,
+que es justo donde el parser se puede romper en silencio.
 | **Lista definitiva de distribuidoras** que van a entrar al gateway | negocio | Cada una es una entrada de configuración y un realm de Keycloak distinto. |
 | **Respuesta real de `get-promociones`** de 2 distribuidoras (JSON completo, guardado a archivo) | se obtiene corriendo el script de token + curl | Son los fixtures de los tests con WireMock. Sin JSON reales, el parser se escribe adivinando. |
 
@@ -52,12 +72,21 @@ ya lo tenemos.
 | Servidor destino, puerto, y si va detrás de IIS (y con qué ruta virtual) | Si hay IIS anidado, el prefijo de ruta se resuelve desde el día uno. En `api-impuestos` eso llegó a producción tres veces. |
 | Quién va a consumir el gateway y desde dónde | Define la auth (decisión abierta #2) y si hace falta HTTPS propio o lo termina el IIS. |
 
-## Para la Fase 5 (segundo ERP)
+## Para sumar el gateway de Axum como fuente
 
 | Qué | Para qué |
 |---|---|
-| Colección Postman de SIGMA / GEWINN | Es el punto de partida del reversing, igual que lo fue con GESCOM. |
-| Qué distribuidoras usan cada ERP | Define si el gateway tiene que convivir con dos conectores a la vez. |
+| **Qué le vamos a pedir a Axum** | Su gateway **no tiene promociones ni descuentos** (verificado contra los shapes reales de `/clientes` y `/articulos`). Lo que sí tiene son atributos de cliente/artículo y listas. Hace falta decidir para qué lo queremos: ¿enriquecer la respuesta?, ¿resolver atributos sin pegarle a GESCOM?, ¿otra cosa? |
+| `x-api-key` y nombre de tenant en Axum por distribuidora | Para configurar la fuente. |
+| Si el `GET` de los endpoints que necesitamos está habilitado | Al 2026-08-19 varios devolvían `405 Allow: POST` (son de ingesta, no de consulta). `/percepciones` lo habilitaron después, así que la tabla puede estar vieja: hay que reprobarlo. |
+
+## Para sumar Chess
+
+| Qué | Para qué |
+|---|---|
+| **Qué es Chess** | No hay una sola mención en `C:\Dev\docs`. Hoy no sabemos ni qué tipo de sistema es ni qué aporta. |
+| Colección Postman / cualquier doc o acceso | Es el punto de partida del reversing, igual que lo fue con GESCOM. |
+| Qué distribuidoras lo usan | Define si el gateway tiene que convivir con conectores de varias fuentes a la vez. |
 
 ## Preguntas para el negocio (no técnicas)
 

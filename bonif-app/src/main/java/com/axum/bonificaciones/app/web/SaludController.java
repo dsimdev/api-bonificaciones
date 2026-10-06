@@ -1,7 +1,11 @@
 package com.axum.bonificaciones.app.web;
 
 import com.axum.bonificaciones.app.config.ConfiguracionDeDistribuidoras;
+import com.axum.bonificaciones.core.model.Fuente;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,14 +23,20 @@ public class SaludController {
     }
 
     /**
-     * Informa la version que esta corriendo de verdad y que distribuidoras quedaron configuradas.
-     * Lo segundo es el smoke test barato de un deploy: una variable de entorno que falta se ve
-     * aca, no recien cuando alguien consulta criterios.
+     * Informa la version que esta corriendo de verdad y que fuentes quedaron configuradas por
+     * distribuidora. Lo segundo es el smoke test barato de un deploy: una variable de entorno que
+     * falta se ve aca, no recien cuando alguien consulta criterios.
      */
     @GetMapping("/health")
     public Salud salud() {
-        return new Salud("ok", version, configuracion.codigos().stream().sorted().toList());
+        Map<String, List<Fuente>> porTenant = configuracion.distribuidoras().entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().fuentes(),
+                        (a, b) -> a,
+                        TreeMap::new));
+        return new Salud("ok", version, porTenant);
     }
 
-    public record Salud(String estado, String version, List<String> distribuidoras) {}
+    public record Salud(String estado, String version, Map<String, List<Fuente>> distribuidoras) {}
 }
