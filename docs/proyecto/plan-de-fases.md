@@ -3,8 +3,10 @@
 Cada fase cierra con un release y tiene un **criterio de salida verificable**. No se arranca la
 siguiente hasta que la anterior lo cumple.
 
-Las fases 1 y 2 no dependen de ninguna decisión abierta: se pueden empezar ya. De la 3 en
-adelante, el orden depende de **quién consume el gateway** (ver `decisiones-abiertas.md` #1).
+**Consumidor decidido el 2026-10-06: el entorno de Axum** (la tienda virtual o alguna app de la
+suite). Eso ordena el plan: la Fase 2 es la que paga el proyecto, porque es la llamada del
+checkout; y la autenticación deja de ser "para más adelante" — en cuanto la tienda lo consuma por
+red, el gateway queda expuesto con credenciales de todas las distribuidoras adentro.
 
 ---
 
@@ -27,7 +29,7 @@ Lo mínimo para que el gateway deje de ser un cascarón.
    los ~4 min. Nunca loguea el token.
 2. `ConectorGescom` — `RestClient` sobre `https://<distri>.gescom.online/data/cmd/`, con timeouts
    explícitos y la clasificación de errores de `arquitectura.md`.
-3. `GET /v1/{distribuidora}/criterios` — trae `get-promociones` y lo normaliza al `Criterio` de
+3. `GET /v1/{tenant}/criterios` — trae `get-promociones` y lo normaliza al `Criterio` de
    `bonif-core`, incluido el parseo de `configuracionJson` (que viene como **string**, no como
    objeto). Lo no reconocido sale como `TipoCondicion.DESCONOCIDA` con su crudo.
 4. Tests de conector con WireMock usando respuestas reales capturadas.
@@ -45,7 +47,7 @@ condiciones y modificadores leídos = los que trae el ERP, y la lista de tipos q
 
 El endpoint que justifica el proyecto.
 
-1. `POST /v1/{distribuidora}/valorizaciones` — contrato propio (cliente + ítems), por dentro
+1. `POST /v1/{tenant}/valorizaciones` — contrato propio (cliente + ítems), por dentro
    `eval-pedido` con el `Pedido` envuelto, `Identificador` GUID generado por nosotros.
 2. Respuesta normalizada: por línea, neto, neto con descuento, descuento (fracción) y
    **el detalle de qué criterio lo otorgó, con su nombre**, enriquecido desde el catálogo de la
@@ -67,7 +69,7 @@ Lo que GESCOM **no** da y es la pregunta real del negocio: *"¿por qué este cli
 promo?"*.
 
 1. Catálogos cacheados: `get-clientes` (ventas) y `get-articulos` (**inventario**, no ventas).
-2. `GET /v1/{distribuidora}/clientes/{codigo}/criterios` — qué criterios podrían aplicarle a ese
+2. `GET /v1/{tenant}/clientes/{codigo}/criterios` — qué criterios podrían aplicarle a ese
    cliente, cruzando sus `tags` / `codigoSubramo` / `codigo` contra las condiciones.
 3. Diagnóstico por criterio: qué condición se cumple y cuál no.
 
@@ -82,8 +84,12 @@ diagnóstico coincide con lo que `eval-pedido` efectivamente aplica en un pedido
 
 ## Fase 4 — Endurecer y deployar · v0.5.0
 
-1. **Autenticación propia** del gateway (ver decisión abierta #2) — obligatoria antes de
-   exponerlo fuera de la red local: guarda credenciales de varias distribuidoras.
+> **La autenticación (`x-api-key`) se adelanta a la Fase 2** si la tienda va a consumirlo por red
+> antes de que exista esta fase. El gateway guarda credenciales de todas las distribuidoras:
+> exponerlo sin auth es regalar sus datos comerciales. Son pocas horas de trabajo, no justifica
+> el riesgo de dejarlo para después.
+
+1. **Autenticación propia** del gateway por `x-api-key`, misma convención que el gateway de Axum.
 2. Timeouts, reintentos acotados y qué devolver cuando el ERP está caído.
 3. Métricas y logs útiles sin un solo secreto adentro.
 4. Deploy: servicio de Windows, igual que `api-impuestos` (sin Docker en el entorno).

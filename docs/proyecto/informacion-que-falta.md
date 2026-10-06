@@ -3,11 +3,17 @@
 Lista concreta de lo que hace falta conseguir, ordenada por cuándo bloquea. Lo que no está acá,
 ya lo tenemos.
 
+> **Aclaración importante sobre las credenciales**: lo que caduca cada 5 minutos es el **token**,
+> no el usuario y la clave. Lo que hace falta es el **usuario y la clave de API** de cada
+> distribuidora (los de la colección Postman), que no vencen. El token lo mintea el gateway solo,
+> en el mismo proceso que lo usa, cada vez que lo necesita. **Nadie tiene que estar generando
+> tokens a mano.**
+
 ## Bloquea la Fase 1 (hablar con GESCOM)
 
 | Qué | Dónde está / quién lo tiene | Para qué |
 |---|---|---|
-| **Credenciales de API por distribuidora** (usuario y clave del client `gcw-web-api`) de al menos `dyssa` y `senderolaser` | colección Postman de cada distribuidora | Sin esto el conector no se puede probar contra nada real. Van al `.env` local, nunca al repo. |
+| **Usuario y clave de API por distribuidora** (del client `gcw-web-api`) de al menos `dyssa` y `senderolaser` | colección Postman de cada distribuidora | Sin esto el conector no se puede probar contra nada real. Van al `.env` local, nunca al repo. **No vencen.** |
 | **Lista definitiva de distribuidoras** que van a entrar al gateway | negocio | Cada una es una entrada de configuración y un realm de Keycloak distinto. |
 | **Respuesta real de `get-promociones`** de 2 distribuidoras (JSON completo, guardado a archivo) | se obtiene corriendo el script de token + curl | Son los fixtures de los tests con WireMock. Sin JSON reales, el parser se escribe adivinando. |
 
@@ -30,6 +36,14 @@ ya lo tenemos.
 | Respuesta real de `get-clientes` y de `get-articulos` (servicio `inventario`) | Los catálogos contra los que se cruzan las condiciones. |
 | Volumen aproximado: cuántos clientes y artículos tiene una distribuidora típica | Decide si el catálogo se cachea entero en memoria o se consulta puntual. Cambia el diseño. |
 | Si `get-promociones` y `get-clientes` **paginan**, y cómo | No está verificado. Si paginan y lo ignoramos, nos faltan datos en silencio. |
+
+## Bloquea congelar el contrato (Fase 2)
+
+| Qué | Para qué |
+|---|---|
+| **Cómo arma la tienda su línea de carrito** y qué campos le manda hoy a MotorFiscal | Para que nuestra respuesta mapee 1:1 con lo que la tienda ya usa, sin traducción en el medio. Es la lección del `Hallazgo 1` de `integracion-axum.md`. |
+| Si la tienda ya aplica algún descuento por su cuenta (lista de precios, cuotas, CFT) | Para no duplicar el descuento. MotorFiscal declara el pricing comercial fuera de alcance, pero no dice quién lo resuelve hoy. |
+| Quién emite y administra las `x-api-key` del entorno Axum | Para no inventar un esquema propio si ya hay uno. |
 
 ## Bloquea la Fase 4 (deploy)
 

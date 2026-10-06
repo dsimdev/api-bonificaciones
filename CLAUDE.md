@@ -93,7 +93,15 @@ Estas no se negocian: son el motivo de existir del servicio.
 
 ## 6. Diseño de la API
 
-- REST/JSON. Contrato estable y versionado en la ruta (`/v1/…`).
+- REST/JSON. Contrato estable y versionado en la ruta: **`/v1/{tenant}/…`**, con `tenant` = la
+  distribuidora. **No se inventan convenciones**: el consumidor es el entorno de Axum, así que se
+  copia lo que Axum y MotorFiscal ya hacen — tenant en la ruta, auth por header **`x-api-key`**, y
+  los nombres de campo de la respuesta elegidos para mapear 1:1 con lo que el consumidor ya usa.
+- **Fechas en ISO 8601 con zona, un solo formato en toda la API** (Axum tiene dos y duele).
+  Enums definidos una vez y validados en el borde. Listas de valores como objetos con código y
+  etiqueta separados, nunca un string con el código metido en el texto.
+- **La vigencia la filtra el endpoint por defecto**: un criterio vencido no viaja en el payload
+  para que el cliente lo descarte.
 - **Endpoint batch obligatorio** donde haya catálogo: el consumidor pide N ítems en una llamada,
   no N llamadas.
 - Errores con **código de dominio**, no solo HTTP: el integrador tiene que poder distinguir
@@ -143,6 +151,12 @@ errores genéricos, token de 5 minutos y un backend .NET+Unity que responde
 `InvalidRegistrationException` a lo que no existe. Todo lo que sabemos salió de probar en vivo.
 Eso define el diseño: conector aislado por ERP, todo lo crudo conservado, y tests de conector
 contra un servidor HTTP stub (WireMock), no contra mocks en proceso.
+
+**Quién lo consume** (decidido 2026-10-06): el **entorno de Axum** — la tienda virtual o alguna
+app de la suite. Encaja justo en el hueco que MotorFiscal declara fuera de su alcance ("el pricing
+comercial es de la tienda; el motor recibe una base ya neteada"): en un checkout, la tienda llama
+primero acá para obtener el neto con descuento, y después a MotorFiscal para los tributos sobre
+esa base. Los dos servicios se componen y **ninguno llama al otro**.
 
 **Fuera de alcance** (hasta decisión explícita): crear o confirmar pedidos en el ERP, calcular
 descuentos por nuestra cuenta, y la administración/alta de criterios (eso se hace en GESCOM).

@@ -5,68 +5,73 @@ anota en la memoria del proyecto (`MEMORY.md` → "Temas CERRADOS") con fecha y 
 
 ---
 
-## 1. ¿Quién consume el gateway y para qué? — **bloquea las fases 3+**
+## ✅ Cerradas el 2026-10-06
 
-Es la única que cambia de verdad el orden del trabajo. Candidatos:
-
-- una **app de preventistas** que arma pedidos → prioridad absoluta a valorizar (Fase 2);
-- un **panel / back-office** que audita promos → prioridad a explicar y comparar (Fase 3);
-- **otra API** que necesita el dato → prioridad a batch y estabilidad de contrato (Fase 4);
-- **nosotros mismos**, para dejar de pelear con GESCOM a mano → prioridad a cobertura de
-  endpoints.
-
-**Recomendación**: aunque no esté definido, **las fases 1 y 2 valen igual en los cuatro casos**.
-Se arranca por ahí y se decide esto antes de la Fase 3.
-
----
-
-## 2. ¿Cómo se autentica el consumidor contra nuestro gateway?
-
-Hoy no hay auth. El gateway va a guardar credenciales de varias distribuidoras: exponerlo sin
-auth es regalar el acceso a los datos comerciales de todas.
-
-**Recomendación**: **`x-api-key` por consumidor**, igual que la API pública de Axum
-(`C:\Dev\docs\axum\integracion-axum.md`). Es lo que el equipo ya sabe integrar, no necesita
-infraestructura nueva y alcanza para servicio-a-servicio. Si más adelante consume un usuario
-final desde el navegador, se evalúa JWT.
-
-**Obligatorio antes de la Fase 4.** Mientras tanto, solo red local.
+- **Quién consume el gateway** → **el entorno de Axum**: la tienda virtual o alguna app de la
+  suite. Consecuencias en `arquitectura.md` → "Dónde encaja en el entorno Axum".
+- **Auth de nuestra API** → **`x-api-key`**, misma convención que el gateway de Axum. No se
+  inventa otra: el consumidor ya la implementa.
+- **El tenant va en la ruta** (`/v1/{tenant}/…`), y se llama *tenant*, igual que Axum y
+  MotorFiscal. Un solo gateway multi-distribuidora, no uno por distribuidora.
+- **El gateway guarda las credenciales de las distribuidoras** (usuario y clave de API, por
+  variable de entorno). El token de Keycloak lo mintea él, en el mismo proceso que lo usa.
+- **El gateway no calcula descuentos**: delega en `eval-pedido`.
 
 ---
 
-## 3. ¿El gateway guarda las credenciales de las distribuidoras, o se las pasa el consumidor?
+## 1. ¿Qué nombres de campo espera la tienda en la respuesta? — **bloquea congelar el contrato**
 
-**Recomendación**: **las guarda**. El token de GESCOM dura 5 minutos; pedirle al consumidor que
-relaye credenciales o tokens termina en tokens vencidos y en credenciales dando vueltas por más
-lugares. Van por variable de entorno, nunca al repo.
+La lección de MotorFiscal: copió los nombres de `facturasimpagas` (`totalIva`,
+`percepcionIva`, …) para que la factura mapeara 1:1 sin traducción en el medio. Acá hay que hacer
+lo mismo con la **línea de carrito de la tienda**.
 
-La contra, que hay que aceptar explícitamente: el gateway se vuelve un objetivo valioso. Eso es
-lo que obliga a la decisión 2.
+**Recomendación**: antes de congelar los DTO de la Fase 2, mirar cómo arma la tienda su línea
+hoy y qué campos manda a MotorFiscal. Si la tienda ya tiene un `precioUnitario` / `neto` /
+`descuento`, usamos esos nombres aunque no sean los que elegiríamos. Mientras tanto el contrato
+queda marcado como **borrador**, no versionado como estable.
 
 ---
 
-## 4. ¿Hace falta base de datos?
+## 2. ¿El gateway se llama antes o dentro del flujo que ya llama a MotorFiscal?
+
+Son dos llamadas del mismo checkout, en orden: bonificaciones primero (da el neto), MotorFiscal
+después (tributa sobre ese neto).
+
+**Recomendación**: que la tienda haga las dos llamadas, en ese orden, y que **ninguno de los dos
+servicios llame al otro**. Encadenarlos por dentro los acopla y hace que una caída de uno voltee
+al otro. Si más adelante se quiere una sola llamada, se arma un endpoint que orqueste — pero esa
+es una decisión aparte, con su propio costo.
+
+---
+
+## 3. ¿Hace falta base de datos?
 
 **Recomendación**: **no todavía.** Stateless + cache en memoria alcanza para las fases 1 a 3, y
 no tener base es una pieza menos que operar. Entra el día que aparezca uno de estos:
 
-- **auditoría**: "¿qué le respondimos a este preventista el martes?";
+- **auditoría**: "¿qué le respondimos a la tienda el martes?" — probable que haga falta, porque
+  es plata y alguien va a reclamar;
 - **histórico de criterios**: detectar qué promo cambió y cuándo (GESCOM no versiona nada);
-- **resiliencia**: poder responder con el último catálogo conocido si el ERP está caído.
+- **resiliencia**: responder con el último catálogo conocido si el ERP está caído.
 
 Si entra, es SQL Server + Flyway, igual que `api-impuestos` (el servidor ya lo tiene).
 
 ---
 
-## 5. ¿Un solo gateway para todas las distribuidoras, o uno por distribuidora?
+## 4. ¿Qué pasa si el ERP está caído en pleno checkout?
 
-**Recomendación**: **uno solo, multi-distribuidora** (la distribuidora va en la ruta). Es lo que
-ya soporta la configuración actual. Un proceso por distribuidora multiplica el deploy sin dar
-nada a cambio, salvo que exista un requisito de aislamiento que hoy no conocemos.
+El gateway delega el número en `eval-pedido`: si GESCOM no responde, no hay descuento que
+devolver. Las opciones son devolver error (la tienda decide), o devolver precio sin descuento
+marcado como degradado.
+
+**Recomendación**: **devolver error con código de dominio** (`ERP_NO_DISPONIBLE`, 503) y que la
+tienda decida. Devolver un precio sin descuento es exactamente el caso que la regla dura prohíbe:
+el cliente compraría más caro de lo que le corresponde y nadie se enteraría. **Confirmar con
+negocio**, porque la alternativa es perder la venta.
 
 ---
 
-## 6. ¿Qué pasa con SIGMA / GEWINN?
+## 5. ¿Qué pasa con SIGMA / GEWINN?
 
 **Recomendación**: diseñar el puerto (ya está) e **implementar solo GESCOM**. No inventar
 abstracciones para un ERP que nadie vio. Cuando SIGMA entre de verdad, el puerto se ajusta con
@@ -74,7 +79,7 @@ información real — y si hay que romperlo, se rompe, es código interno.
 
 ---
 
-## 7. ¿Dónde se deploya?
+## 6. ¿Dónde se deploya?
 
 Falta definir servidor, puerto, y si va detrás de IIS. Si va detrás de un IIS que lo cuelga como
 aplicación anidada, **hay que resolver el prefijo de ruta desde el día uno**: en `api-impuestos`
@@ -82,12 +87,14 @@ ese problema llegó a producción tres veces (Swagger y el panel armando URLs ab
 raíz del dominio). Toda URL que la app arme para sí misma sale de configuración, nunca asumida.
 
 **Recomendación**: definirlo antes de la Fase 4, y si hay IIS anidado, probar **a través** del
-proxy, nunca contra `localhost:8080` directo.
+proxy, nunca contra `localhost:8080` directo. Lo más probable es que convenga el mismo servidor
+donde ya corre MotorFiscal, por una razón boba pero real: la tienda ya le pega ahí.
 
 ---
 
-## 8. ¿El descuento se expone como fracción (0.1) o como porcentaje (10)?
+## 7. ¿El descuento se expone como fracción (0.1) o como porcentaje (10)?
 
 **Recomendación**: **fracción**, igual que GESCOM. Que el número del gateway sea comparable uno a
 uno con el del ERP ahorra una clase entera de bugs de conversión. Queda documentado en el
-contrato y en el OpenAPI.
+contrato y en el OpenAPI. (Ojo: Axum usa la convención opuesta en `percepIB` — "alícuota sobre
+100" — así que esto hay que decirlo fuerte en la doc del integrador.)

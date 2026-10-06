@@ -10,15 +10,66 @@ una o varias llamadas al ERP de la distribuidora, y devuelve una respuesta norma
 traza.
 
 ```
-  consumidor                 api-bonificaciones                      ERP (GESCOM)
- (PWA / panel / ---> /v1/... ---> [ REST ] ---> [ conector ] ---> Keycloak (token 5 min)
-  otra API)                           |              |          --> ventas/get-promociones
-                                      |              |          --> ventas/eval-pedido
-                                      |              |          --> ventas/get-clientes
-                                      v              v          --> inventario/get-articulos
-                               modelo normalizado  cache
-                                 (bonif-core)    (Caffeine)
+  entorno Axum                api-bonificaciones                      ERP (GESCOM)
+ (tienda virtual  --->  /v1/{tenant}/...  ---> [ conector ] ---> Keycloak (token 5 min)
+  o app de Axum)        [ REST + x-api-key ]        |         --> ventas/get-promociones
+                                 |                  |         --> ventas/eval-pedido
+                                 |                  |         --> ventas/get-clientes
+                                 v                  v         --> inventario/get-articulos
+                        modelo normalizado        cache
+                          (bonif-core)          (Caffeine)
 ```
+
+## Dónde encaja en el entorno Axum
+
+El consumidor es **el entorno de Axum**: la tienda virtual o alguna app de la suite (decidido el
+2026-10-06).
+
+Eso ubica al gateway en un lugar preciso, y encaja sin pisar nada. MotorFiscal (`api-impuestos`)
+declara explícitamente fuera de alcance *"el pricing comercial (listas de precios, descuentos,
+recargo por cuotas, CFT) es de la tienda. El motor recibe una base ya neteada y devuelve
+tributos"*. **Eso que la tienda tiene que resolver sola es exactamente lo que hace este
+gateway.** La cadena en un checkout queda:
+
+```
+  tienda arma el carrito
+        |
+        v
+  api-bonificaciones  -->  neto con descuento comercial (quién lo otorgó y por qué)
+        |
+        v
+  MotorFiscal         -->  IVA, percepciones y total sobre esa base ya neteada
+```
+
+Los dos servicios se componen y no se superponen: uno responde *cuánto cuesta*, el otro *cuánto
+se tributa*. Y los dos los llama el mismo tercer sistema, con el mismo patrón.
+
+### Convenciones que se adoptan de Axum (no se inventan de nuevo)
+
+De `C:\Dev\docs\axum\integracion-axum.md` y `axum-referencias.md`:
+
+- **El tenant va en la ruta**: `/{tenant}/api/v1/…` en el gateway de Axum,
+  `/v1/{tenant}/calculos` en MotorFiscal. Acá: `/v1/{tenant}/criterios`. Nuestro "tenant" **es**
+  la distribuidora; se usa esa palabra y no una propia.
+- **Auth por header `x-api-key`**, igual que el gateway de Axum. El equipo ya sabe integrarlo y
+  no necesita infraestructura nueva.
+- **Los nombres de campo de la respuesta se eligen para mapear 1:1 con lo que el consumidor ya
+  usa**, no para ser lindos. MotorFiscal copió los nombres de `facturasimpagas` justamente por
+  eso. Acá falta saber qué nombres usa la tienda en su línea de carrito (ver
+  `informacion-que-falta.md`).
+
+### Errores de Axum que no se repiten
+
+Están listados en `axum-referencias.md` como "lo que cuesta caro". Los que nos tocan:
+
+- **Un solo formato de fecha, ISO 8601 con zona**, en toda la API. Axum tiene dos formatos
+  distintos en endpoints distintos.
+- **Los enums se definen una vez y se validan en el borde**, con mayúsculas consistentes.
+- **Las listas de valores son objetos con código y etiqueta separados**, nunca un string con el
+  código metido adentro del texto.
+- **La vigencia la filtra el endpoint por defecto.** Un criterio vencido no viaja en el payload
+  para que el cliente lo descarte: eso es trabajo que el consumidor no debería tener que saber
+  hacer. Quien quiera los vencidos los pide explícitamente.
 
 ## Módulos
 
