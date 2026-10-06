@@ -1,0 +1,35 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: api-bonificaciones
+
+bonificaciones:
+  # Lo reemplaza el build al empaquetar (ver processResources en bonif-app/build.gradle.kts), para
+  # que /health informe la version que realmente esta corriendo y no una escrita a mano.
+  version: "@version@"
+
+  # Una entrada por distribuidora. Las credenciales llegan por variable de entorno: nunca se
+  # commitean. Para correr local, copiar .env.example y exportarlas (ver docs/proyecto/entorno-local.md).
+  distribuidoras:
+    dyssa:
+      erp: GESCOM
+      host: https://dyssa.gescom.online
+      realm: gcw-dyssa
+      usuario: ${DYSSA_USER:}
+      clave: ${DYSSA_PASS:}
+    senderolaser:
+      erp: GESCOM
+      host: https://senderolaser.gescom.online
+      realm: gcw-senderolaser
+      usuario: ${SENDEROLASER_USER:}
+      clave: ${SENDEROLASER_PASS:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO

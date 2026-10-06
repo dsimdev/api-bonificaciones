@@ -1,0 +1,51 @@
+{
+  "includeCoAuthoredBy": false,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = [Console]::In.ReadToEnd(); try { $obj = $raw | ConvertFrom-Json; if ($obj.tool_input.command -notmatch 'git push (origin )?main') { exit 0 }; $msg = 'DEPLOY CHECKLIST OBLIGATORIO antes de pushear a main (CLAUDE.md seccion 1): 1) build y tests pasan SIN errores 2) bump de version (semver) en el archivo de version del proyecto 3) CHANGELOG.md 4) CHANGELOG_USER.md 5) README.md (Current Version) 6) git tag vX.Y.Z 7) confirmacion explicita del usuario para ESTE push. Un si anterior NO autoriza este push. Si el cambio toca mas de un repo, el backend se deploya PRIMERO.'; $out = @{ hookSpecificOutput = @{ hookEventName = 'PreToolUse'; additionalContext = $msg } } | ConvertTo-Json -Compress -Depth 5; Write-Output $out } catch {}"
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = [Console]::In.ReadToEnd(); try { $obj = $raw | ConvertFrom-Json; if ($obj.tool_input.command -notmatch 'git\\s+commit') { exit 0 }; $branch = (git branch --show-current 2>$null); if (-not $branch) { exit 0 }; if ($branch.Trim() -ne 'main') { exit 0 }; $msg = 'BLOQUEADO: estas en main. Crea una rama que no sea main (el nombre es libre, ej. feat/... o fix/...) y commitea ahi. Luego merge a main.'; $out = @{ hookSpecificOutput = @{ hookEventName = 'PreToolUse'; permissionDecision = 'deny'; permissionDecisionReason = $msg } } | ConvertTo-Json -Compress -Depth 5; Write-Output $out } catch {}"
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = [Console]::In.ReadToEnd(); try { $obj = $raw | ConvertFrom-Json; $cmd = $obj.tool_input.command; if ($cmd -notmatch 'git\\s+commit') { exit 0 }; if ($cmd -match 'Generated with Claude|Co-Authored-By: ?Claude') { $out = @{ hookSpecificOutput = @{ hookEventName = 'PreToolUse'; permissionDecision = 'deny'; permissionDecisionReason = 'Sin NINGUNA mencion a Claude/Anthropic en el commit, ni el trailer Co-Authored-By (instruccion del usuario). Quita esa linea.' } } } else { $out = @{ hookSpecificOutput = @{ hookEventName = 'PreToolUse'; additionalContext = 'Formato de commit: tipo(scope): descripcion breve. Sin emojis salvo pedido. Sin mencion a Claude/Anthropic. Recordatorio: commitear en una rama que no sea main.' } } }; Write-Output ($out | ConvertTo-Json -Compress -Depth 5) } catch {}"
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = [Console]::In.ReadToEnd(); try { $obj = $raw | ConvertFrom-Json; if ($obj.tool_input.command -notmatch 'gh pr create') { exit 0 }; $msg = 'El proyecto NO usa PRs (CLAUDE.md seccion 2): merge directo a main + push. Evitar salvo pedido explicito del usuario.'; $out = @{ hookSpecificOutput = @{ hookEventName = 'PreToolUse'; additionalContext = $msg } } | ConvertTo-Json -Compress -Depth 5; Write-Output $out } catch {}"
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = [Console]::In.ReadToEnd(); try { $obj = $raw | ConvertFrom-Json; if ($obj.tool_input.command -notmatch 'git push (origin )?main') { exit 0 }; $repo = (git rev-parse --show-toplevel 2>$null); if (-not $repo) { exit 0 }; $repo = $repo.Trim(); $ver = $null; $p = Join-Path $repo 'package.json'; if (Test-Path $p) { $ver = (Get-Content $p -Raw | ConvertFrom-Json).version } else { $p = Join-Path $repo '.claude/VERSION'; if (Test-Path $p) { $ver = (Get-Content $p -Raw).Trim() } else { foreach ($f in @('pom.xml','pyproject.toml','Cargo.toml','build.gradle','build.gradle.kts','composer.json')) { $p = Join-Path $repo $f; if (Test-Path $p) { $m = [regex]::Match((Get-Content $p -Raw), '(?m)version[^0-9]{0,12}([0-9]+\\.[0-9]+\\.[0-9]+)'); if ($m.Success) { $ver = $m.Groups[1].Value; break } } } } }; if (-not $ver) { exit 0 }; $lastFile = Join-Path $repo '.claude/LAST_AUDIT'; if (-not (Test-Path $lastFile)) { exit 0 }; $cur = [version]$ver; $last = [version]((Get-Content $lastFile -Raw).Trim()); $delta = ($cur.Major - $last.Major) * 1000 + ($cur.Minor - $last.Minor); if ($delta -lt 10) { exit 0 }; $msg = 'AUDITORIA VENCIDA: la ultima fue en v' + $last + ' y estas por deployar v' + $cur + ' (' + $delta + ' minors). La cadencia acordada es cada 10 minors. Avisale al usuario ANTES de pushear: corresponde auditoria incremental del delta (git log v' + $last + '..HEAD da los archivos tocados). Ver docs/metodo/auditoria-360.md. Si el usuario decide auditar ahora, al terminar actualiza .claude/LAST_AUDIT con la version auditada.'; $out = @{ hookSpecificOutput = @{ hookEventName = 'PreToolUse'; additionalContext = $msg } } | ConvertTo-Json -Compress -Depth 5; Write-Output $out } catch {}"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$raw = [Console]::In.ReadToEnd(); try { $obj = $raw | ConvertFrom-Json; $fp = $obj.tool_input.file_path; if (-not $fp) { exit 0 }; $branch = (git branch --show-current 2>$null); if (-not $branch) { exit 0 }; if ($branch.Trim() -ne 'main') { exit 0 }; $repo = (git rev-parse --show-toplevel 2>$null); if (-not $repo) { exit 0 }; $repoFull = [System.IO.Path]::GetFullPath($repo.Trim()); $fpFull = [System.IO.Path]::GetFullPath($fp); if (-not $fpFull.StartsWith($repoFull, [System.StringComparison]::OrdinalIgnoreCase)) { exit 0 }; if ($fpFull -like '*\\.claude\\*') { exit 0 }; $base = Split-Path $fp -Leaf; $allow = @('CHANGELOG.md','CHANGELOG_USER.md','README.md','package.json','package-lock.json','pom.xml','pyproject.toml','Cargo.toml','Cargo.lock','build.gradle','build.gradle.kts','composer.json','VERSION'); if ($allow -contains $base) { exit 0 }; $msg = 'BLOQUEADO: no se desarrolla en main (es produccion). Crea una rama que no sea main (el nombre es libre, ej. feat/... o fix/...), edita ahi y luego merge a main. Excepciones permitidas en main: CHANGELOG.md, CHANGELOG_USER.md, README.md, el archivo de version/lockfile y todo .claude/.'; $out = @{ hookSpecificOutput = @{ hookEventName = 'PreToolUse'; permissionDecision = 'deny'; permissionDecisionReason = $msg } } | ConvertTo-Json -Compress -Depth 5; Write-Output $out } catch {}"
+          }
+        ]
+      }
+    ]
+  }
+}
