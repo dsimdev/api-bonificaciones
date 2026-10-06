@@ -4,9 +4,13 @@ Cada fase cierra con un release y tiene un **criterio de salida verificable**. N
 siguiente hasta que la anterior lo cumple.
 
 **Consumidor decidido el 2026-10-06: el entorno de Axum** (la tienda virtual o alguna app de la
-suite). Eso ordena el plan: la Fase 2 es la que paga el proyecto, porque es la llamada del
-checkout; y la autenticación deja de ser "para más adelante" — en cuanto la tienda lo consuma por
-red, el gateway queda expuesto con credenciales de todas las distribuidoras adentro.
+suite). Y **lo más urgente a integrar es `eval-pedido`** (decidido el 2026-10-06): es la llamada
+del checkout, y además no depende del catálogo, así que va primero y el catálogo baja a la Fase 2
+como enriquecimiento.
+
+Una consecuencia que no se posterga: la **autenticación** deja de ser "para más adelante". En
+cuanto la tienda lo consuma por red, el gateway queda expuesto con credenciales de todas las
+distribuidoras adentro. Si eso pasa antes de la Fase 5, el `x-api-key` se adelanta.
 
 ---
 
@@ -21,25 +25,55 @@ versión real embebida por el build y las distribuidoras configuradas.
 
 ---
 
-## Fase 1 — Leer el catálogo de las dos fuentes · v0.2.0
+## Fase 1 — Valorizar con `eval-pedido` · v0.2.0 · **lo más urgente** (decidido 2026-10-06)
+
+`POST /v1/{tenant}/valorizaciones` sobre GESCOM. Es la llamada del checkout y lo que paga el
+proyecto.
+
+**Va primero y no depende del catálogo**: `eval-pedido` ya devuelve `promoId` y `promoNombre` en
+`detalleDescuento[]`, así que se puede entregar el número y el nombre de la promo sin tocar
+`get-promociones`. El catálogo pasa a Fase 2 como **enriquecimiento** (el *por qué*), no como
+requisito.
+
+1. `ServicioDeToken` — Keycloak grant `password` por distribuidora, cache Caffeine con refresco a
+   los ~4 min. **Nunca loguea el token.**
+2. `ConectorGescom` — `RestClient` sobre `https://<distri>.gescom.online/data/cmd/`, con timeouts
+   explícitos y la clasificación de errores de `arquitectura.md`.
+3. `POST /v1/{tenant}/valorizaciones` — contrato propio (cliente + ítems). Por dentro arma el
+   `Pedido` envuelto con `CodigoItem` (**no** `CodigoArticulo`) y un `Identificador` GUID
+   **generado por nosotros** — idempotencia, la lección del `operationGuid` de Axum.
+4. Validación que falle **antes** de gastar la llamada: ítems vacíos, cantidad ≤ 0, tenant
+   desconocido. Con códigos de dominio.
+5. Respuesta normalizada por línea: neto, neto con descuento, descuento, y el detalle de qué
+   promo lo otorgó. **Siempre dice que el número lo dio el ERP.**
+
+**Criterio de salida**: un test etiquetado `erp` reproduce **exactamente** los dos casos ya
+verificados —dyssa cliente 8380 / ítem 5000014792 / lista 2 → `58424.22` → `52581.80` (10%), y
+senderolaser cliente 301 / ítem 610030 / lista 1 → `6201.06` → `5456.93` (12%)— **pasando por
+nuestro endpoint**, no por curl. Más el invariante por línea: `neto − descuento == netoConDesc`,
+exacto; si no cierra, falla, no ajusta en silencio.
+
+**Necesita**: usuario y clave de API de una distribuidora GESCOM en el `.env`.
+
+---
+
+## Fase 2 — Leer el catálogo de las dos fuentes · v0.3.0
 
 `GET /v1/{tenant}/criterios`, alimentado por las dos fuentes y normalizado al mismo `Criterio`.
+Es lo que permite **explicar** un descuento, no calcularlo.
 
 **GESCOM**
 
-1. `ServicioDeToken` — Keycloak grant `password` por distribuidora, cache Caffeine con refresco a
-   los ~4 min. Nunca loguea el token.
-2. `ConectorGescom` — `RestClient` sobre `https://<distri>.gescom.online/data/cmd/`, con timeouts
-   explícitos y la clasificación de errores de `arquitectura.md`.
-3. Normalizar `get-promociones`, incluido el parseo de `configuracionJson` (viene como **string**,
+1. Normalizar `get-promociones`, incluido el parseo de `configuracionJson` (viene como **string**,
    no como objeto). Lo no reconocido sale como `TipoCondicion.DESCONOCIDA` con su crudo.
+2. Enriquecer la respuesta de valorización de la Fase 1 con las condiciones que dispararon.
 
 **Axum**
 
-4. `ConectorAxum` — `x-api-key`, tenant en la ruta. Normalizar las filas de bonificación: cada
+3. `ConectorAxum` — `x-api-key`, tenant en la ruta. Normalizar las filas de bonificación: cada
    fila = N condiciones en AND (los campos no vacíos) + 1 modificador. **Convertir el porcentaje
    a la convención de salida acá**, nunca después (`46.57` de Axum ≠ `0.1` de GESCOM).
-5. Mapear `"S"`/`"N"` a booleanos y `""` a ausente, en el borde.
+4. Mapear `"S"`/`"N"` a booleanos y `""` a ausente, en el borde.
 
 **Las dos**: tests de conector con WireMock usando las respuestas reales capturadas.
 
@@ -53,36 +87,27 @@ porcentaje de Axum sale sin convertir.
 
 ---
 
-## Fase 2 — Valorizar un pedido · v0.3.0
+## Fase 3 — Valorizar también por Axum · v0.4.0
 
-El endpoint que justifica el proyecto. `POST /v1/{tenant}/valorizaciones`, contrato propio
-(cliente + ítems), con validación que falle **antes** de gastar una llamada a la fuente (ítems
-vacíos, cantidad ≤ 0, tenant desconocido), con códigos de dominio.
+El mismo `POST /v1/{tenant}/valorizaciones` de la Fase 1, ahora para las distribuidoras que van
+por Axum. **Acá no hay a quién delegar: hay que construir el motor** (ver `arquitectura.md` → "La
+regla de delegar, corregida").
 
-**Dos caminos distintos por dentro, uno solo hacia afuera** (ver `arquitectura.md` → "La regla de
-delegar, corregida"):
+Reglas documentadas en [fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md): filtros en
+AND; jerarquía de desempate (canasta → orden manual → artículo → línea → rubro → grupo → marca →
+proveedor, y **gana el `ordenManual` más bajo**); umbral `cantidadSuperior` **agregado sobre el
+grupo**, no por ítem; bultos vs unidades; y las tres operaciones. Condicionado por los settings de
+la distribuidora (decisión abierta #5).
 
-| Fuente | Cómo |
-|---|---|
-| **GESCOM** | **Delega** en `eval-pedido` (`Pedido` envuelto, `Identificador` GUID nuestro). El número lo da el ERP. |
-| **Axum** | **Evalúa acá**: no hay motor del otro lado. Reglas documentadas en [fuente-axum-bonificaciones.md](fuente-axum-bonificaciones.md): filtros en AND; jerarquía de desempate (canasta → orden manual → artículo → línea → rubro → grupo → marca → proveedor, y **gana el `ordenManual` más bajo**); umbral `cantidadSuperior` **agregado sobre el grupo**, no por ítem; bultos vs unidades; y las tres operaciones (descuento con tope, precio fijo, unidades sin cargo). Condicionado por los settings de la distribuidora (decisión abierta #5). |
+La respuesta **dice que el número lo calculamos nosotros**, no el ERP. No valen lo mismo.
 
-La respuesta **dice cuál de los dos fue**, y en los dos casos trae el detalle de qué criterio
-otorgó el descuento, con su nombre.
-
-**Criterio de salida**, dos partes:
-
-- **GESCOM**: un test etiquetado `erp` reproduce **exactamente** los dos casos ya verificados —
-  dyssa cliente 8380 / ítem 5000014792 / lista 2 → `58424.22` → `52581.80` (10%), y senderolaser
-  cliente 301 / ítem 610030 / lista 1 → `6201.06` → `5456.93` (12%) — pasando por nuestro
-  endpoint, no por curl.
-- **Axum**: un set de casos **acordados con negocio**, no inventados por nosotros. Acá no hay
-  contra qué contrastar: si nuestra interpretación de las filas no es la que la distribuidora
-  tiene en la cabeza, nadie lo detecta hasta la factura.
+**Criterio de salida**: un set de casos **acordados con negocio**, no inventados por nosotros. Acá
+no hay contra qué contrastar: si nuestra interpretación de las filas no es la que la distribuidora
+tiene en la cabeza, nadie lo detecta hasta la factura.
 
 ---
 
-## Fase 3 — Explicar por qué · v0.4.0
+## Fase 4 — Explicar por qué · v0.5.0
 
 Lo que GESCOM **no** da y es la pregunta real del negocio: *"¿por qué este cliente no tiene esta
 promo?"*.
@@ -101,7 +126,7 @@ diagnóstico coincide con lo que `eval-pedido` efectivamente aplica en un pedido
 
 ---
 
-## Fase 4 — Endurecer y deployar · v0.5.0
+## Fase 5 — Endurecer y deployar · v0.6.0
 
 > **La autenticación (`x-api-key`) se adelanta a la Fase 2** si la tienda va a consumirlo por red
 > antes de que exista esta fase. El gateway guarda credenciales de todas las distribuidoras:
@@ -119,14 +144,11 @@ una valorización end-to-end.
 
 ---
 
-## Fase 5 — Las otras fuentes · v1.0.0
+## Fase 6 — Chess y lo que falte de Axum · v1.0.0
 
-Dos cosas distintas, en este orden:
-
-1. **Gateway de Axum**. No aporta criterios (no los tiene): aporta atributos de cliente/artículo
-   y listas. Entra cuando esté decidido **para qué lo queremos** — ver
-   `informacion-que-falta.md`. Puede adelantarse a la Fase 3 si resulta que conviene resolver los
-   atributos por Axum en vez de por GESCOM.
+1. **Lo que falte del gateway de Axum** aparte de bonificaciones: atributos de cliente/artículo y
+   listas. Entra cuando esté decidido **para qué lo queremos** — ver `informacion-que-falta.md`.
+   Puede adelantarse si resulta que conviene resolver los atributos por Axum en vez de por GESCOM.
 2. **Chess**. Hoy no sabemos qué es. Arranca con el método de reversing
    (`metodo-reversing-gescom-api`), igual que se hizo con GESCOM.
 
