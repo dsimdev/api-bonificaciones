@@ -1,0 +1,42 @@
+[
+  {
+    "id": "558",
+    "nombre": "GANCIA CERO - 14792",
+    "activo": true,
+    "validoDesde": "2026-01-01",
+    "validoHasta": null,
+    "dominio": "Venta",
+    "clientes": [],
+    "condiciones": [
+      {
+        "codigo": 101,
+        "tipo": "CodigoItem",
+        "configuracionJson": "{\"codigos\":[\"5000014792\"],\"inverted\":false}"
+      }
+    ],
+    "modificadores": [
+      {
+        "tipo": "DescuentoItem",
+        "descuento": 0.1,
+        "dataConditionCodes": [101],
+        "allowOverlap": false
+      }
+    ]
+  },
+  {
+    "id": "999",
+    "nombre": "CRITERIO CON TIPO QUE NO CONOCEMOS",
+    "activo": true,
+    "clientes": [],
+    "condiciones": [
+      {
+        "codigo": 201,
+        "tipo": "TipoQueNoExisteTodavia",
+        "configuracionJson": "{\"loQueSea\":[\"A\",\"B\"]}"
+      }
+    ],
+    "modificadores": [
+      { "tipo": "DescuentoItem", "descuento": 0.05, "dataConditionCodes": [], "allowOverlap": true }
+    ]
+  }
+]

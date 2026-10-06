@@ -1,0 +1,145 @@
+package com.axum.bonificaciones.app.gescom;
+
+import com.axum.bonificaciones.app.config.ConfiguracionDeDistribuidoras;
+import com.axum.bonificaciones.app.dominio.CodigoDeError;
+import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
+import com.axum.bonificaciones.core.model.BonificacionAplicada;
+import com.axum.bonificaciones.core.model.CalculadoPor;
+import com.axum.bonificaciones.core.model.Criterio;
+import com.axum.bonificaciones.core.model.Fuente;
+import com.axum.bonificaciones.core.model.LineaValorizada;
+import com.axum.bonificaciones.core.model.PedidoAValorizar;
+import com.axum.bonificaciones.core.model.Valorizacion;
+import com.axum.bonificaciones.core.puerto.Valorizador;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * Valoriza delegando en eval-pedido.
+ *
+ * GESCOM tiene motor, asi que el numero lo da el ERP y aca NO se reimplementa la evaluacion de
+ * criterios: si nuestro numero se desviara del suyo, el preventista veria un precio y el pedido
+ * entraria con otro. Lo unico que agregamos es el "por que", cruzando con el catalogo.
+ */
+@Service
+public class ValorizadorGescom implements Valorizador {
+
+    private static final Logger log = LoggerFactory.getLogger(ValorizadorGescom.class);
+
+    private final ClienteGescom cliente;
+    private final CatalogoGescom catalogo;
+    private final ConfiguracionDeDistribuidoras configuracion;
+    private final Clock reloj;
+
+    ValorizadorGescom(ClienteGescom cliente, CatalogoGescom catalogo,
+                      ConfiguracionDeDistribuidoras configuracion, Clock reloj) {
+        this.cliente = cliente;
+        this.catalogo = catalogo;
+        this.configuracion = configuracion;
+        this.reloj = reloj;
+    }
+
+    @Override
+    public Valorizacion valorizar(String tenant, PedidoAValorizar pedido) {
+        var gescom = configuracion.requerir(tenant).gescom();
+        if (gescom == null) {
+            throw new ErrorDeGateway(CodigoDeError.FUENTE_NO_CONFIGURADA,
+                    "La distribuidora " + tenant + " no tiene configurado GESCOM");
+        }
+
+        var items = pedido.items().stream()
+                .map(i -> new DtosGescom.ItemDePedido(i.codigo(), i.cantidad(), i.unidad(),
+                        i.unidadFactor(), pedido.codigoListaPrecio()))
+                .toList();
+
+        // El GUID lo generamos nosotros, uno por llamada: asi un reintento no depende de que el
+        // consumidor se acuerde de mandarlo (la leccion del operationGuid de Axum).
+        var sobre = new DtosGescom.SobreDePedido(new DtosGescom.Pedido(
+                UUID.randomUUID().toString(), pedido.codigoCliente(), items));
+
+        var ventas = cliente.post(tenant, gescom, "ventas", "eval-pedido", sobre,
+                DtosGescom.VentaEvaluada[].class);
+
+        var valorizacion = new Valorizacion(Fuente.GESCOM, tenant, CalculadoPor.ERP,
+                OffsetDateTime.now(reloj), lineas(tenant, ventas));
+
+        var noCierran = valorizacion.lineasQueNoCierran();
+        if (!noCierran.isEmpty()) {
+            // No se devuelve un numero que no cierra: en un checkout eso termina en una factura
+            // mal. Falla explicito, no ajusta en silencio.
+            log.error("eval-pedido devolvio {} linea(s) incoherentes para el tenant {}: {}",
+                    noCierran.size(), tenant,
+                    noCierran.stream().map(LineaValorizada::codigoItem).toList());
+            throw new ErrorDeGateway(CodigoDeError.RESPUESTA_INCOHERENTE,
+                    "eval-pedido devolvio lineas donde el neto con descuento no se corresponde "
+                            + "con el neto y el descuento");
+        }
+        return valorizacion;
+    }
+
+    private List<LineaValorizada> lineas(String tenant, DtosGescom.VentaEvaluada[] ventas) {
+        if (ventas == null) return List.of();
+        var porId = criteriosPorId(tenant);
+        var lineas = new ArrayList<LineaValorizada>();
+        for (var venta : ventas) {
+            if (venta.items() == null) continue;
+            for (var item : venta.items()) {
+                lineas.add(new LineaValorizada(
+                        item.itemCodigo(),
+                        item.cantidad(),
+                        item.precioNetoTotal(),
+                        aPorcentaje(item.descuentoTotal()),
+                        item.precioNetoTotalConDesc(),
+                        bonificaciones(item, porId)));
+            }
+        }
+        return lineas;
+    }
+
+    private List<BonificacionAplicada> bonificaciones(DtosGescom.ItemEvaluado item,
+                                                      Map<String, Criterio> porId) {
+        if (item.detalleDescuento() == null) return List.of();
+        return item.detalleDescuento().stream()
+                .map(d -> {
+                    var criterio = porId.get(d.promoId());
+                    return new BonificacionAplicada(
+                            d.promoId(),
+                            d.promoNombre(),
+                            aPorcentaje(d.descuento()),
+                            criterio == null ? List.of() : criterio.condiciones());
+                })
+                .toList();
+    }
+
+    /**
+     * El catalogo es para explicar, no para calcular: si falla, la valorizacion igual sale -- con
+     * el numero del ERP y sin el detalle de condiciones. Voltear un checkout porque no pudimos
+     * traer el "por que" seria cambiar un lujo por la venta.
+     */
+    private Map<String, Criterio> criteriosPorId(String tenant) {
+        try {
+            return catalogo.criterios(tenant).stream()
+                    .filter(c -> c.id() != null)
+                    .collect(Collectors.toMap(Criterio::id, Function.identity(), (a, b) -> a));
+        } catch (RuntimeException e) {
+            log.warn("No se pudo traer el catalogo de {} para enriquecer la valorizacion: {}",
+                    tenant, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    /** GESCOM da fraccion (0.1); el contrato expone porcentaje (10). */
+    private BigDecimal aPorcentaje(BigDecimal fraccion) {
+        return fraccion == null ? BigDecimal.ZERO : fraccion.multiply(MapeadorGescom.A_PORCENTAJE);
+    }
+}

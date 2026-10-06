@@ -76,14 +76,16 @@ Estas no se negocian: son el motivo de existir del servicio.
   siempre dice cuál de las dos cosas fue**: "lo dijo el ERP" y "lo calculamos nosotros" no valen
   lo mismo frente a un reclamo.
 - **El descuento se normaliza en el conector, nunca después.** GESCOM lo da como fracción
-  (`0.1` = 10%) y Axum como porcentaje (`46.57` = 46,57%). Un `46.57` leído como fracción es
-  4657%. La convención de salida se declara una sola vez en el contrato.
+  (`0.1` = 10%) y Axum como porcentaje (`46.57` = 46,57%) — **convenciones opuestas entre las dos
+  fuentes**. El contrato expone porcentaje, así que GESCOM se multiplica por 100 y Axum pasa
+  derecho. Un `0.1` que sale sin convertir es un 0,1% donde iba 10%.
 - **Toda respuesta dice de dónde salió**: qué ERP, qué distribuidora, qué criterio (id y nombre) y
   cuándo se consultó. Un descuento que no se puede explicar frente al preventista es un problema
   de soporte, no un resultado. La traza es parte del contrato, no un extra de debug.
-- **Plata y descuentos en `BigDecimal`, nunca `double`/`float`.** El descuento se expone como
-  **fracción** (0.1 = 10%), igual que GESCOM, para que el número sea comparable uno a uno con la
-  respuesta del ERP sin conversiones en el medio.
+- **Plata y descuentos en `BigDecimal`, nunca `double`/`float`.** El descuento del contrato se
+  expone como **porcentaje** (`10` = 10%), decidido el 2026-10-06 por coherencia con el resto del
+  entorno Axum. **Axum ya lo da así; GESCOM lo da como fracción (`0.1`) y lo multiplica por 100 el
+  conector.** La conversión vive en el conector y en ningún otro lado.
 - **Lo que no entendemos del ERP se expone, no se descarta.** Un `condicion.tipo` nuevo llega
   como `DESCONOCIDA` con su JSON crudo. Tragarse en silencio lo que no mapeamos hace que una
   promo desaparezca sin que nadie se entere.

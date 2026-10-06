@@ -3,8 +3,17 @@
 Gateway de **bonificaciones / criterios de venta**. Consume las APIs de los ERP de las
 distribuidoras (hoy **GESCOM**) y las devuelve detrás de un contrato único, propio y estable.
 
-**Versión actual: 0.1.0** — andamio. Levanta, informa salud y publica su OpenAPI; todavía no
-consulta ningún ERP.
+**Versión actual: 0.2.0** — valoriza pedidos contra GESCOM.
+
+```
+POST /v1/{tenant}/valorizaciones
+{ "cliente": "8380", "listaPrecio": "2",
+  "items": [ { "codigo": "5000014792", "cantidad": 6, "unidad": "Unidad" } ] }
+```
+
+Devuelve cada línea con su neto, su descuento y **qué bonificación lo otorgó, con las condiciones
+que la dispararon**. El descuento va en **porcentaje** (`10` = 10%). `calculadoPor` dice si el
+número lo dio el ERP o lo calculó el gateway.
 
 ## Por qué existe
 

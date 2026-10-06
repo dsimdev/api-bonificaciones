@@ -1,0 +1,24 @@
+[
+  {
+    "indiceVenta": 1,
+    "items": [
+      {
+        "itemCodigo": "5000014792",
+        "precioNetoTotal": 58424.22,
+        "precioNetoTotalConDesc": 52581.80,
+        "descuentoTotal": 0.1,
+        "cantidad": 6.0,
+        "creadoPorPromo": false,
+        "detalleDescuento": [
+          {
+            "promoId": "558",
+            "promoNombre": "GANCIA CERO - 14792",
+            "descuento": 0.1,
+            "otorgadoPorPromo": true
+          }
+        ],
+        "detalleImpuestos": []
+      }
+    ]
+  }
+]

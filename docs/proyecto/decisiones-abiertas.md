@@ -5,6 +5,15 @@ anota en la memoria del proyecto (`MEMORY.md` → "Temas CERRADOS") con fecha y 
 
 ---
 
+## ✅ Cerradas al construir la Fase 1 (2026-10-06)
+
+- **El descuento del contrato se expone como PORCENTAJE** (`10` = 10%), no como fracción.
+  Decidido por el usuario, por coherencia con el resto del entorno Axum. GESCOM da fracción y el
+  conector multiplica por 100; Axum ya viene en porcentaje y pasa derecho. Hay un test de core
+  (`LineaValorizadaTest`) que falla si un descuento sale sin convertir.
+- **El endpoint lleva contrato propio y el catálogo entra desde el día 1** para explicar el
+  descuento, no solo darlo.
+
 ## ✅ Cerradas con la doc de Axum (2026-10-06)
 
 - **`ordenManual`**: gana el **valor más bajo**. Mi hipótesis previa (que el 3% de la fila de
@@ -82,7 +91,42 @@ negocio**, porque la alternativa es perder la venta.
 
 ---
 
-## 5. ¿Cómo leemos los settings de bonificaciones de cada distribuidora? — **bloquea el motor de Axum**
+## 5. ¿La tienda nos llama desde el navegador o desde su servidor? — **tiene filo de seguridad**
+
+Surgió de una pregunta sobre CORS. Dos cosas distintas:
+
+**CORS con GESCOM no nos afecta.** CORS lo aplica el navegador, no el servidor, y nosotros le
+pegamos a GESCOM **servidor a servidor**: no hay preflight ni `Origin` que valga. Si GESCOM manda
+o no cabeceras CORS nos da igual.
+
+Y lo que es más fuerte: **GESCOM no está hecho para que le pegue un navegador en absoluto.** Su
+auth es grant `password` con el usuario y la clave de API de la distribuidora. Usarlo desde el
+front significaría poner esa clave en el navegador, donde cualquiera la lee. **Ese es, por sí
+solo, un motivo de existir de este gateway**, aparte de normalizar: mueve la credencial al
+servidor.
+
+**Donde CORS sí importa es en nuestra propia API**, y ahí depende de quién nos llama:
+
+| Si la tienda nos llama… | Entonces |
+|---|---|
+| **desde su servidor** (como hace hoy con MotorFiscal) | no hace falta CORS, y el `x-api-key` queda del lado servidor, que es donde tiene que estar |
+| **desde el navegador** | hay que configurar CORS con una lista explícita de orígenes… **y el `x-api-key` queda expuesto en el front** |
+
+> ⛔ **Una `x-api-key` en el navegador es pública.** Cualquiera la saca del DevTools y consulta las
+> bonificaciones de cualquier cliente de cualquier distribuidora. Si la tienda necesita llamarnos
+> desde el front, el `x-api-key` **no alcanza** como esquema de auth y hay que ir a otra cosa
+> (token corto emitido por el backend de la tienda, por ejemplo).
+
+**Recomendación**: **que nos llame desde el servidor**, igual que ya hace con MotorFiscal. Es el
+patrón que el equipo ya tiene andando, evita CORS entero y mantiene la credencial donde
+corresponde. Confirmar antes de implementar la auth.
+
+Dato de contexto: MotorFiscal resolvió su CORS sirviendo el panel desde el **mismo origen** que la
+API. O sea, el equipo ya decidió una vez que la forma de lidiar con CORS es no tenerlo.
+
+---
+
+## 6. ¿Cómo leemos los settings de bonificaciones de cada distribuidora? — **bloquea el motor de Axum**
 
 La doc de Axum documenta tres configuraciones que **cambian el resultado** y que **no vienen en el
 payload de bonificaciones**:
@@ -101,7 +145,7 @@ un descuento mal calculado que nadie ve.
 
 ---
 
-## 6. ¿La agregación por cantidad vale para todos los agrupadores o solo para canasta?
+## 7. ¿La agregación por cantidad vale para todos los agrupadores o solo para canasta?
 
 La doc muestra el ejemplo solo con **canasta**: el umbral (`cantidadSuperior`) se evalúa sobre la
 **suma de los ítems del grupo**, no por ítem — 5 Coca + 5 Pepsi dispara una bonificación de "más
@@ -115,7 +159,7 @@ donde debía agregar, la bonificación no dispara y nadie se entera hasta el rec
 
 ---
 
-## 7. ¿Se acumulan varias bonificaciones sobre el mismo ítem?
+## 8. ¿Se acumulan varias bonificaciones sobre el mismo ítem?
 
 La jerarquía de Axum sugiere que **gana una sola** (la del filtro de mayor prioridad presente).
 El flujo de la app —*"se borra la card del descuento aplicado y quedan las que se podrían
@@ -128,7 +172,7 @@ redundante, o es la señal de que sí se apilan.
 
 ---
 
-## 8. ¿Qué más le pedimos a Axum, aparte de bonificaciones?
+## 9. ¿Qué más le pedimos a Axum, aparte de bonificaciones?
 
 - **resolver atributos de cliente/artículo desde Axum** en vez de desde GESCOM, si la tienda ya
   los tiene ahí y queremos ahorrarnos llamadas;
@@ -137,7 +181,7 @@ redundante, o es la señal de que sí se apilan.
 
 ---
 
-## 9. ¿Qué es Chess y qué aporta?
+## 10. ¿Qué es Chess y qué aporta?
 
 No hay una sola mención en `C:\Dev\docs`. **Recomendación**: cuando se acerque, arrancar por el
 método de reversing que ya funcionó con GESCOM y escribir la referencia en `C:\Dev\docs` antes de
@@ -146,7 +190,7 @@ hecha para un sistema que nadie vio casi siempre sale mal.
 
 ---
 
-## 10. ¿Dónde se deploya?
+## 11. ¿Dónde se deploya?
 
 Falta definir servidor, puerto, y si va detrás de IIS. Si va detrás de un IIS que lo cuelga como
 aplicación anidada, **hay que resolver el prefijo de ruta desde el día uno**: en `api-impuestos`
@@ -159,9 +203,3 @@ donde ya corre MotorFiscal, por una razón boba pero real: la tienda ya le pega 
 
 ---
 
-## 11. ¿El descuento se expone como fracción o como porcentaje?
-
-**Recomendación**: **fracción**, igual que GESCOM. Que el número del gateway sea comparable uno a
-uno con el del ERP ahorra una clase entera de bugs de conversión. Queda documentado en el
-contrato y en el OpenAPI. (Ojo: Axum usa la convención opuesta en `percepIB` — "alícuota sobre
-100" — así que esto hay que decirlo fuerte en la doc del integrador.)

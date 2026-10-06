@@ -15,8 +15,10 @@ public sealed interface Operacion {
     /**
      * Descuento porcentual.
      *
-     * @param descuento FRACCION, no porcentaje: 0.1 = 10%. GESCOM ya lo da asi; lo de Axum viene
-     *                  como porcentaje (46.57) y lo convierte el conector -- nunca mas abajo.
+     * @param descuento PORCENTAJE, no fraccion: 10 = 10%. Es la convencion del contrato, decidida
+     *                  el 2026-10-06 por coherencia con el resto del entorno Axum. Axum ya lo da
+     *                  asi; GESCOM lo da como fraccion (0.1) y lo multiplica por 100 el conector
+     *                  -- nunca mas abajo.
      * @param tope      tope del descuento (topeDescuento de Axum), o null si no tiene
      */
     record Descuento(BigDecimal descuento, BigDecimal tope) implements Operacion {}

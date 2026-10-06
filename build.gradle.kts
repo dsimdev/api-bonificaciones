@@ -7,7 +7,7 @@ plugins {
 
 allprojects {
     group = "com.axum.bonificaciones"
-    version = "0.1.0"
+    version = "0.2.0"
 }
 
 subprojects {

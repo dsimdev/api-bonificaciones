@@ -23,6 +23,12 @@ bonificaciones:
         realm: gcw-dyssa
         usuario: ${DYSSA_GESCOM_USER:}
         clave: ${DYSSA_GESCOM_PASS:}
+    senderolaser:
+      gescom:
+        host: https://senderolaser.gescom.online
+        realm: gcw-senderolaser
+        usuario: ${SENDEROLASER_GESCOM_USER:}
+        clave: ${SENDEROLASER_GESCOM_PASS:}
 
 springdoc:
   swagger-ui:
