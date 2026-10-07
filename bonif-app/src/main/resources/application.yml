@@ -5,30 +5,39 @@ spring:
   application:
     name: api-bonificaciones
 
+  datasource:
+    # trustServerCertificate=true es para el certificado autofirmado de una instancia local. En el
+    # servidor, con la app y SQL Server en la misma maquina, revisar esto antes de asumirlo.
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=bonificaciones;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USER:bonificaciones}
+    password: ${DB_PASSWORD:bonificaciones}
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
 bonificaciones:
+  # Clave de cifrado de los secretos de terceros (las claves de API de GESCOM). Sin esto, dar de
+  # alta una distribuidora falla explicito: preferible eso a guardar una clave sin cifrar de
+  # verdad. Generarla con: openssl rand -hex 32
+  cifrado-key: ${CIFRADO_KEY:}
+
+  # Usuario inicial del panel. Solo se crea si la tabla de usuarios esta VACIA: es para arrancar
+  # una instalacion nueva, no una puerta de servicio. Despues de usarlo, cambiarle la contrasenia
+  # y sacar CLAVE_INICIAL del entorno.
+  usuario-inicial: ${USUARIO_INICIAL:}
+  clave-inicial: ${CLAVE_INICIAL:}
+
   # Lo reemplaza el build al empaquetar (ver processResources en bonif-app/build.gradle.kts), para
   # que /health informe la version que realmente esta corriendo y no una escrita a mano.
   version: "@version@"
 
-  # Una entrada por distribuidora (tenant), con una seccion por fuente. Una distribuidora puede
-  # tener varias: los criterios salen de GESCOM, los atributos de cliente/articulo pueden salir
-  # del gateway de Axum. La seccion que no esta, no se consulta -- y /health lo muestra.
+  # Las distribuidoras viven en la BASE, no acá: son ~1000 y un alta no puede implicar reiniciar
+  # el servicio. Se dan de alta por la API de administración (o el panel).
   #
-  # Las credenciales llegan por variable de entorno: nunca se commitean. Para correr local,
-  # copiar .env.example y completarlo (ver docs/proyecto/entorno-local.md).
-  distribuidoras:
-    dyssa:
-      gescom:
-        host: https://dyssa.gescom.online
-        realm: gcw-dyssa
-        usuario: ${DYSSA_GESCOM_USER:}
-        clave: ${DYSSA_GESCOM_PASS:}
-    senderolaser:
-      gescom:
-        host: https://senderolaser.gescom.online
-        realm: gcw-senderolaser
-        usuario: ${SENDEROLASER_GESCOM_USER:}
-        clave: ${SENDEROLASER_GESCOM_PASS:}
+  # En false, la app las lee de `bonificaciones.distribuidoras.*` y no necesita base. Es lo que
+  # usan los tests; en producción va en true y /health informa cuál está activo.
+  distribuidoras-en-base: ${DISTRIBUIDORAS_EN_BASE:true}
 
 springdoc:
   swagger-ui:

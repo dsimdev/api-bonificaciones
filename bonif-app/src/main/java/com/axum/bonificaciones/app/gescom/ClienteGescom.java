@@ -52,6 +52,19 @@ public class ClienteGescom {
                 .body(tipo));
     }
 
+    /**
+     * Como { #get}, pero minteando un token nuevo en vez de usar el cacheado. Para verificar
+     * credenciales que todavia no estan guardadas.
+     */
+    public <T> T getConCredenciales(Gescom config, String servicio, String comando,
+                                    ParameterizedTypeReference<T> tipo) {
+        return ejecutar(config, servicio, comando, () -> http.get()
+                .uri(url(config, servicio, comando))
+                .header("Authorization", "Bearer " + tokens.tokenSinCache(config))
+                .retrieve()
+                .body(tipo));
+    }
+
     public <T> T post(String tenant, Gescom config, String servicio, String comando,
                       Object cuerpo, Class<T> tipo) {
         return ejecutar(config, servicio, comando, () -> http.post()

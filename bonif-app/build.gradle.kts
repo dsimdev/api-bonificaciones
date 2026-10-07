@@ -12,6 +12,15 @@ dependencies {
     // Cache en memoria: el token de GESCOM dura 5 minutos y los catalogos (clientes, articulos)
     // cambian poco. Un solo proceso, nada distribuido hasta que haga falta.
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    // JDBC y no JPA, igual que api-impuestos: aca se leen filas de configuracion, no hay grafos
+    // ni lazy loading que justifiquen un ORM, y el SQL se lee mejor escrito a mano.
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.flywaydb:flyway-core")
+    runtimeOnly("org.flywaydb:flyway-sqlserver")
+    runtimeOnly("com.microsoft.sqlserver:mssql-jdbc")
+    // Solo el hashing de contrasenias (BCrypt), no el filter chain entero de Spring Security:
+    // la autenticacion del panel es un login propio contra nuestra tabla de usuarios.
+    implementation("org.springframework.security:spring-security-crypto")
     // El spec OpenAPI se genera del codigo (controllers + records), no se mantiene a mano: la
     // leccion de api-impuestos es que un documento aparte se desactualiza sin que nadie lo note.
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")

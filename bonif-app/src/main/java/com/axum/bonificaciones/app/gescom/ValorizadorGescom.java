@@ -1,6 +1,6 @@
 package com.axum.bonificaciones.app.gescom;
 
-import com.axum.bonificaciones.app.config.ConfiguracionDeDistribuidoras;
+import com.axum.bonificaciones.app.config.Distribuidoras;
 import com.axum.bonificaciones.app.dominio.CodigoDeError;
 import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
 import com.axum.bonificaciones.core.model.BonificacionAplicada;
@@ -41,20 +41,20 @@ public class ValorizadorGescom implements Valorizador {
 
     private final ClienteGescom cliente;
     private final CatalogoGescom catalogo;
-    private final ConfiguracionDeDistribuidoras configuracion;
+    private final Distribuidoras distribuidoras;
     private final Clock reloj;
 
     ValorizadorGescom(ClienteGescom cliente, CatalogoGescom catalogo,
-                      ConfiguracionDeDistribuidoras configuracion, Clock reloj) {
+                      Distribuidoras distribuidoras, Clock reloj) {
         this.cliente = cliente;
         this.catalogo = catalogo;
-        this.configuracion = configuracion;
+        this.distribuidoras = distribuidoras;
         this.reloj = reloj;
     }
 
     @Override
     public Valorizacion valorizar(String tenant, PedidoAValorizar pedido) {
-        var gescom = configuracion.requerir(tenant).gescom();
+        var gescom = distribuidoras.requerir(tenant).gescom();
         if (gescom == null) {
             throw new ErrorDeGateway(CodigoDeError.FUENTE_NO_CONFIGURADA,
                     "La distribuidora " + tenant + " no tiene configurado GESCOM");

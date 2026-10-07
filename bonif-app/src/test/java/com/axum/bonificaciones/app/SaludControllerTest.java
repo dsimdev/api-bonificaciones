@@ -30,24 +30,34 @@ class SaludControllerTest {
     MockMvc mockMvc;
 
     @Test
-    void healthInformaVersionYLasFuentesConfiguradasDeCadaDistribuidora() throws Exception {
+    void healthInformaLaVersionQueRealmenteCorre() throws Exception {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("ok"))
-                .andExpect(jsonPath("$.version").value("9.9.9"))
-                .andExpect(jsonPath("$.distribuidoras.dyssa[0]").value("GESCOM"))
-                .andExpect(jsonPath("$.distribuidoras.otra[0]").value("GESCOM"));
+                .andExpect(jsonPath("$.version").value("9.9.9"));
     }
 
     /**
-     * Una distribuidora sin la seccion de una fuente no la lista: es el smoke test de un deploy
-     * al que le falta una variable de entorno.
+     * De donde salen las distribuidoras es parte de /health a proposito: un deploy que quedo
+     * leyendo variables de entorno cuando deberia leer de la base se tiene que ver aca, no cuando
+     * alguien da de alta una distribuidora y al reiniciar no esta.
+     *
+     * En este test dice CONFIGURACION porque los tests corren sin base; en produccion tiene que
+     * decir BASE.
      */
     @Test
-    void unaDistribuidoraSoloListaLasFuentesQueTieneConfiguradas() throws Exception {
+    void healthDiceDeDondeSalenLasDistribuidoras() throws Exception {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.distribuidoras.dyssa.length()").value(1))
-                .andExpect(jsonPath("$.distribuidoras.otra.length()").value(1));
+                .andExpect(jsonPath("$.origen").value("CONFIGURACION"));
+    }
+
+    @Test
+    void healthListaLasDistribuidorasConfiguradas() throws Exception {
+        mockMvc.perform(get("/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.distribuidoras[0]").value("dyssa"))
+                .andExpect(jsonPath("$.distribuidoras[1]").value("otra"));
     }
 }

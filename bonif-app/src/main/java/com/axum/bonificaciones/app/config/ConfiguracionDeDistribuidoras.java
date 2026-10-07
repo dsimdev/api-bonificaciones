@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -20,7 +21,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Keycloak dura 5 minutos y lo mintea el gateway en el mismo proceso que lo usa.
  */
 @ConfigurationProperties(prefix = "bonificaciones")
-public record ConfiguracionDeDistribuidoras(Map<String, Distribuidora> distribuidoras) {
+@ConditionalOnProperty(name = "bonificaciones.distribuidoras-en-base", havingValue = "false")
+public record ConfiguracionDeDistribuidoras(Map<String, Distribuidora> distribuidoras)
+        implements Distribuidoras {
+
+    @Override
+    public String origen() {
+        return "CONFIGURACION";
+    }
+
+    @Override
+    public List<String> codigosActivos() {
+        return distribuidoras.keySet().stream().sorted().toList();
+    }
+
 
     public ConfiguracionDeDistribuidoras {
         distribuidoras = distribuidoras == null ? Map.of() : Map.copyOf(distribuidoras);
@@ -30,6 +44,7 @@ public record ConfiguracionDeDistribuidoras(Map<String, Distribuidora> distribui
         return distribuidoras.keySet();
     }
 
+    @Override
     public Distribuidora requerir(String tenant) {
         var d = distribuidoras.get(tenant);
         if (d == null) {

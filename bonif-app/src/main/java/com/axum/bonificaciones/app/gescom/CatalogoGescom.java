@@ -1,6 +1,6 @@
 package com.axum.bonificaciones.app.gescom;
 
-import com.axum.bonificaciones.app.config.ConfiguracionDeDistribuidoras;
+import com.axum.bonificaciones.app.config.Distribuidoras;
 import com.axum.bonificaciones.app.dominio.CodigoDeError;
 import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
 import com.axum.bonificaciones.core.model.Criterio;
@@ -27,14 +27,14 @@ public class CatalogoGescom implements CatalogoDeCriterios {
 
     private final ClienteGescom cliente;
     private final MapeadorGescom mapeador;
-    private final ConfiguracionDeDistribuidoras configuracion;
+    private final Distribuidoras distribuidoras;
     private final Cache<String, List<Criterio>> cache;
 
     CatalogoGescom(ClienteGescom cliente, MapeadorGescom mapeador,
-                   ConfiguracionDeDistribuidoras configuracion) {
+                   Distribuidoras distribuidoras) {
         this.cliente = cliente;
         this.mapeador = mapeador;
-        this.configuracion = configuracion;
+        this.distribuidoras = distribuidoras;
         this.cache = Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).build();
     }
 
@@ -49,7 +49,7 @@ public class CatalogoGescom implements CatalogoDeCriterios {
     }
 
     private List<Criterio> traer(String tenant) {
-        var gescom = configuracion.requerir(tenant).gescom();
+        var gescom = distribuidoras.requerir(tenant).gescom();
         if (gescom == null) {
             throw new ErrorDeGateway(CodigoDeError.FUENTE_NO_CONFIGURADA,
                     "La distribuidora " + tenant + " no tiene configurado GESCOM");

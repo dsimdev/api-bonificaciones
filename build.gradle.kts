@@ -32,6 +32,12 @@ subprojects {
             if (!project.hasProperty("includeErpTests")) {
                 excludeTags("erp")
             }
+            // Tests etiquetados "db" necesitan una instancia local de SQL Server con la base
+            // creada (scripts/crear-base.sql). Se excluyen por defecto para que `gradlew build`
+            // siga verde en cualquier maquina. Correr con -PincludeDbTests.
+            if (!project.hasProperty("includeDbTests")) {
+                excludeTags("db")
+            }
         }
     }
 }

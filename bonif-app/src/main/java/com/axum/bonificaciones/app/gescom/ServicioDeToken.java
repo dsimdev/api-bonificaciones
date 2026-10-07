@@ -44,6 +44,15 @@ public class ServicioDeToken {
         return tokens.get(tenant, t -> mintear(config));
     }
 
+    /**
+     * Mintea sin tocar el cache. Es para VERIFICAR credenciales nuevas: si usara el cache, una
+     * distribuidora que ya tiene un token vigente daria por buenas unas credenciales nuevas que
+     * en realidad estan mal -- justo lo contrario de lo que el alta tiene que detectar.
+     */
+    public String tokenSinCache(Gescom config) {
+        return mintear(config);
+    }
+
     /** Descarta el token cacheado de un tenant y fuerza el proximo mint. */
     public void olvidar(String tenant) {
         tokens.invalidate(tenant);

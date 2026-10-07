@@ -53,7 +53,31 @@ public enum CodigoDeError {
     PEDIDO_RECHAZADO_POR_LA_FUENTE(400),
 
     /** El codigo de cliente no existe en el ERP de esa distribuidora. */
-    CLIENTE_INEXISTENTE(400);
+    CLIENTE_INEXISTENTE(400),
+
+    /** Ya hay una distribuidora con ese codigo. */
+    DISTRIBUIDORA_YA_EXISTE(409),
+
+    /**
+     * GESCOM rechazo las credenciales que se estan dando de alta. Es error de QUIEN CARGA (copio
+     * mal del Postman), no de la fuente: por eso 400 y no 502.
+     */
+    CREDENCIALES_RECHAZADAS(400),
+
+    /** Sesion invalida o vencida, o usuario y clave incorrectos. */
+    NO_AUTORIZADO(401),
+
+    /** Ya hay un usuario con ese nombre. */
+    USUARIO_YA_EXISTE(409),
+
+    /** No existe ese usuario. */
+    USUARIO_INEXISTENTE(404),
+
+    /**
+     * Administrar esta deshabilitado porque falta CIFRADO_KEY. Preferible fallar explicito a
+     * guardar mil claves de produccion sin cifrar.
+     */
+    ADMINISTRACION_DESHABILITADA(503);
 
     private final int http;
 
