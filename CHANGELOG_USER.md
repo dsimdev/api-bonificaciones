@@ -3,7 +3,7 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
-## 0.2.0 — 2026-10-06
+## 0.2.0 — 2026-10-07
 
 - Ya se puede **valorizar un pedido**: `POST /v1/{tenant}/valorizaciones`. Se le manda el cliente
   y los ítems, y devuelve cada línea con su neto, el descuento que le corresponde y **qué

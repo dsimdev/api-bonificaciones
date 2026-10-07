@@ -6,7 +6,7 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-10-06
+## [0.2.0] - 2026-10-07
 
 ### Added
 - `POST /v1/{tenant}/valorizaciones` — the endpoint the project exists for. Own contract in, own
