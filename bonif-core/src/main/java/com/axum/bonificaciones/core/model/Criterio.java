@@ -45,6 +45,16 @@ public record Criterio(
         clientes = clientes == null ? List.of() : List.copyOf(clientes);
     }
 
+    /**
+     * Si el criterio esta vigente y activo en esa fecha.
+     *
+     * El endpoint filtra por esto POR DEFECTO: un criterio vencido no viaja en el payload para que
+     * el consumidor lo descarte. Quien quiera los vencidos los pide explicitamente.
+     */
+    public boolean aplicableEn(java.time.LocalDate fecha) {
+        return activo && (vigencia == null || vigencia.vigenteEn(fecha));
+    }
+
     /** Vacio = el criterio no esta limitado a clientes puntuales (lo deciden las condiciones). */
     public boolean limitadoAClientes() {
         return !clientes.isEmpty();

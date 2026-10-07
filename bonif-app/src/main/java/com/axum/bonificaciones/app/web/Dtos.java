@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -89,6 +90,55 @@ public final class Dtos {
             List<String> valores,
             boolean invertida,
             Integer cantidadMinima) {}
+
+    // --- GET /v1/{tenant}/criterios
+
+    public record CriteriosResponse(
+            Fuente fuente,
+            String tenant,
+            OffsetDateTime consultadoEn,
+            int total,
+            List<CriterioResponse> criterios) {}
+
+    /**
+     * @param condiciones solo las que estan EN JUEGO: se camina el arbol desde la condicion raiz.
+     *                    El ERP devuelve condiciones huerfanas que no participan de la evaluacion
+     */
+    public record CriterioResponse(
+            String id,
+            String nombre,
+            String descripcion,
+            boolean activo,
+            LocalDate vigenteDesde,
+            LocalDate vigenteHasta,
+            List<String> clientes,
+            List<CondicionResponse> condiciones,
+            List<ModificadorResponse> bonificaciones) {}
+
+    /**
+     * Que hace la bonificacion. `tipo` discrimina que campos vienen cargados.
+     *
+     * @param tipo        DESCUENTO | ESCALA | ITEM_SIN_CARGO | NO_RECONOCIDO
+     * @param descuento   PORCENTAJE (10 = 10%). Solo en DESCUENTO
+     * @param tramos      solo en ESCALA, ordenados por cantidad ascendente
+     * @param tipoEnElErp solo en NO_RECONOCIDO: el nombre que le da GESCOM, para que se vea que
+     *                    apareci algo que no sabemos interpretar
+     * @param aplicaA     a que condiciones apunta. Vacio en el ERP = cae sobre todo lo que califique
+     */
+    public record ModificadorResponse(
+            String tipo,
+            String descripcion,
+            BigDecimal descuento,
+            BigDecimal tope,
+            List<TramoResponse> tramos,
+            String codigoItem,
+            BigDecimal cantidad,
+            String tipoEnElErp,
+            String crudo,
+            List<CondicionResponse> aplicaA) {}
+
+    /** @param descuento PORCENTAJE (10 = 10%) a partir de esa cantidad. */
+    public record TramoResponse(BigDecimal desdeCantidad, BigDecimal descuento) {}
 
     public record ErrorResponse(String codigo, String mensaje, String crudo) {}
 }
