@@ -19,6 +19,7 @@ public enum TipoCondicion {
     FAMILIA_ARTICULO,
     CALIBRE_ARTICULO,
     TAG_ITEM,
+    LISTA_PRECIO_VENTA,
     TODAS,
     ALGUNA,
     DESCONOCIDA

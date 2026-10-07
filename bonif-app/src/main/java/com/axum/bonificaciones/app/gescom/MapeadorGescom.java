@@ -38,17 +38,18 @@ class MapeadorGescom {
      * Cambia segun el tipo y no hay forma de deducirla: salio de leer el catalogo real de dyssa
      * (2026-10). Un tipo que no este aca cae en el camino alternativo de {@link #valores}.
      */
-    private static final Map<TipoCondicion, String> CLAVE_DE_VALORES = Map.of(
-            TipoCondicion.CODIGO_CLIENTE, "codigos",
-            TipoCondicion.TAG_CLIENTE, "tags",
-            TipoCondicion.SUBRAMO_CLIENTE, "subRamoCodigos",
-            TipoCondicion.CODIGO_ITEM, "codigos",
-            TipoCondicion.MARCA_ARTICULO, "marcas",
-            TipoCondicion.PROVEEDOR_ARTICULO, "proveedores",
-            TipoCondicion.LINEA_ARTICULO, "lineas",
-            TipoCondicion.RUBRO_ITEM, "rubros",
-            TipoCondicion.FAMILIA_ARTICULO, "familias",
-            TipoCondicion.CALIBRE_ARTICULO, "calibres");
+    private static final Map<TipoCondicion, String> CLAVE_DE_VALORES = Map.ofEntries(
+            Map.entry(TipoCondicion.CODIGO_CLIENTE, "codigos"),
+            Map.entry(TipoCondicion.TAG_CLIENTE, "tags"),
+            Map.entry(TipoCondicion.SUBRAMO_CLIENTE, "subRamoCodigos"),
+            Map.entry(TipoCondicion.CODIGO_ITEM, "codigos"),
+            Map.entry(TipoCondicion.MARCA_ARTICULO, "marcas"),
+            Map.entry(TipoCondicion.PROVEEDOR_ARTICULO, "proveedores"),
+            Map.entry(TipoCondicion.LINEA_ARTICULO, "lineas"),
+            Map.entry(TipoCondicion.RUBRO_ITEM, "rubros"),
+            Map.entry(TipoCondicion.FAMILIA_ARTICULO, "familias"),
+            Map.entry(TipoCondicion.CALIBRE_ARTICULO, "calibres"),
+            Map.entry(TipoCondicion.LISTA_PRECIO_VENTA, "codigos"));
 
     private final ObjectMapper json;
 
@@ -79,6 +80,7 @@ class MapeadorGescom {
         var tipo = tipo(c.tipo());
         return new Condicion(
                 c.codigo(),
+                c.tipo(),
                 c.descripcion(),
                 tipo,
                 valores(tipo, config),
@@ -94,14 +96,9 @@ class MapeadorGescom {
      */
     private Modificador aModificador(DtosGescom.ModificadorCrudo m) {
         var config = parsear(m.configuracionJson());
-        Operacion operacion = null;
+        var operacion = operacion(m.tipo(), config);
 
-        if (TIPO_DESCUENTO.equals(m.tipo())) {
-            var fraccion = config.hasNonNull("descuento")
-                    ? config.get("descuento").decimalValue()
-                    : BigDecimal.ZERO;
-            operacion = new Operacion.Descuento(fraccion.multiply(A_PORCENTAJE), null);
-        } else {
+        if (operacion == null) {
             // No se finge un descuento de 0: queda como noReconocido() y con su crudo. Un
             // modificador que no entendemos y pasa como "0%" es una promo que desaparece sin que
             // nadie se entere -- justo lo que la regla dura del gateway prohibe.
@@ -117,6 +114,46 @@ class MapeadorGescom {
                 enteros(config.path("dataConditionCodes")),
                 config.path("allowOverlap").asBoolean(false),
                 m.configuracionJson());
+    }
+
+    /**
+     * Los tres tipos de modificador observados en el catalogo real de dyssa.
+     *
+     * Un tipo nuevo devuelve null: queda como noReconocido() y con su crudo, nunca como un
+     * descuento de 0%. Asi aparecieron TablaDescuentoItem y AgregaGratis, que no estaban en la
+     * doc de referencia.
+     */
+    private Operacion operacion(String tipo, JsonNode config) {
+        if (tipo == null) return null;
+        return switch (tipo) {
+            case "DescuentoItem" -> new Operacion.Descuento(porcentaje(config.path("descuento")), null);
+            case "TablaDescuentoItem" -> new Operacion.EscalaDeDescuento(
+                    tramos(config.path("tabla")),
+                    config.path("descuentoPorCantidad").asBoolean(false));
+            case "AgregaGratis" -> new Operacion.ItemSinCargo(
+                    config.path("codigoItem").asText(null),
+                    config.hasNonNull("cantidad") ? config.get("cantidad").decimalValue() : null);
+            default -> null;
+        };
+    }
+
+    /** La tabla es un array de pares [cantidadDesde, descuentoEnFraccion]. */
+    private List<Operacion.EscalaDeDescuento.Tramo> tramos(JsonNode tabla) {
+        if (!tabla.isArray()) return List.of();
+        var tramos = new ArrayList<Operacion.EscalaDeDescuento.Tramo>();
+        tabla.forEach(par -> {
+            if (par.isArray() && par.size() >= 2) {
+                tramos.add(new Operacion.EscalaDeDescuento.Tramo(
+                        par.get(0).decimalValue(), porcentaje(par.get(1))));
+            }
+        });
+        return tramos.stream()
+                .sorted(java.util.Comparator.comparing(Operacion.EscalaDeDescuento.Tramo::desdeCantidad))
+                .toList();
+    }
+
+    private BigDecimal porcentaje(JsonNode fraccion) {
+        return fraccion.isNumber() ? fraccion.decimalValue().multiply(A_PORCENTAJE) : BigDecimal.ZERO;
     }
 
     /**
@@ -137,6 +174,7 @@ class MapeadorGescom {
             case "FamiliaArticulo" -> TipoCondicion.FAMILIA_ARTICULO;
             case "CalibreArticulo" -> TipoCondicion.CALIBRE_ARTICULO;
             case "TagItem" -> TipoCondicion.TAG_ITEM;
+            case "ListaPrecioVenta" -> TipoCondicion.LISTA_PRECIO_VENTA;
             case "All" -> TipoCondicion.TODAS;
             case "Any" -> TipoCondicion.ALGUNA;
             default -> TipoCondicion.DESCONOCIDA;

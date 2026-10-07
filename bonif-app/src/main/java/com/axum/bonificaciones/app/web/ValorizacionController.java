@@ -48,7 +48,8 @@ public class ValorizacionController {
 
     private Dtos.LineaResponse aLinea(LineaValorizada l) {
         return new Dtos.LineaResponse(l.codigoItem(), l.cantidad(), l.neto(), l.descuento(),
-                l.netoConDescuento(), l.bonificaciones().stream().map(this::aBonificacion).toList());
+                l.netoConDescuento(), l.creadaPorPromo(),
+                l.bonificaciones().stream().map(this::aBonificacion).toList());
     }
 
     private Dtos.BonificacionResponse aBonificacion(BonificacionAplicada b) {

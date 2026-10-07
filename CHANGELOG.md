@@ -83,14 +83,37 @@ discount (criterion 205 says "20%" and applies 15%), so the description is for h
   and `Operacion` lost `PrecioFijo` and `UnidadesSinCargo` — those were Axum's model.
   `docs/proyecto/fuente-axum-bonificaciones.md` is kept as reference, clearly marked out of scope.
 
+### Added (after running against the live dyssa API)
+Walking the real catalogue — 70 criteria, all active, in a single response — surfaced three things
+the reference docs never mentioned. They surfaced **because an unrecognised type stays flagged
+instead of passing as 0%**; that rule paid for itself on its first outing.
+- **`TablaDescuentoItem`** — quantity-tiered discount. `"tabla":[[3,0.05],[45,0.12]]` means 5% from
+  3 units, 12% from 45. Modelled as `Operacion.EscalaDeDescuento`.
+- **`AgregaGratis`** — free units of a specific item (`codigoItem`, `cantidad`); eight criteria in
+  dyssa, the "5+1 sin cargo" deals and combos. Modelled as `Operacion.ItemSinCargo`.
+  **This one was a live bug waiting to happen**: it makes `eval-pedido` return lines the customer
+  never ordered, flagged `creadoPorPromo`. A free line can carry a normal net and a zero final
+  price with no discount to explain it, so the coherence invariant would have rejected a perfectly
+  good valorisation and killed the checkout. Those lines are now exempt from the invariant and the
+  contract exposes `creadaPorPromo` per line.
+- **`ListaPrecioVenta`** — a condition type ("applies to a list of price lists") that was not in
+  the reference either.
+- `CatalogoContraGescomRealIT` (tagged `erp`) turns the parse report into a standing test: it fails
+  if GESCOM introduces a condition or modifier type we do not map, or if a value key changes. Run
+  it with each new distributor's credentials.
+- `Condicion` now also carries the ERP's raw `tipo` string — without it, a `DESCONOCIDA` condition
+  is unidentifiable, which is exactly how `ListaPrecioVenta` stayed invisible.
+
 ### Notes
-- The GESCOM fixture is now a representative slice of the **real** dyssa catalogue, covering all 13
-  condition types plus the awkward cases (orphans, cycle, `inverted`, four-decimal discounts), with
-  two synthetic entries that lock the unknown-type escapes.
+- Amounts come back with **six decimals** (`58424.220000` → `52581.7980000`). The reference doc
+  rounds them to two, which is where the first live test's wrong expectation came from. The shared
+  doc in `C:\Dev\docs` has been corrected.
+- No evidence of pagination: 70 criteria in one response. What looked like a 560-criteria catalogue
+  was Postman's copy limit.
+- Keycloak `client_id` confirmed live: `gcw-web-api`.
 - Still unverified in `configuracionJson`: `greedy`, `evaluateAll` (including `All` +
-  `evaluateAll:false`, which reads as a contradiction), `criterioOrden`, `cantidadMaxima`. None of
-  them affect us while we delegate evaluation to `eval-pedido`. Whether `get-promociones` paginates
-  is also unknown and dyssa already has 560+ criteria.
+  `evaluateAll:false`, which reads as a contradiction), `criterioOrden`, `cantidadMaxima`,
+  `descuentoPorPromocion`. None affect us while evaluation is delegated to `eval-pedido`.
 
 ## [0.1.0] - 2026-10-06
 

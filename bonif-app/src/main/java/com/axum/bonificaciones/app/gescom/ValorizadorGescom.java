@@ -102,6 +102,7 @@ public class ValorizadorGescom implements Valorizador {
                         item.precioNetoTotal(),
                         aPorcentaje(item.descuentoTotal()),
                         item.precioNetoTotalConDesc(),
+                        Boolean.TRUE.equals(item.creadoPorPromo()),
                         bonificaciones(item, porId)));
             }
         }

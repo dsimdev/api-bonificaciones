@@ -37,11 +37,17 @@ class ValorizacionContraGescomRealIT {
     @Autowired
     com.axum.bonificaciones.app.config.ConfiguracionDeDistribuidoras configuracion;
 
-    /** dyssa, criterio 558: 10% sobre el item 5000014792 en la lista 2. */
+    /**
+     * dyssa, criterio 558: 10% sobre el item 5000014792 en la lista 2.
+     *
+     * Los decimales son los que devuelve el ERP de verdad: 58424.220000 -> 52581.7980000. La doc
+     * de referencia los muestra redondeados a 52581.80 -- esa doc es para leer, no para fijar
+     * expectativas de un test.
+     */
     @Test
     void reproduceElCasoVerificadoDeDyssa() {
         valorizaYVerifica("dyssa", "8380", "5000014792", "2",
-                new BigDecimal("58424.22"), new BigDecimal("10"), new BigDecimal("52581.80"));
+                new BigDecimal("58424.22"), new BigDecimal("10"), new BigDecimal("52581.798"));
     }
 
     /** senderolaser, criterio 159: 12% sobre el item 610030 en la lista 1. */

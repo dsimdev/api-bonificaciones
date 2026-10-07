@@ -5,6 +5,8 @@ import java.util.List;
 /**
  * Cuando aplica un criterio.
  *
+ * @param tipoCrudo        el tipo tal cual lo nombra el ERP. Se guarda porque cuando el tipo cae
+ *                         en DESCONOCIDA es el unico lugar donde se ve QUE apareci
  * @param codigo           id de la condicion DENTRO del criterio. Es lo que referencian el
  *                         codigoCondicionPrincipal, las condicionesHijas y los dataConditionCodes
  *                         de los modificadores. No es el id global de la fila
@@ -19,6 +21,7 @@ import java.util.List;
  */
 public record Condicion(
         Integer codigo,
+        String tipoCrudo,
         String descripcion,
         TipoCondicion tipo,
         List<String> valores,

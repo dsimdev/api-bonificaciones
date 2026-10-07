@@ -25,7 +25,7 @@ versión real embebida por el build y las distribuidoras configuradas.
 
 ---
 
-## Fase 1 — Valorizar con `eval-pedido`, con catálogo · v0.2.0 · **HECHA (falta validar contra GESCOM real)**
+## Fase 1 — Valorizar con `eval-pedido`, con catálogo · v0.2.0 · **✅ CERRADA para dyssa**
 
 `POST /v1/{tenant}/valorizaciones` sobre GESCOM. Es la llamada del checkout y lo que paga el
 proyecto.
@@ -50,15 +50,17 @@ condiciones que dispararon** cada descuento. Detalle de `get-promociones` en
    las condiciones que lo dispararon. **Si falla, la valorización igual responde**: el catálogo
    explica el número, no lo produce.
 
-**Criterio de salida**: un test etiquetado `erp` reproduce **exactamente** los dos casos ya
-verificados —dyssa cliente 8380 / ítem 5000014792 / lista 2 → `58424.22` → `52581.80` (10%), y
-senderolaser cliente 301 / ítem 610030 / lista 1 → `6201.06` → `5456.93` (12%)— **pasando por
-nuestro endpoint**, no por curl. Más el invariante por línea: `neto − descuento == netoConDesc`,
-exacto; si no cierra, falla, no ajusta en silencio.
+**Criterio de salida — ✅ CUMPLIDO para dyssa el 2026-10-07**: `ValorizacionContraGescomRealIT`
+reproduce el caso verificado (cliente 8380 / ítem 5000014792 / lista 2 → `58424.22` →
+`52581.798`, 10%) **pasando por nuestro endpoint**, contra la API en vivo. Y
+`CatalogoContraGescomRealIT` confirma que el parseo del catálogo real no pierde nada: ningún tipo
+de condición ni de modificador sin mapear, ninguna condición conocida sin valores.
 
-**Necesita**: usuario y clave de API de una distribuidora GESCOM en el `.env`. **Es lo único que
-falta para cerrar la fase**: 39 tests pasan contra WireMock con el payload real de dyssa, pero el
-IT etiquetado `erp` se saltea solo mientras no haya credenciales.
+Falta `senderolaser` (se saltea sin credenciales): con una sola distribuidora no se prueba el
+aislamiento entre tenants del cache de tokens.
+
+46 tests verdes (1 salteado). Correr los que pegan al ERP: `gradlew build -PincludeErpTests` con
+el `.env` cargado.
 
 ---
 

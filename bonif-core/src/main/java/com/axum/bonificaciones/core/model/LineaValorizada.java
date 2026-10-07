@@ -6,8 +6,12 @@ import java.util.List;
 /**
  * Una linea del pedido, ya valorizada.
  *
- * @param descuento        PORCENTAJE (10 = 10%)
- * @param bonificaciones   que bonificaciones lo otorgaron
+ * @param descuento      PORCENTAJE (10 = 10%)
+ * @param creadaPorPromo true cuando la linea NO la pidio el cliente: la agrego una bonificacion.
+ *                       En GESCOM pasa con los modificadores AgregaGratis -- los "5+1 sin cargo"
+ *                       y los combos. Es parte del contrato: el consumidor tiene que poder
+ *                       distinguir lo que el cliente pidio de lo que le regalaron
+ * @param bonificaciones que bonificaciones la afectaron
  */
 public record LineaValorizada(
         String codigoItem,
@@ -15,6 +19,7 @@ public record LineaValorizada(
         BigDecimal neto,
         BigDecimal descuento,
         BigDecimal netoConDescuento,
+        boolean creadaPorPromo,
         List<BonificacionAplicada> bonificaciones) {
 
     public LineaValorizada {
@@ -26,11 +31,18 @@ public record LineaValorizada(
      * descuento. Si no cierra, el resultado esta mal y hay que fallar, no redondear en silencio
      * -- es la misma regla que el "neto + tributos == total" de MotorFiscal.
      *
-     * La tolerancia es de un centavo porque el ERP redondea a dos decimales y nosotros no
-     * reproducimos su redondeo: no estamos verificando nuestra aritmetica sino que la respuesta
-     * del ERP sea internamente coherente.
+     * Dos excepciones deliberadas:
+     *
+     * 1. Las lineas creadas por promo NO se verifican. Un item sin cargo puede venir con neto
+     *    normal y precio final cero sin que el descuento lo explique, y rechazar la valorizacion
+     *    entera por eso seria voltear un checkout correcto. El catalogo real de dyssa tiene ocho
+     *    criterios AgregaGratis, asi que esto pasa seguido.
+     * 2. La tolerancia es de un centavo. El ERP devuelve seis decimales (58424.220000 ->
+     *    52581.7980000) y no reproducimos su redondeo: lo que se verifica es que su respuesta sea
+     *    internamente coherente, no nuestra aritmetica.
      */
     public boolean cierra() {
+        if (creadaPorPromo) return true;
         if (neto == null || descuento == null || netoConDescuento == null) return false;
         var esperado = neto.subtract(neto.multiply(descuento).movePointLeft(2));
         return esperado.subtract(netoConDescuento).abs().compareTo(new BigDecimal("0.01")) <= 0;

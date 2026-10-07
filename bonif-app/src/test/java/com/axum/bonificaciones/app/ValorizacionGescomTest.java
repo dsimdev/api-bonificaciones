@@ -122,7 +122,8 @@ class ValorizacionGescomTest {
                 .andExpect(jsonPath("$.lineas[0].codigo").value("5000014792"))
                 .andExpect(jsonPath("$.lineas[0].neto").value(58424.22))
                 .andExpect(jsonPath("$.lineas[0].descuento").value(10.0))
-                .andExpect(jsonPath("$.lineas[0].netoConDescuento").value(52581.80));
+                .andExpect(jsonPath("$.lineas[0].netoConDescuento").value(52581.80))
+                .andExpect(jsonPath("$.lineas[0].creadaPorPromo").value(false));
     }
 
     /** El catalogo aporta el "por que": que condicion disparo el descuento. */

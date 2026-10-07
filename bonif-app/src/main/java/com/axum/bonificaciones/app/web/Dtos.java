@@ -54,12 +54,17 @@ public final class Dtos {
             List<LineaResponse> lineas) {}
 
     /** @param descuento PORCENTAJE: 10 = 10%. */
+    /**
+     * @param creadaPorPromo true cuando la linea NO la pidio el cliente: la agrego una
+     *                       bonificacion (los "5+1 sin cargo" y los combos de GESCOM)
+     */
     public record LineaResponse(
             String codigo,
             BigDecimal cantidad,
             BigDecimal neto,
             BigDecimal descuento,
             BigDecimal netoConDescuento,
+            boolean creadaPorPromo,
             List<BonificacionResponse> bonificaciones) {}
 
     /**

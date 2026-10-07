@@ -1,7 +1,12 @@
 # Fuente GESCOM — `get-promociones` (criterios de venta)
 
-> Verificado el 2026-10-07 contra una respuesta **real** de dyssa. Antes de esto el conector estaba
-> escrito contra un fixture reconstruido de la doc, y tenía un bug grueso (ver abajo).
+> Verificado el 2026-10-07 **contra la API en vivo de dyssa**, con credenciales reales. Antes de
+> esto el conector estaba escrito contra un fixture reconstruido de la doc, y tenía un bug grueso
+> (ver abajo).
+>
+> **El catálogo de dyssa son 70 criterios, todos activos.** Los ids llegan a 670+ pero
+> `get-promociones` devuelve 70 en una sola respuesta: **no hay evidencia de paginación**, y lo que
+> parecía un catálogo gigante era el límite de copiado de Postman.
 >
 > Un subconjunto representativo del payload real está en
 > `bonif-app/src/test/resources/fixtures/get-promociones-dyssa.json`: cubre los 13 tipos de
@@ -85,7 +90,13 @@ No hay una clave genérica: cada tipo guarda sus valores con otro nombre.
 | `RubroItem` | `rubros` | `{"greedy":true,"rubros":["dyssa-02"],...}` |
 | `FamiliaArticulo` | `familias` | `{"greedy":true,"familias":["dyssa-215"],...}` |
 | `CalibreArticulo` | `calibres` | `{"greedy":true,"calibres":["dyssa-07"],...}` |
+| `ListaPrecioVenta` | `codigos` | `{"codigos":["2"]}` — "aplica a una lista de listas de precio" |
 | `All` / `Any` | `conditionCodes` | combinan otras condiciones, no tienen valores propios |
+
+Frecuencia en los 70 criterios de dyssa: `CodigoItem` 45, `CodigoCliente` 26, `TagItem` 10,
+`MarcaArticulo` 8, `ProveedorArticulo` 8, `SubRamoCliente` 4, `TagCliente` 4, `LineaArticulo` 2,
+`ListaPrecioVenta` 2, `FamiliaArticulo` 1, `RubroItem` 1, `CalibreArticulo` 1. Más 70 `All` y 2
+`Any` como combinadores.
 
 Los códigos de agrupador vienen **prefijados por origen**: `pepsico-11`, `dyssa-122`, `dyssa-02`.
 Conviven los dos prefijos en el mismo catálogo.
@@ -111,14 +122,55 @@ Como `eval-pedido` nos dice **qué porcentaje** aplicó, el enriquecimiento busc
 produjo ese porcentaje y devuelve solo **sus** condiciones. Lo fija
 `cadaModificadorApuntaASusPropiasCondiciones`.
 
+## Hay TRES tipos de modificador, no uno
+
+La doc de referencia solo mencionaba `DescuentoItem`. Recorrer el catálogo real mostró dos más — y
+aparecieron **porque un tipo no reconocido queda marcado en vez de pasar como 0%**. Esa regla se
+pagó sola.
+
+### `DescuentoItem` — descuento plano
+
+```json
+{"criterioOrden":0,"cantidadMaxima":0,"descuento":0.1,"dataConditionCodes":[102]}
+```
+
+### `TablaDescuentoItem` — descuento escalonado por cantidad
+
+```json
+{"criterioOrden":0,"cantidadMaxima":0,"tabla":[[3,0.05],[45,0.12]],
+ "descuentoPorPromocion":false,"dataConditionCodes":[],"descuentoPorCantidad":true}
+```
+
+`tabla` es una lista de pares `[cantidadDesde, descuentoEnFracción]`: desde 3 unidades 5%, desde 45
+unidades 12%. Lo usan los criterios 610 y 611 ("MATARAZZO + TERRABUSI"), los dos con
+`descuentoPorCantidad: true`. **Sin verificar** qué hace cuando está en `false`, ni qué significa
+`descuentoPorPromocion`.
+
+### `AgregaGratis` — unidades sin cargo
+
+```json
+{"criterioOrden":0,"cantidadMaxima":0,"codigoItem":"1331001095","dataConditionCodes":[],"cantidad":1}
+```
+
+Agrega N unidades de **un ítem puntual**. Son los "5+1 sin cargo" y los combos: ocho criterios en
+dyssa (NOEL POTE 1KG, FRIGOR 1KG, CHOMP, los combos de BIC…).
+
+> ⚠️ **Esto hace que `eval-pedido` devuelva líneas que el cliente no pidió**, marcadas con
+> `creadoPorPromo: true`. Una línea regalada puede traer neto normal y precio final cero sin que el
+> `descuentoTotal` lo explique, así que **el invariante de coherencia no se le aplica**: si se le
+> aplicara, rechazaríamos una valorización perfectamente correcta y voltearíamos el checkout. El
+> contrato expone `creadaPorPromo` por línea para que el consumidor distinga lo pedido de lo
+> regalado.
+
 ## Detalles que ahorran tiempo
 
 - **`id` y `promoId` llegan como NÚMERO**, no como string. Es el mismo valor en los dos endpoints,
   así que es por donde se cruzan `get-promociones` y `eval-pedido`.
 - **El descuento es fracción** (`0.1`, `0.1812`, `0.1943`). El contrato expone porcentaje, así que
   el conector multiplica por 100 y hay que preservar decimales: `0.1812` → `18.12`.
-- **El único `modificador.tipo` observado es `DescuentoItem`.** No hay precio fijo ni unidades sin
-  cargo en el catálogo de dyssa.
+- **Los importes vienen con seis decimales**: `58424.220000` → `52581.7980000`. La doc de
+  referencia los muestra redondeados a dos (`52581.80`) y de ahí salió una expectativa equivocada
+  en el primer test contra el ERP real. **Esa doc es para leer, no para fijar expectativas.**
 - **Los `marcadores` no aportan nada hoy**: todos son `ItemQMarker` con `configuracionJson: null`.
 - ⚠️ **La `descripcion` puede mentir sobre el número.** El criterio 205 se llama *"FRIGOR
   CADENAS"* y su descripción dice *"DESCUENTO 20% EN CADENAS"*, pero el modificador aplica
@@ -129,8 +181,14 @@ produjo ese porcentaje y devuelve solo **sus** condiciones. Lo fija
 
 | Qué | Por qué importa |
 |---|---|
-| `greedy`, `evaluateAll`, `criterioOrden`, `cantidadMaxima` | No sabemos qué hacen. Hoy no nos afecta porque **delegamos la evaluación en `eval-pedido`**; sí importaría si algún día calculáramos acá |
+| `greedy`, `evaluateAll`, `criterioOrden`, `cantidadMaxima`, `descuentoPorPromocion` | No sabemos qué hacen. Hoy no nos afecta porque **delegamos la evaluación en `eval-pedido`**; sí importaría si algún día calculáramos acá |
 | Un `All` con `evaluateAll:false` | Se lee como una contradicción. Preguntar |
-| Si `get-promociones` **pagina** | El catálogo de dyssa ya supera los 560 criterios. Si pagina y lo ignoramos, nos faltan criterios en silencio |
-| Qué pasa con `clientes[]` cuando no está vacío | En dyssa está vacío en todos |
-| Si existen otros `modificador.tipo` en otras distribuidoras | Un tipo nuevo hoy cae como `DESCONOCIDA`… pero el **modificador** no tiene ese escape: hay que revisarlo cuando aparezca |
+| `TablaDescuentoItem` con `descuentoPorCantidad:false` | En dyssa siempre está en `true` |
+| Qué pasa con `clientes[]` cuando no está vacío | En los 70 criterios de dyssa está vacío |
+| Si otras distribuidoras traen tipos que dyssa no tiene | **Cubierto por un test**: `CatalogoContraGescomRealIT` falla si aparece un tipo de condición o de modificador que no mapeamos. Correrlo con las credenciales de cada distribuidora nueva |
+
+## Lo que ya no está abierto
+
+- ~~¿Pagina?~~ No hay evidencia: 70 criterios en una respuesta.
+- ~~¿Hay otros tipos de modificador?~~ Sí, tres en total, los tres mapeados.
+- ~~¿Cuál es el `client_id` de Keycloak?~~ `gcw-web-api`, confirmado contra la API en vivo.
