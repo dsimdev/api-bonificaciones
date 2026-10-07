@@ -108,8 +108,18 @@ Sin esto no hay nada más: las variables de entorno no escalan a 1000.
 2. **Secretos cifrados en reposo** (`CifradoDeSecretos` de MotorFiscal es el molde). Guardamos las
    claves de API de mil distribuidoras: en texto plano no van.
 3. **API de administración** con clave maestra: alta, listar, cargar credenciales, regenerar la
-   api-key de la tienda. **Validando la credencial contra Keycloak en el acto**, antes de guardar.
-4. **Alta en lote**, parcial y no transaccional: un typo en una fila no frena las otras.
+   api-key de la tienda.
+
+   **La validación en el acto no es un lujo: es el requisito central.** El alta la va a hacer
+   alguien sin contexto, copiando de Postman, hasta 10 veces en un día. Si una clave se copia mal
+   y nadie valida, queda una distribuidora rota que nadie descubre hasta que falla el checkout de
+   esa tienda. El alta tiene que: mintear el token contra Keycloak, **traer el catálogo**, y
+   responder "anda, trajo 70 criterios" o un error que se entienda sin saber de APIs
+   ("la clave es incorrecta", no "401").
+4. **Sin alta en lote.** Decidido el 2026-10-07: las credenciales están en Postman, una colección
+   por distribuidora, y el usuario prefiere el alta manual de a una. No hay fuente de la que
+   importar, y 5-10 altas en un día son 15 minutos a mano. **La API queda igual**, así que si algún
+   día aparece una planilla, el import es barato de agregar.
 
 **Criterio de salida**: dar de alta una distribuidora por API, que la validación rechace una
 credencial mala, y que `/valorizaciones` funcione con la credencial que quedó en la base.
@@ -128,16 +138,35 @@ del checkout, `/criterios` devuelve 403.
 
 ### 3c — El panel · v0.6.0
 
-Para los compañeros que no trabajan con APIs. **Lo más valioso del panel no es el ABM: es el
-diagnóstico.** Un ABM lo usás al dar de alta y nunca más; la pantalla de soporte se usa todas las
-semanas.
+Para los compañeros que no trabajan con APIs.
+
+> **Prioridad corregida el 2026-10-07.** Yo había puesto el ABM último, con el argumento de que un
+> alta se hace una vez y la pantalla de soporte se usa todas las semanas. **Estaba mal para este
+> caso**: pueden salir 5-10 tiendas el mismo día y **tiene que poder hacerlo alguien que no sea el
+> usuario**. El alta es el requisito operativo, no un trámite.
 
 | Pantalla | Para qué | Prioridad |
 |---|---|---|
-| **Probar una valorización** — cliente + ítems, y ver el resultado con el porqué | *"El cliente dice que no le hizo el descuento"*. Hoy eso se contesta con curl. Es **la razón de ser del panel** | **1** |
-| **Ver los criterios de una distribuidora** | Qué promos hay cargadas, cuáles vencen, a quién aplican. Ya existe el endpoint | **2** |
-| **Estado de las distribuidoras** — cuáles andan, probar la credencial con un botón | Detecta una credencial vencida antes que un cliente | **3** |
-| **ABM de distribuidoras** | Alta, editar, regenerar la api-key | **4** |
+| **Alta de distribuidora, con validación en el acto** | 5-10 altas en un día, hechas por alguien sin contexto copiando de Postman. Si no valida, quedan tiendas rotas que nadie descubre | **1** |
+| **Estado de las distribuidoras** — cuáles andan, reprobar la credencial con un botón | "¿El alta que hice ayer quedó bien?" y detectar una credencial vencida antes que un cliente | **2** |
+| **Probar una valorización** — cliente + ítems, y ver el resultado con el porqué | *"El cliente dice que no le hizo el descuento"*. Hoy eso se contesta con curl | **3** |
+| **Ver los criterios de una distribuidora** | Qué promos hay cargadas, cuáles vencen, a quién aplican. Ya existe el endpoint | **4** |
+
+### Lo que el formulario de alta tiene que hacer bien
+
+El origen de los datos es **una colección de Postman por distribuidora**. Quien da de alta abre
+Postman, busca la colección y copia. Entonces:
+
+- **Los campos se llaman como en Postman**: `DISTRIBUIDORA`, `USERNAME`, `PASSWORD`. Sin
+  traducción, para que copiar sea copiar y no interpretar.
+- **`host` y `realm` no se piden**: salen del código por convención. Menos para equivocarse.
+- **Al guardar, se prueba de punta a punta**: mintea el token y **trae el catálogo**. El resultado
+  es *"Listo: la credencial anda y trajo 70 criterios"*. Eso es un smoke test completo hecho por
+  alguien que no sabe qué es un token.
+- **Los errores en castellano, sin códigos HTTP**: "la clave es incorrecta", "esa distribuidora no
+  existe en GESCOM", "GESCOM no responde".
+- **La api-key de la tienda se muestra una sola vez**, con la advertencia de guardarla ahora —
+  igual que hace MotorFiscal al regenerar.
 
 **Tecnología: se copia la de MotorFiscal**, no se inventa. Export estático de Next.js embebido en
 el jar, servido en `/admin` — mismo origen que la API, **sin CORS ni mixed content**, un solo

@@ -163,10 +163,14 @@ inventa.
 administración queda documentada sola en `/swagger-ui.html`. No es un reemplazo del panel, es lo
 que desbloquea el alta de las primeras distribuidoras sin esperar al frontend.
 
-## Lo que falta decidir
+## Cerrado el 2026-10-07
 
-- **¿De dónde salen hoy las credenciales de las 1000?** Si están en colecciones de Postman, una
-  por distribuidora, hay un trabajo de recolección previo que no es software. Si están en una
-  planilla o en un sistema de provisioning, el import es directo.
-- **¿Quién da de alta una distribuidora nueva, y cada cuánto?** Define cuándo el panel deja de ser
-  un lujo.
+- **Las credenciales están todas en Postman**, una colección por distribuidora. No hay fuente de la
+  que importar.
+- **El alta es manual, de a una**, por decisión del usuario. Pueden salir **5-10 tiendas el mismo
+  día**, y **tiene que poder hacerlo alguien más**, no solo él.
+- Por eso **no se hace alta en lote**: 10 altas a mano son 15 minutos, y no hay planilla que
+  importar. La API queda igual, así que agregar un import después es barato.
+- Y por eso **la validación en el acto pasa a ser el requisito central** del alta, no un extra:
+  quien la hace no tiene contexto, y una clave mal copiada sin validar deja una tienda rota que se
+  descubre recién cuando falla su checkout.
