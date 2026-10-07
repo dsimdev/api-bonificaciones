@@ -1,5 +1,15 @@
 # Fuente Axum — bonificaciones
 
+> ## ⛔ FUERA DE ALCANCE desde el 2026-10-07
+>
+> **La tienda consume las bonificaciones de Axum directamente**, sin pasar por este gateway. Axum
+> no es una fuente de api-bonificaciones y **no se va a construir su conector**. El código que lo
+> contemplaba se quitó: `Fuente` tiene un solo valor (`GESCOM`), y las operaciones `PrecioFijo` y
+> `UnidadesSinCargo` —que eran del modelo de Axum— salieron de `Operacion`.
+>
+> **Este documento se conserva como referencia**, no como plan: el análisis es correcto y le sirve
+> a quien implemente el lado de la tienda. Nada de acá describe trabajo pendiente nuestro.
+
 > Armado el 2026-10-06 con (a) una respuesta real del endpoint (~84 filas, `bonifId` 1, sucursal
 > `0001`) y (b) la documentación funcional de Axum que pasó el usuario. **No está en
 > `C:\Dev\docs\axum\integracion-axum.md`**, que es del 2026-08-19 y quedó vieja.

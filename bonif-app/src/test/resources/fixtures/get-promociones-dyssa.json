@@ -1,42 +1,662 @@
 [
-  {
-    "id": "558",
-    "nombre": "GANCIA CERO - 14792",
-    "activo": true,
-    "validoDesde": "2026-01-01",
-    "validoHasta": null,
-    "dominio": "Venta",
-    "clientes": [],
-    "condiciones": [
-      {
-        "codigo": 101,
-        "tipo": "CodigoItem",
-        "configuracionJson": "{\"codigos\":[\"5000014792\"],\"inverted\":false}"
-      }
-    ],
-    "modificadores": [
-      {
-        "tipo": "DescuentoItem",
-        "descuento": 0.1,
-        "dataConditionCodes": [101],
-        "allowOverlap": false
-      }
-    ]
-  },
-  {
-    "id": "999",
-    "nombre": "CRITERIO CON TIPO QUE NO CONOCEMOS",
-    "activo": true,
-    "clientes": [],
-    "condiciones": [
-      {
-        "codigo": 201,
-        "tipo": "TipoQueNoExisteTodavia",
-        "configuracionJson": "{\"loQueSea\":[\"A\",\"B\"]}"
-      }
-    ],
-    "modificadores": [
-      { "tipo": "DescuentoItem", "descuento": 0.05, "dataConditionCodes": [], "allowOverlap": true }
-    ]
-  }
+	{
+		"id": 2,
+		"nombre": "GRUPO 10",
+		"descripcion": "CLIENTES 10% DE DESCUENTO EN GLOBAL Y 5% EN PEHUAMAR",
+		"dominio": "Pepsico",
+		"activo": true,
+		"validoDesde": "2023-10-30T00:00:00-03:00",
+		"validoHasta": "2027-01-03T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 2,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 13,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"conditionCodes\":[101,104,102,103],\"evaluateAll\":true}"
+			},
+			{
+				"id": 14,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de etiquetas de cliente",
+				"orden": 2,
+				"tipo": "TagCliente",
+				"configuracionJson": "{\"tags\":[\"GRUPO 10\"]}"
+			},
+			{
+				"id": 15,
+				"codigo": 104,
+				"descripcion": "Se cumple cualquiera de las condiciones",
+				"orden": 3,
+				"tipo": "Any",
+				"configuracionJson": "{\"conditionCodes\":[101,102,103],\"evaluateAll\":true}"
+			},
+			{
+				"id": 16,
+				"codigo": 102,
+				"descripcion": "La venta tiene items de una o mas marcas",
+				"orden": 4,
+				"tipo": "MarcaArticulo",
+				"configuracionJson": "{\"greedy\":true,\"marcas\":[\"pepsico-1\",\"pepsico-2\",\"pepsico-11\"],\"requiredQuantity\":1,\"inverted\":false}"
+			},
+			{
+				"id": 17,
+				"codigo": 103,
+				"descripcion": "La venta tiene items de una o mas marcas",
+				"orden": 5,
+				"tipo": "MarcaArticulo",
+				"configuracionJson": "{\"greedy\":true,\"marcas\":[\"pepsico-11\"],\"requiredQuantity\":1,\"inverted\":false}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 5,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.1,\"dataConditionCodes\":[102]}"
+			},
+			{
+				"id": 6,
+				"codigo": 101,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 2,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.05,\"dataConditionCodes\":[103]}"
+			}
+		],
+		"marcadores": [
+			{
+				"id": 2,
+				"codigo": 100,
+				"descripcion": "Sin descripcion",
+				"orden": 1,
+				"tipo": "ItemQMarker",
+				"configuracionJson": null
+			}
+		],
+		"clientes": []
+	},
+	{
+		"id": 4,
+		"nombre": "FRIGOR 10% TODO",
+		"descripcion": "CLIENTE FRIGOR 10% TODO",
+		"dominio": "FRIGOR",
+		"activo": true,
+		"validoDesde": "2023-11-13T00:00:00-03:00",
+		"validoHasta": "2027-02-03T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 1,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 21,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"evaluateAll\":true,\"conditionCodes\":[102,103]}"
+			},
+			{
+				"id": 23,
+				"codigo": 102,
+				"descripcion": "Aplica a una lista de clientes",
+				"orden": 2,
+				"tipo": "CodigoCliente",
+				"configuracionJson": "{\"codigos\":[\"1369\",\"9965\"],\"inverted\":false}"
+			},
+			{
+				"id": 24,
+				"codigo": 103,
+				"descripcion": "La venta tiene items de uno o mas proveedores",
+				"orden": 3,
+				"tipo": "ProveedorArticulo",
+				"configuracionJson": "{\"greedy\":true,\"proveedores\":[\"8531\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 9,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.1,\"dataConditionCodes\":[],\"allowOverlap\":true}"
+			}
+		],
+		"marcadores": [
+			{
+				"id": 4,
+				"codigo": 100,
+				"descripcion": "Sin descripcion",
+				"orden": 1,
+				"tipo": "ItemQMarker",
+				"configuracionJson": null
+			}
+		],
+		"clientes": []
+	},
+	{
+		"id": 30,
+		"nombre": "GRUPO 8",
+		"descripcion": "CLIENTES 8% ROSENTAL",
+		"dominio": "PEPSICO",
+		"activo": true,
+		"validoDesde": "2023-12-26T00:00:00-03:00",
+		"validoHasta": "2029-01-01T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 24,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 101,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"evaluateAll\":true,\"conditionCodes\":[101,102]}"
+			},
+			{
+				"id": 102,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de etiquetas de cliente",
+				"orden": 2,
+				"tipo": "TagCliente",
+				"configuracionJson": "{\"tags\":[\"Rosental\"]}"
+			},
+			{
+				"id": 104,
+				"codigo": 102,
+				"descripcion": "La venta tiene items de uno o mas proveedores",
+				"orden": 3,
+				"tipo": "ProveedorArticulo",
+				"configuracionJson": "{\"greedy\":true,\"proveedores\":[\"0101\"],\"requiredQuantity\":1}"
+			},
+			{
+				"id": 177,
+				"codigo": 103,
+				"descripcion": "La venta tiene uno o mas items",
+				"orden": 4,
+				"tipo": "CodigoItem",
+				"configuracionJson": "{\"greedy\":true,\"codigos\":[\"300051958\",\"300058444\"],\"inverted\":true,\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 43,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.08,\"dataConditionCodes\":[],\"allowOverlap\":false}"
+			}
+		],
+		"marcadores": [
+			{
+				"id": 30,
+				"codigo": 100,
+				"descripcion": "Sin descripcion",
+				"orden": 1,
+				"tipo": "ItemQMarker",
+				"configuracionJson": null
+			}
+		],
+		"clientes": []
+	},
+	{
+		"id": 148,
+		"nombre": "ACCION PILAS Y BATERIAS",
+		"descripcion": "DCTO 18,12 EN PILAS Y BATERIAS CLIIENTES ESPECIALES",
+		"dominio": "GENOMMA",
+		"activo": true,
+		"validoDesde": "2024-08-24T00:00:00-03:00",
+		"validoHasta": "2029-12-31T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 123,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 499,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"evaluateAll\":true,\"conditionCodes\":[101,102]}"
+			},
+			{
+				"id": 500,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de clientes",
+				"orden": 2,
+				"tipo": "CodigoCliente",
+				"configuracionJson": "{\"codigos\":[\"10582\",\"10612\"]}"
+			},
+			{
+				"id": 501,
+				"codigo": 102,
+				"descripcion": "La venta tiene items de una o mas lineas",
+				"orden": 3,
+				"tipo": "LineaArticulo",
+				"configuracionJson": "{\"greedy\":true,\"lineas\":[\"dyssa-122\",\"dyssa-185\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 202,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.1812,\"dataConditionCodes\":[],\"allowOverlap\":true}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	},
+	{
+		"id": 293,
+		"nombre": "VELASCO ALEJANDRA",
+		"descripcion": "VELASCO ALEJANDRA - BIC - AFEITADORAS - 19.43%",
+		"dominio": "BIC",
+		"activo": true,
+		"validoDesde": "2025-05-09T00:00:00-03:00",
+		"validoHasta": "2027-01-03T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 274,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 917,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"evaluateAll\":false,\"conditionCodes\":[101,102]}"
+			},
+			{
+				"id": 918,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de clientes",
+				"orden": 2,
+				"tipo": "CodigoCliente",
+				"configuracionJson": "{\"codigos\":[\"13532\"]}"
+			},
+			{
+				"id": 1955,
+				"codigo": 102,
+				"descripcion": "La venta tiene items de uno o mas calibres",
+				"orden": 3,
+				"tipo": "CalibreArticulo",
+				"configuracionJson": "{\"greedy\":true,\"calibres\":[\"dyssa-07\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 380,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.1943,\"dataConditionCodes\":[]}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	},
+	{
+		"id": 294,
+		"nombre": "NUEVO PREMIUM - BIC",
+		"descripcion": "NUEVO PREMIUM - BIC - AFEITADORAS 15.19%",
+		"dominio": "BIC",
+		"activo": true,
+		"validoDesde": "2025-05-09T00:00:00-03:00",
+		"validoHasta": "2027-01-03T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 275,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 920,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"evaluateAll\":true,\"conditionCodes\":[101]}"
+			},
+			{
+				"id": 921,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de clientes",
+				"orden": 2,
+				"tipo": "CodigoCliente",
+				"configuracionJson": "{\"codigos\":[\"2284\",\"870\"]}"
+			},
+			{
+				"id": 1960,
+				"codigo": 102,
+				"descripcion": "La venta tiene items de una o mas lineas",
+				"orden": 3,
+				"tipo": "LineaArticulo",
+				"configuracionJson": "{\"greedy\":true,\"lineas\":[\"dyssa-108\",\"dyssa-109\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 381,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.1519,\"dataConditionCodes\":[]}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	},
+	{
+		"id": 295,
+		"nombre": "DROGUERIA COMARSA - BIC",
+		"descripcion": "DROGUERIA COMARSA - BIC - AFEITADORAS - 13.50%",
+		"dominio": "BIC",
+		"activo": true,
+		"validoDesde": "2025-05-09T00:00:00-03:00",
+		"validoHasta": "2027-01-03T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 276,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 923,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"evaluateAll\":false,\"conditionCodes\":[101,102]}"
+			},
+			{
+				"id": 924,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de clientes",
+				"orden": 2,
+				"tipo": "CodigoCliente",
+				"configuracionJson": "{\"codigos\":[\"14610\"]}"
+			},
+			{
+				"id": 925,
+				"codigo": 102,
+				"descripcion": "La venta tiene items de uno o mas rubros",
+				"orden": 3,
+				"tipo": "RubroItem",
+				"configuracionJson": "{\"greedy\":true,\"requiredQuantity\":1,\"rubros\":[\"dyssa-02\"]}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 382,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.135,\"dataConditionCodes\":[]}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	},
+	{
+		"id": 320,
+		"nombre": "TREGAR - CLIENTES ESPECIALES",
+		"descripcion": "TREGAR - CLIENTES ESPECIALES - 5%",
+		"dominio": "TREGAR -",
+		"activo": true,
+		"validoDesde": "2025-05-30T00:00:00-03:00",
+		"validoHasta": "2026-12-31T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 287,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 993,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"conditionCodes\":[101,102],\"evaluateAll\":true}"
+			},
+			{
+				"id": 994,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de clientes",
+				"orden": 2,
+				"tipo": "CodigoCliente",
+				"configuracionJson": "{\"codigos\":[\"2507\",\"957\"]}"
+			},
+			{
+				"id": 1514,
+				"codigo": 102,
+				"descripcion": "La venta tiene items de una o mas familias",
+				"orden": 3,
+				"tipo": "FamiliaArticulo",
+				"configuracionJson": "{\"greedy\":true,\"familias\":[\"dyssa-215\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 410,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"descuento\":0.05,\"dataConditionCodes\":[]}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	},
+	{
+		"id": 466,
+		"nombre": "RESTO SECO - DISTRIBUIDORES",
+		"descripcion": "RESTO SECO - DISTRIBUIDORES - 8%",
+		"dominio": "X CALIBRE",
+		"activo": true,
+		"validoDesde": "2025-12-02T00:00:00-03:00",
+		"validoHasta": "2026-12-31T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 415,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 1416,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"conditionCodes\":[101,102]}"
+			},
+			{
+				"id": 1417,
+				"codigo": 101,
+				"descripcion": "Aplica a una lista de clientes",
+				"orden": 2,
+				"tipo": "CodigoCliente",
+				"configuracionJson": "{\"codigos\":[\"15653\",\"15993\",\"16100\"]}"
+			},
+			{
+				"id": 1859,
+				"codigo": 102,
+				"descripcion": "La venta tiene items etiquetados",
+				"orden": 3,
+				"tipo": "TagItem",
+				"configuracionJson": "{\"greedy\":true,\"tags\":[\"RESTO SECO\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 575,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"dataConditionCodes\":[],\"descuento\":0.08}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	},
+	{
+		"id": 470,
+		"nombre": "RESTO SECO - EMPLEADOS - 8%",
+		"descripcion": "RESTO SECO - EMPLEADOS - 8%",
+		"dominio": "EMPLEADOS",
+		"activo": true,
+		"validoDesde": "2025-12-04T00:00:00-03:00",
+		"validoHasta": "2026-12-31T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 419,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 1428,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"conditionCodes\":[104,103]}"
+			},
+			{
+				"id": 1430,
+				"codigo": 103,
+				"descripcion": "Aplica a una lista de subramos",
+				"orden": 3,
+				"tipo": "SubRamoCliente",
+				"configuracionJson": "{\"subRamoCodigos\":[\"pepsico-5001\"]}"
+			},
+			{
+				"id": 1853,
+				"codigo": 104,
+				"descripcion": "La venta tiene items etiquetados",
+				"orden": 2,
+				"tipo": "TagItem",
+				"configuracionJson": "{\"greedy\":true,\"tags\":[\"RESTO SECO\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 579,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"dataConditionCodes\":[],\"descuento\":0.08}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	},
+	{
+		"id": 558,
+		"nombre": "GANCIA CERO - 14792",
+		"descripcion": "GANCIA CERO - 14792  - 10%",
+		"dominio": "CEPAS",
+		"activo": true,
+		"validoDesde": "2026-05-11T00:00:00-03:00",
+		"validoHasta": "2026-10-12T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 504,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 1664,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"conditionCodes\":[101],\"evaluateAll\":true}"
+			},
+			{
+				"id": 1665,
+				"codigo": 101,
+				"descripcion": "La venta tiene uno o mas items",
+				"orden": 2,
+				"tipo": "CodigoItem",
+				"configuracionJson": "{\"greedy\":true,\"codigos\":[\"5000014792\"],\"requiredQuantity\":1}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 799,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"dataConditionCodes\":[],\"descuento\":0.1}"
+			}
+		],
+		"marcadores": [
+			{
+				"id": 558,
+				"codigo": 100,
+				"descripcion": "Sin descripcion",
+				"orden": 1,
+				"tipo": "ItemQMarker",
+				"configuracionJson": null
+			}
+		],
+		"clientes": []
+	},
+	{
+		"id": 9999,
+		"nombre": "CRITERIO CON UN TIPO QUE NO CONOCEMOS",
+		"descripcion": "No existe en dyssa: agregado a mano para fijar que un tipo nuevo del ERP no desaparece",
+		"dominio": "SINTETICO",
+		"activo": true,
+		"validoDesde": "2026-01-01T00:00:00-03:00",
+		"validoHasta": "2029-12-31T00:00:00-03:00",
+		"codigoCondicionPrincipal": 100,
+		"orden": 9999,
+		"global": true,
+		"condiciones": [
+			{
+				"id": 99991,
+				"codigo": 100,
+				"descripcion": "Se cumplen todas las condiciones",
+				"orden": 1,
+				"tipo": "All",
+				"configuracionJson": "{\"conditionCodes\":[101]}"
+			},
+			{
+				"id": 99992,
+				"codigo": 101,
+				"descripcion": "Algo que el ERP agrego despues",
+				"orden": 2,
+				"tipo": "TipoQueTodaviaNoExiste",
+				"configuracionJson": "{\"loQueSea\":[\"A\",\"B\"]}"
+			}
+		],
+		"modificadores": [
+			{
+				"id": 99993,
+				"codigo": 100,
+				"descripcion": "Aplicar descuento en items",
+				"orden": 1,
+				"tipo": "DescuentoItem",
+				"configuracionJson": "{\"criterioOrden\":0,\"cantidadMaxima\":0,\"dataConditionCodes\":[],\"descuento\":0.07}"
+			},
+			{
+				"id": 99994,
+				"codigo": 101,
+				"descripcion": "Algo que el ERP agrego despues",
+				"orden": 2,
+				"tipo": "ModificadorQueTodaviaNoExiste",
+				"configuracionJson": "{\"algoRaro\":42}"
+			}
+		],
+		"marcadores": [],
+		"clientes": []
+	}
 ]

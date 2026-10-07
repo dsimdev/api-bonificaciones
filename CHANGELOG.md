@@ -44,11 +44,53 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 - `Clock` is injected rather than calling `OffsetDateTime.now()` inline: `consultadoEn` is part of
   the contract and has to be fixable in a test.
 
+### Fixed (after seeing a real `get-promociones` payload from dyssa)
+The connector had been written against a fixture reconstructed from the reference docs. The real
+payload broke three assumptions:
+- **A modifier's `descuento`, `dataConditionCodes` and `allowOverlap` live *inside*
+  `configuracionJson`**, not as fields of their own. Reading them as top-level fields left them
+  null, so **every criterion came out with a 0% discount**. A hand-made fixture validates the code
+  against itself — this is the cost of that.
+- **`condiciones` is a tree with dead branches, not a list.** Evaluation starts at
+  `codigoCondicionPrincipal` and descends through `conditionCodes`; the real catalogue contains
+  **orphan conditions** that no combinator references (criteria 294 and 30). Returning those as
+  "why it applied" would be a lie, so `Criterio.condicionesEnJuego()` walks from the root and
+  `condicionesHoja()` also drops the `All`/`Any` nodes. The tree can contain **cycles** (criterion
+  2: the `Any` 104 references condition 101, which also hangs off the root `All`), so the walk
+  tracks visited codes.
+- **The key holding a condition's values differs per type** — `codigos`, `tags`, `marcas`,
+  `proveedores`, `lineas`, `rubros`, `familias`, `calibres`, `subRamoCodigos`. Now mapped
+  explicitly per type, with the previous first-scalar-array heuristic kept only for unknown types.
+
+Also: `id` and `promoId` arrive as **numbers**, not strings; dates are ISO 8601 with offset;
+discounts keep four decimals (`0.1812` → `18.12`). Criterion descriptions can contradict the actual
+discount (criterion 205 says "20%" and applies 15%), so the description is for humans only.
+
+### Changed
+- An unrecognised `modificador.tipo` no longer becomes a silent 0% discount. `Modificador` now
+  carries the ERP's `tipo` and raw `configuracionJson`, `operacion` is null, and
+  `noReconocido()` flags it — the hard rule is that what we do not understand stays visible.
+- `Criterio` gained `descripcion`, `codigoCondicionPrincipal` and `orden`; `Condicion` and
+  `Modificador` gained the ERP's own `descripcion`, which is better at explaining a discount than
+  anything we would write. It is exposed in `CondicionResponse.descripcion`.
+- Enrichment now matches the modifier **by the discount `eval-pedido` actually applied** and
+  returns only that modifier's conditions. A criterion can carry several modifiers pointing at
+  different conditions — that is how dyssa's criterion 2 expresses "10% global and 5% on Pehuamar".
+
+### Removed
+- **Axum as a source.** The store consumes Axum's bonificaciones directly, so this gateway is
+  GESCOM-only (decided 2026-10-07). `Fuente` has a single value, the `Axum` config record is gone,
+  and `Operacion` lost `PrecioFijo` and `UnidadesSinCargo` — those were Axum's model.
+  `docs/proyecto/fuente-axum-bonificaciones.md` is kept as reference, clearly marked out of scope.
+
 ### Notes
-- The `get-promociones` fixtures are **reconstructed from the reference docs, not captured from
-  the live API** — we have never seen a real response. In particular the key holding a condition's
-  values is unknown, so the mapper takes the first scalar array that is not `conditionCodes`. This
-  needs validating against a real payload before it is trusted.
+- The GESCOM fixture is now a representative slice of the **real** dyssa catalogue, covering all 13
+  condition types plus the awkward cases (orphans, cycle, `inverted`, four-decimal discounts), with
+  two synthetic entries that lock the unknown-type escapes.
+- Still unverified in `configuracionJson`: `greedy`, `evaluateAll` (including `All` +
+  `evaluateAll:false`, which reads as a contradiction), `criterioOrden`, `cantidadMaxima`. None of
+  them affect us while we delegate evaluation to `eval-pedido`. Whether `get-promociones` paginates
+  is also unknown and dyssa already has 560+ criteria.
 
 ## [0.1.0] - 2026-10-06
 

@@ -8,16 +8,15 @@ import java.util.List;
 /**
  * Los DTO tal cual viajan por el cable con GESCOM. No salen de este paquete.
  *
- * Reconstruidos probando la API en vivo (ver C:\Dev\docs\gescom\eval-pedido.md). Todos ignoran
- * las propiedades desconocidas: la API no tiene swagger ni versionado, asi que un campo nuevo no
- * puede romper el conector.
+ * Verificados contra respuestas reales (eval-pedido y get-promociones de dyssa, 2026-10). La API
+ * no tiene swagger ni versionado, asi que todos ignoran propiedades desconocidas: un campo nuevo
+ * no puede romper el conector.
  */
 final class DtosGescom {
 
     private DtosGescom() {}
 
-    // --- eval-pedido: request. Los nombres van en PascalCase y en espaniol, como los espera el
-    // DTO RealPedidoCreateDto del ERP.
+    // --- eval-pedido: request. PascalCase y en espaniol, como los espera el RealPedidoCreateDto.
 
     record SobreDePedido(@JsonProperty("Pedido") Pedido pedido) {}
 
@@ -37,8 +36,7 @@ final class DtosGescom {
             @JsonProperty("UnidadFactor") BigDecimal unidadFactor,
             @JsonProperty("CodigoListaPrecio") String codigoListaPrecio) {}
 
-    // --- eval-pedido: respuesta. Aca los nombres vuelven a camelCase. Es una lista de ventas,
-    // cada una con sus items.
+    // --- eval-pedido: respuesta. Aca los nombres vuelven a camelCase.
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record VentaEvaluada(Integer indiceVenta, List<ItemEvaluado> items) {}
@@ -53,36 +51,78 @@ final class DtosGescom {
             Boolean creadoPorPromo,
             List<DetalleDeDescuento> detalleDescuento) {}
 
-    /** descuento viene como FRACCION (0.1 = 10%). El mapeador lo pasa a porcentaje. */
+    /**
+     * @param promoId  llega como NUMERO, no como string (verificado). Es el mismo id que trae
+     *                 get-promociones, asi que es por donde se cruzan los dos endpoints
+     * @param descuento FRACCION (0.1 = 10%). El mapeador lo pasa a porcentaje
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record DetalleDeDescuento(
-            String promoId,
+            Integer promoId,
             String promoNombre,
             BigDecimal descuento,
             Boolean otorgadoPorPromo) {}
 
     // --- get-promociones: los "criterios de venta".
 
+    /**
+     * @param codigoCondicionPrincipal el codigo de la condicion raiz: por ahi arranca la
+     *                                 evaluacion. Las condiciones que no se alcanzan desde ahi no
+     *                                 participan (hay huerfanas en el catalogo real)
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Promocion(
-            String id,
+            Integer id,
             String nombre,
+            String descripcion,
             Boolean activo,
             String validoDesde,
             String validoHasta,
             String dominio,
+            Integer codigoCondicionPrincipal,
+            Integer orden,
+            Boolean global,
             List<String> clientes,
             List<CondicionCruda> condiciones,
-            List<ModificadorCrudo> modificadores) {}
+            List<ModificadorCrudo> modificadores,
+            List<MarcadorCrudo> marcadores) {}
 
-    /** configuracionJson viene como STRING con JSON adentro, no como objeto. Hay que parsearlo. */
+    /**
+     * @param codigo el id DENTRO del criterio (no el {@code id} global): es lo que referencian
+     *               codigoCondicionPrincipal, conditionCodes y dataConditionCodes
+     * @param configuracionJson viene como STRING con JSON adentro, no como objeto anidado. La
+     *                          clave que guarda los valores cambia segun el tipo (tags, marcas,
+     *                          codigos, proveedores, lineas, rubros, familias, calibres,
+     *                          subRamoCodigos) -- ver MapeadorGescom
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record CondicionCruda(Integer codigo, String tipo, String configuracionJson) {}
+    record CondicionCruda(
+            Integer id,
+            Integer codigo,
+            String descripcion,
+            Integer orden,
+            String tipo,
+            String configuracionJson) {}
 
+    /**
+     * OJO: descuento, dataConditionCodes y allowOverlap NO son campos de este nivel -- viajan
+     * DENTRO de configuracionJson, igual que en las condiciones. Verificado contra el catalogo
+     * real de dyssa; modelarlos como campos sueltos los dejaba todos en null y el descuento salia
+     * 0 para todos los criterios.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ModificadorCrudo(
+            Integer id,
+            Integer codigo,
+            String descripcion,
+            Integer orden,
             String tipo,
-            BigDecimal descuento,
-            List<Integer> dataConditionCodes,
-            Boolean allowOverlap) {}
+            String configuracionJson) {}
+
+    /**
+     * Marcadores (ItemQMarker). En todo el catalogo real de dyssa vienen con configuracionJson
+     * null, asi que no se interpretan: se leen para no perderlos de vista si algun dia traen algo.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record MarcadorCrudo(Integer codigo, String descripcion, String tipo, String configuracionJson) {}
 }

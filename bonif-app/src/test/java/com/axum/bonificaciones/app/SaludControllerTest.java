@@ -19,8 +19,10 @@ import org.springframework.test.web.servlet.MockMvc;
         "bonificaciones.distribuidoras.dyssa.gescom.realm=gcw-dyssa",
         "bonificaciones.distribuidoras.dyssa.gescom.usuario=u",
         "bonificaciones.distribuidoras.dyssa.gescom.clave=p",
-        "bonificaciones.distribuidoras.otra.axum.tenant=otra",
-        "bonificaciones.distribuidoras.otra.axum.api-key=k"
+        "bonificaciones.distribuidoras.otra.gescom.host=https://otra.gescom.online",
+        "bonificaciones.distribuidoras.otra.gescom.realm=gcw-otra",
+        "bonificaciones.distribuidoras.otra.gescom.usuario=u",
+        "bonificaciones.distribuidoras.otra.gescom.clave=p"
 })
 class SaludControllerTest {
 
@@ -34,7 +36,7 @@ class SaludControllerTest {
                 .andExpect(jsonPath("$.estado").value("ok"))
                 .andExpect(jsonPath("$.version").value("9.9.9"))
                 .andExpect(jsonPath("$.distribuidoras.dyssa[0]").value("GESCOM"))
-                .andExpect(jsonPath("$.distribuidoras.otra[0]").value("AXUM"));
+                .andExpect(jsonPath("$.distribuidoras.otra[0]").value("GESCOM"));
     }
 
     /**

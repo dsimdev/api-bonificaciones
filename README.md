@@ -1,9 +1,10 @@
 # api-bonificaciones
 
-Gateway de **bonificaciones / criterios de venta**. Consume las APIs de los ERP de las
-distribuidoras (hoy **GESCOM**) y las devuelve detrás de un contrato único, propio y estable.
+Gateway de **bonificaciones / criterios de venta**. Consume la API de **GESCOM** y la devuelve
+detrás de un contrato propio y estable.
 
-**Versión actual: 0.2.0** — valoriza pedidos contra GESCOM.
+**Versión actual: 0.2.0** — valoriza pedidos contra GESCOM. **Solo GESCOM**: Axum quedó fuera de
+alcance (la tienda lo consume directo).
 
 ```
 POST /v1/{tenant}/valorizaciones
@@ -48,8 +49,8 @@ Para pegarle a un ERP real hacen falta credenciales por distribuidora: copiar `.
 
 | Módulo | Qué hay adentro |
 |---|---|
-| `bonif-core` | Modelo normalizado de criterios y los puertos hacia los ERP. Sin Spring: solo JDK. |
-| `bonif-app` | API REST, configuración y los conectores por ERP. |
+| `bonif-core` | Modelo normalizado de criterios y los puertos hacia las fuentes. Sin Spring: solo JDK. |
+| `bonif-app` | API REST, configuración y el conector de GESCOM. |
 
 ## Documentación
 

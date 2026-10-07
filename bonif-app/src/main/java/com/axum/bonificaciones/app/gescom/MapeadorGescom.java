@@ -9,19 +9,46 @@ import com.axum.bonificaciones.core.model.TipoCondicion;
 import com.axum.bonificaciones.core.model.Vigencia;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /** Traduce lo que devuelve GESCOM al modelo normalizado. Nada de esto cruza hacia afuera. */
 @Component
 class MapeadorGescom {
 
+    private static final Logger log = LoggerFactory.getLogger(MapeadorGescom.class);
+
+    /** El unico modificador observado en el catalogo real de dyssa. */
+    private static final String TIPO_DESCUENTO = "DescuentoItem";
+
     /** GESCOM da el descuento como fraccion; el contrato lo expone como porcentaje. */
     static final BigDecimal A_PORCENTAJE = new BigDecimal("100");
+
+    /**
+     * La clave del configuracionJson que guarda los valores, por tipo de condicion.
+     *
+     * Cambia segun el tipo y no hay forma de deducirla: salio de leer el catalogo real de dyssa
+     * (2026-10). Un tipo que no este aca cae en el camino alternativo de {@link #valores}.
+     */
+    private static final Map<TipoCondicion, String> CLAVE_DE_VALORES = Map.of(
+            TipoCondicion.CODIGO_CLIENTE, "codigos",
+            TipoCondicion.TAG_CLIENTE, "tags",
+            TipoCondicion.SUBRAMO_CLIENTE, "subRamoCodigos",
+            TipoCondicion.CODIGO_ITEM, "codigos",
+            TipoCondicion.MARCA_ARTICULO, "marcas",
+            TipoCondicion.PROVEEDOR_ARTICULO, "proveedores",
+            TipoCondicion.LINEA_ARTICULO, "lineas",
+            TipoCondicion.RUBRO_ITEM, "rubros",
+            TipoCondicion.FAMILIA_ARTICULO, "familias",
+            TipoCondicion.CALIBRE_ARTICULO, "calibres");
 
     private final ObjectMapper json;
 
@@ -33,10 +60,13 @@ class MapeadorGescom {
         return new Criterio(
                 Fuente.GESCOM,
                 tenant,
-                p.id(),
+                p.id() == null ? null : String.valueOf(p.id()),
                 p.nombre(),
+                p.descripcion(),
                 !Boolean.FALSE.equals(p.activo()),
                 new Vigencia(fecha(p.validoDesde()), fecha(p.validoHasta())),
+                p.codigoCondicionPrincipal(),
+                p.orden(),
                 p.condiciones() == null ? List.of()
                         : p.condiciones().stream().map(this::aCondicion).toList(),
                 p.modificadores() == null ? List.of()
@@ -46,23 +76,47 @@ class MapeadorGescom {
 
     private Condicion aCondicion(DtosGescom.CondicionCruda c) {
         var config = parsear(c.configuracionJson());
+        var tipo = tipo(c.tipo());
         return new Condicion(
                 c.codigo(),
-                tipo(c.tipo()),
-                valores(config),
+                c.descripcion(),
+                tipo,
+                valores(tipo, config),
                 config.path("inverted").asBoolean(false),
                 config.hasNonNull("requiredQuantity") ? config.get("requiredQuantity").asInt() : null,
                 enteros(config.path("conditionCodes")),
                 c.configuracionJson());
     }
 
+    /**
+     * El descuento, los dataConditionCodes y el allowOverlap salen del configuracionJson del
+     * modificador, no de campos de ese nivel -- verificado contra el catalogo real.
+     */
     private Modificador aModificador(DtosGescom.ModificadorCrudo m) {
-        var descuento = m.descuento() == null ? BigDecimal.ZERO
-                : m.descuento().multiply(A_PORCENTAJE);
+        var config = parsear(m.configuracionJson());
+        Operacion operacion = null;
+
+        if (TIPO_DESCUENTO.equals(m.tipo())) {
+            var fraccion = config.hasNonNull("descuento")
+                    ? config.get("descuento").decimalValue()
+                    : BigDecimal.ZERO;
+            operacion = new Operacion.Descuento(fraccion.multiply(A_PORCENTAJE), null);
+        } else {
+            // No se finge un descuento de 0: queda como noReconocido() y con su crudo. Un
+            // modificador que no entendemos y pasa como "0%" es una promo que desaparece sin que
+            // nadie se entere -- justo lo que la regla dura del gateway prohibe.
+            log.warn("Modificador de tipo desconocido en GESCOM: tipo={} crudo={}",
+                    m.tipo(), m.configuracionJson());
+        }
+
         return new Modificador(
-                new Operacion.Descuento(descuento, null),
-                m.dataConditionCodes(),
-                Boolean.TRUE.equals(m.allowOverlap()));
+                m.codigo(),
+                m.tipo(),
+                m.descripcion(),
+                operacion,
+                enteros(config.path("dataConditionCodes")),
+                config.path("allowOverlap").asBoolean(false),
+                m.configuracionJson());
     }
 
     /**
@@ -104,26 +158,34 @@ class MapeadorGescom {
     }
 
     /**
-     * Los valores de la condicion (codigos de marca, tags, etc.).
+     * Los valores de la condicion. La clave depende del tipo (ver CLAVE_DE_VALORES).
      *
-     * ADVERTENCIA: el nombre de la clave que los contiene NO esta verificado contra una respuesta
-     * real de get-promociones -- nunca vimos una. Por eso no se busca una clave puntual: se toma
-     * el primer array de escalares que no sea conditionCodes. Cuando haya un JSON real, confirmar
-     * y simplificar esto.
+     * Para un tipo DESCONOCIDA no sabemos la clave, asi que se toma el primer array de escalares
+     * que no sea conditionCodes: es mejor devolver los valores de una condicion que no entendemos
+     * que devolverla vacia. El crudo viaja igual.
      */
-    private List<String> valores(JsonNode config) {
+    private List<String> valores(TipoCondicion tipo, JsonNode config) {
+        var clave = CLAVE_DE_VALORES.get(tipo);
+        if (clave != null) return textos(config.path(clave));
+        if (tipo == TipoCondicion.TODAS || tipo == TipoCondicion.ALGUNA) return List.of();
+
         var campos = config.fields();
         while (campos.hasNext()) {
             var campo = campos.next();
             if (campo.getKey().equals("conditionCodes")) continue;
-            var valor = campo.getValue();
-            if (valor.isArray() && (valor.isEmpty() || valor.get(0).isValueNode())) {
-                var valores = new ArrayList<String>();
-                valor.forEach(v -> valores.add(v.asText()));
-                if (!valores.isEmpty()) return valores;
-            }
+            var encontrados = textos(campo.getValue());
+            if (!encontrados.isEmpty()) return encontrados;
         }
         return List.of();
+    }
+
+    private List<String> textos(JsonNode array) {
+        if (!array.isArray()) return List.of();
+        var valores = new ArrayList<String>();
+        array.forEach(v -> {
+            if (v.isValueNode()) valores.add(v.asText());
+        });
+        return valores;
     }
 
     private List<Integer> enteros(JsonNode array) {
@@ -133,12 +195,17 @@ class MapeadorGescom {
         return codigos;
     }
 
+    /** Las fechas vienen como ISO 8601 con offset: "2023-10-30T00:00:00-03:00". */
     private LocalDate fecha(String valor) {
         if (valor == null || valor.isBlank()) return null;
         try {
-            return LocalDate.parse(valor.substring(0, Math.min(10, valor.length())));
-        } catch (DateTimeParseException | IndexOutOfBoundsException e) {
-            return null;
+            return OffsetDateTime.parse(valor).toLocalDate();
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDate.parse(valor.substring(0, Math.min(10, valor.length())));
+            } catch (DateTimeParseException | IndexOutOfBoundsException otra) {
+                return null;
+            }
         }
     }
 }

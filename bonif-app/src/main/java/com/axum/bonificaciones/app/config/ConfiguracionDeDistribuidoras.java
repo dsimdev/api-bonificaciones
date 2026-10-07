@@ -11,9 +11,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Las distribuidoras (tenants) que el gateway sabe consultar, con las fuentes configuradas de
  * cada una.
  *
- * Una distribuidora puede tener mas de una fuente a la vez y con credenciales distintas: los
- * criterios salen de GESCOM y los atributos de cliente/articulo pueden salir del gateway de Axum.
- * Por eso no hay un campo "erp": hay una configuracion por fuente, y cada una tiene su forma.
+ * Hay una configuracion por fuente y no un campo "erp", porque cada fuente tiene su propia forma
+ * de autenticarse. Hoy la unica es GESCOM; el gateway de Axum quedo fuera de alcance el 2026-10-07
+ * porque la tienda lo consume directo.
  *
  * Las credenciales NO van en el yml versionado: el yml solo referencia variables de entorno
  * (ver application.yml). Lo que se guarda es usuario y clave -- que NO vencen; el token de
@@ -38,13 +38,12 @@ public record ConfiguracionDeDistribuidoras(Map<String, Distribuidora> distribui
         return d;
     }
 
-    public record Distribuidora(Gescom gescom, Axum axum) {
+    public record Distribuidora(Gescom gescom) {
 
         /** Que fuentes quedaron efectivamente configuradas. Lo informa /health. */
         public List<Fuente> fuentes() {
             var fuentes = new ArrayList<Fuente>();
             if (gescom != null) fuentes.add(Fuente.GESCOM);
-            if (axum != null) fuentes.add(Fuente.AXUM);
             return List.copyOf(fuentes);
         }
     }
@@ -56,12 +55,6 @@ public record ConfiguracionDeDistribuidoras(Map<String, Distribuidora> distribui
      * @param clave   clave de ese usuario
      */
     public record Gescom(String host, String realm, String usuario, String clave) {}
-
-    /**
-     * @param tenant el tenant en el gateway de Axum (va en la ruta: /{tenant}/api/v1/...)
-     * @param apiKey header x-api-key
-     */
-    public record Axum(String tenant, String apiKey) {}
 
     public static class DistribuidoraDesconocidaException extends RuntimeException {
         public DistribuidoraDesconocidaException(String tenant) {

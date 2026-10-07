@@ -73,8 +73,14 @@ public final class Dtos {
             BigDecimal descuento,
             List<CondicionResponse> condiciones) {}
 
+    /**
+     * @param descripcion el texto que el propio ERP le pone a la condicion ("La venta tiene items
+     *                    de una o mas marcas"). Se pasa tal cual: explica mejor que cualquier
+     *                    cosa que redactemos nosotros, y viene del mismo lugar que el numero
+     */
     public record CondicionResponse(
             String tipo,
+            String descripcion,
             List<String> valores,
             boolean invertida,
             Integer cantidadMinima) {}

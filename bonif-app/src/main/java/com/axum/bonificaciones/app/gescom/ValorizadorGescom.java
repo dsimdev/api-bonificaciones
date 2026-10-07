@@ -5,9 +5,11 @@ import com.axum.bonificaciones.app.dominio.CodigoDeError;
 import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
 import com.axum.bonificaciones.core.model.BonificacionAplicada;
 import com.axum.bonificaciones.core.model.CalculadoPor;
+import com.axum.bonificaciones.core.model.Condicion;
 import com.axum.bonificaciones.core.model.Criterio;
 import com.axum.bonificaciones.core.model.Fuente;
 import com.axum.bonificaciones.core.model.LineaValorizada;
+import com.axum.bonificaciones.core.model.Operacion;
 import com.axum.bonificaciones.core.model.PedidoAValorizar;
 import com.axum.bonificaciones.core.model.Valorizacion;
 import com.axum.bonificaciones.core.puerto.Valorizador;
@@ -109,16 +111,38 @@ public class ValorizadorGescom implements Valorizador {
     private List<BonificacionAplicada> bonificaciones(DtosGescom.ItemEvaluado item,
                                                       Map<String, Criterio> porId) {
         if (item.detalleDescuento() == null) return List.of();
-        return item.detalleDescuento().stream()
-                .map(d -> {
-                    var criterio = porId.get(d.promoId());
-                    return new BonificacionAplicada(
-                            d.promoId(),
-                            d.promoNombre(),
-                            aPorcentaje(d.descuento()),
-                            criterio == null ? List.of() : criterio.condiciones());
-                })
-                .toList();
+        var bonificaciones = new ArrayList<BonificacionAplicada>();
+        for (var detalle : item.detalleDescuento()) {
+            var id = detalle.promoId() == null ? null : String.valueOf(detalle.promoId());
+            var porcentaje = aPorcentaje(detalle.descuento());
+            bonificaciones.add(new BonificacionAplicada(
+                    id, detalle.promoNombre(), porcentaje,
+                    condicionesQueExplican(porId.get(id), porcentaje)));
+        }
+        return bonificaciones;
+    }
+
+    /**
+     * Por que cayo este descuento.
+     *
+     * Un criterio puede tener varios modificadores con descuentos distintos apuntando a
+     * condiciones distintas -- asi se arma el "10% en global y 5% en Pehuamar" del criterio 2 de
+     * dyssa. eval-pedido nos dice QUE porcentaje aplico, asi que se busca el modificador que lo
+     * produjo y se devuelven las condiciones a las que ESE modificador apunta, no todas las del
+     * criterio.
+     *
+     * Y se usan las condiciones en juego, no la lista completa: el catalogo real tiene condiciones
+     * huerfanas que no participan de la evaluacion (ver Criterio.condicionesEnJuego).
+     */
+    private List<Condicion> condicionesQueExplican(Criterio criterio, BigDecimal porcentaje) {
+        if (criterio == null) return List.of();
+        return criterio.modificadores().stream()
+                .filter(m -> m.operacion() instanceof Operacion.Descuento d
+                        && d.descuento() != null
+                        && d.descuento().compareTo(porcentaje) == 0)
+                .findFirst()
+                .map(criterio::condicionesDe)
+                .orElseGet(criterio::condicionesHoja);
     }
 
     /**

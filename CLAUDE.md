@@ -69,26 +69,30 @@ capas que no se pidieron explícitamente.
 
 Estas no se negocian: son el motivo de existir del servicio.
 
-- **Donde hay motor, se delega; donde no, se evalúa acá y se dice.** GESCOM tiene `eval-pedido`:
-  ahí el número lo da el ERP y **no se reimplementa la evaluación de criterios** — es la forma más
-  rápida de devolver un precio que el ERP no reconoce. Axum **no tiene motor** (verificado: su
-  endpoint entrega definiciones, no resultados), así que ahí evaluamos nosotros. **La respuesta
-  siempre dice cuál de las dos cosas fue**: "lo dijo el ERP" y "lo calculamos nosotros" no valen
-  lo mismo frente a un reclamo.
-- **El descuento se normaliza en el conector, nunca después.** GESCOM lo da como fracción
-  (`0.1` = 10%) y Axum como porcentaje (`46.57` = 46,57%) — **convenciones opuestas entre las dos
-  fuentes**. El contrato expone porcentaje, así que GESCOM se multiplica por 100 y Axum pasa
-  derecho. Un `0.1` que sale sin convertir es un 0,1% donde iba 10%.
+- **El número lo da el ERP: no se reimplementa la evaluación de criterios.** GESCOM tiene
+  `eval-pedido` y ahí se delega — calcular por nuestra cuenta es la forma más rápida de devolver un
+  precio que el ERP no reconoce. La respuesta igual lleva `calculadoPor` para que el consumidor
+  sepa de dónde salió el número: "lo dijo el ERP" y "lo calculamos nosotros" no valen lo mismo
+  frente a un reclamo, y hoy siempre es lo primero.
+- **El descuento se normaliza en el conector, nunca después.** GESCOM lo da como **fracción**
+  (`0.1` = 10%) y el contrato expone **porcentaje**, así que el conector multiplica por 100 y hay
+  que preservar decimales (`0.1812` -> `18.12`). Un `0.1` que sale sin convertir es un 0,1% donde
+  iba 10%. Y el descuento del modificador vive **dentro de `configuracionJson`**, que es un string
+  con JSON adentro, no un campo suelto -- leerlo mal da 0% en todo el catálogo (pasó).
 - **Toda respuesta dice de dónde salió**: qué ERP, qué distribuidora, qué criterio (id y nombre) y
   cuándo se consultó. Un descuento que no se puede explicar frente al preventista es un problema
   de soporte, no un resultado. La traza es parte del contrato, no un extra de debug.
 - **Plata y descuentos en `BigDecimal`, nunca `double`/`float`.** El descuento del contrato se
   expone como **porcentaje** (`10` = 10%), decidido el 2026-10-06 por coherencia con el resto del
-  entorno Axum. **Axum ya lo da así; GESCOM lo da como fracción (`0.1`) y lo multiplica por 100 el
-  conector.** La conversión vive en el conector y en ningún otro lado.
+  entorno Axum. La conversión vive en el conector y en ningún otro lado.
 - **Lo que no entendemos del ERP se expone, no se descarta.** Un `condicion.tipo` nuevo llega
-  como `DESCONOCIDA` con su JSON crudo. Tragarse en silencio lo que no mapeamos hace que una
+  como `DESCONOCIDA` con su JSON crudo; un `modificador.tipo` nuevo llega con `noReconocido()` en
+  true y **nunca como un descuento de 0%**. Tragarse en silencio lo que no mapeamos hace que una
   promo desaparezca sin que nadie se entere.
+- **Las condiciones de un criterio son un árbol con ramas muertas.** Se camina desde
+  `codigoCondicionPrincipal`; las que no se alcanzan son huérfanas y **no participan de la
+  evaluación**, así que no se devuelven como "por qué aplicó". El árbol puede tener ciclos. Ver
+  `docs/proyecto/fuente-gescom-criterios.md`.
 - **Las credenciales nunca se commitean ni se loguean.** Van por variable de entorno (`.env` está
   en `.gitignore`). Ningún log imprime token, usuario ni clave — ni en DEBUG.
 - **El token de GESCOM dura 5 minutos.** Se cachea por distribuidora con margen (refrescar ~4
@@ -153,16 +157,14 @@ modelo normalizado y puertos, sin framework. `bonif-app` = REST + **un conector 
 base de datos por ahora (ver `docs/proyecto/decisiones-abiertas.md`). Detalle en
 `docs/proyecto/arquitectura.md`.
 
-**Las fuentes no son intercambiables.** Se consumen GESCOM y el gateway de Axum, y más adelante
-Chess — pero no son tres implementaciones de lo mismo: **solo GESCOM tiene el motor que aplica
-los criterios** (`eval-pedido`). Axum aporta atributos, listas y **un endpoint de bonificaciones
-nuevo, pedido por el usuario, cuyo contrato todavía no vimos** — qué devuelva es hoy la decisión
-abierta más importante del proyecto. De Chess no sabemos nada. Por eso el modelo tiene `Fuente` y
-no un enum `Erp`. **No inventar abstracciones multi-fuente antes de conocer el segundo caso.**
+**La única fuente es GESCOM** (decidido 2026-10-07). El gateway de Axum se evaluó y quedó **fuera
+de alcance**: la tienda consume las bonificaciones de Axum directamente, sin pasar por acá. Por eso
+`Fuente` tiene un solo valor. Chess puede entrar más adelante y hoy no sabemos qué es. **No
+inventar abstracciones multi-fuente antes de conocer el segundo caso.**
 
 > ⛔ **`C:\Dev\docs\axum\integracion-axum.md` está desactualizado** en cuanto a qué endpoints
-> existen (tabla del 2026-08-19; el de bonificaciones no figura). **Antes de afirmar qué expone
-> Axum: preguntar o probar en vivo, no leer la tabla.** Ya indujo a error una vez.
+> existen (tabla del 2026-08-19). **Antes de afirmar qué expone Axum: preguntar o probar en vivo,
+> no leer la tabla.** Ya indujo a error una vez.
 
 **La restricción dominante es que dependemos de APIs que no controlamos**: sin Swagger, con
 errores genéricos, token de 5 minutos y un backend .NET+Unity que responde

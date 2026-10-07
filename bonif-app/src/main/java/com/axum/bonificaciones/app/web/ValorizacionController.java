@@ -57,7 +57,7 @@ public class ValorizacionController {
     }
 
     private Dtos.CondicionResponse aCondicion(Condicion c) {
-        return new Dtos.CondicionResponse(c.tipo().name(), c.valores(), c.invertida(),
-                c.cantidadMinima());
+        return new Dtos.CondicionResponse(c.tipo().name(), c.descripcion(), c.valores(),
+                c.invertida(), c.cantidadMinima());
     }
 }

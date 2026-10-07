@@ -5,16 +5,21 @@ import java.util.List;
 /**
  * Cuando aplica un criterio.
  *
- * @param codigo        id de la condicion dentro del criterio; los modificadores la referencian
- * @param tipo          que atributo mira
- * @param valores       los valores que hacen match (codigos de marca, tags, etc.)
- * @param invertida     si true, aplica a lo que NO esta en {@code valores}
- * @param cantidadMinima cantidad que hay que comprar para que dispare, o null
+ * @param codigo           id de la condicion DENTRO del criterio. Es lo que referencian el
+ *                         codigoCondicionPrincipal, las condicionesHijas y los dataConditionCodes
+ *                         de los modificadores. No es el id global de la fila
+ * @param descripcion      el texto que el propio ERP le pone ("La venta tiene items de una o mas
+ *                         marcas"). Sirve para explicar sin que tengamos que redactarlo nosotros
+ * @param tipo             que atributo mira
+ * @param valores          los valores que hacen match (codigos de marca, tags, etc.)
+ * @param invertida        si true, aplica a lo que NO esta en {@code valores}
+ * @param cantidadMinima   requiredQuantity: cantidad que hay que comprar para que dispare
  * @param condicionesHijas para TODAS/ALGUNA: los codigos de las condiciones que combina
- * @param crudo         el configuracionJson original del ERP, sin interpretar
+ * @param crudo            el configuracionJson original, sin interpretar
  */
 public record Condicion(
         Integer codigo,
+        String descripcion,
         TipoCondicion tipo,
         List<String> valores,
         boolean invertida,
@@ -25,5 +30,10 @@ public record Condicion(
     public Condicion {
         valores = valores == null ? List.of() : List.copyOf(valores);
         condicionesHijas = condicionesHijas == null ? List.of() : List.copyOf(condicionesHijas);
+    }
+
+    /** TODAS y ALGUNA no miran ningun atributo: combinan otras condiciones. */
+    public boolean esCombinador() {
+        return tipo == TipoCondicion.TODAS || tipo == TipoCondicion.ALGUNA;
     }
 }
