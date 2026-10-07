@@ -139,22 +139,29 @@ Un detalle del lote que vale copiar: es **parcial y no transaccional a propósit
 falla por un typo, las demás se aplican igual y el error queda listado. Frenar un alta de 40 por
 un renglón sería peor.
 
-## El orden que proponemos
+## El orden
+
+**Decidido el 2026-10-07: van las dos cosas.** La API es lo que permite el alta masiva; el panel
+es lo que permite que lo opere gente que no trabaja con APIs. Tienen usuarios distintos y ninguna
+reemplaza a la otra. Lo que sigue es el orden de construcción, no una elección.
 
 **1. API de administración, protegida por clave maestra.** Crear distribuidora, cargar
 credenciales (validándolas contra Keycloak en el acto), regenerar api-key, listar. **Es esto lo
 que permite el alta masiva**, llamándolo desde donde ya estén los datos hoy.
 
-**2. Panel encima, después.** Para lo ocasional: ver qué hay cargado, corregir una, regenerar una
-clave, diagnosticar por qué una distribuidora no responde.
+**2. El panel.** Para los compañeros que no trabajan con APIs. **Y lo más valioso del panel no es
+el ABM: es el diagnóstico.** Un ABM se usa al dar de alta y nunca más; la pantalla de *"probá esta
+valorización y mostrame por qué dio eso"* se usa todas las semanas, cada vez que un cliente dice
+que no le hicieron el descuento. Ver el detalle de pantallas y prioridades en `plan-de-fases.md`
+(Fase 3c).
 
 El panel de MotorFiscal es un **export estático de Next.js embebido en el jar**, servido en
 `/admin` — mismo origen que la API, sin CORS ni mixed content. Es el molde: se copia, no se
 inventa.
 
-**Mientras tanto Swagger alcanza.** La API de administración queda documentada sola en
-`/swagger-ui.html`, y con la clave maestra se opera desde ahí. No es lindo, pero es suficiente
-hasta que lo use alguien que no sea el equipo.
+**Mientras se construye el panel, Swagger alcanza** para operar desde el equipo: la API de
+administración queda documentada sola en `/swagger-ui.html`. No es un reemplazo del panel, es lo
+que desbloquea el alta de las primeras distribuidoras sin esperar al frontend.
 
 ## Lo que falta decidir
 

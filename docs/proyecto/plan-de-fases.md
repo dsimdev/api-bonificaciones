@@ -87,21 +87,78 @@ diagnóstico coincide con lo que `eval-pedido` efectivamente aplica en un pedido
 
 ---
 
-## Fase 3 — Endurecer y deployar · v0.4.0
 
-> **La autenticación (`x-api-key`) se adelanta a la Fase 2** si la tienda va a consumirlo por red
-> antes de que exista esta fase. El gateway guarda credenciales de todas las distribuidoras:
-> exponerlo sin auth es regalar sus datos comerciales. Son pocas horas de trabajo, no justifica
-> el riesgo de dejarlo para después.
+---
 
-1. **Autenticación propia** del gateway por `x-api-key`, misma convención que el gateway de Axum.
-2. Timeouts, reintentos acotados y qué devolver cuando el ERP está caído.
-3. Métricas y logs útiles sin un solo secreto adentro.
-4. Deploy: servicio de Windows, igual que `api-impuestos` (sin Docker en el entorno).
-5. Colección Postman del gateway, para el integrador.
+## Fase 3 — Multi-tenant, auth y panel · v0.4.0 … v0.6.0
 
-**Criterio de salida**: corriendo en el servidor real, con auth, y un consumidor externo haciendo
-una valorización end-to-end.
+La fase más grande del proyecto. Es lo que convierte esto de "anda en una máquina con dos
+distribuidoras" a "lo operan mil". Detalle en [multi-tenant-y-auth.md](multi-tenant-y-auth.md).
+
+**Decidido el 2026-10-07: van la API de administración Y el panel.** No es o uno o el otro: la
+API es lo que permite el alta masiva, y el panel es lo que permite que lo opere gente que no
+trabaja con APIs. Los dos tienen usuarios distintos.
+
+### 3a — La base · v0.4.0
+
+Sin esto no hay nada más: las variables de entorno no escalan a 1000.
+
+1. **SQL Server + Flyway.** Tablas de distribuidora y de credenciales. El servidor ya lo tiene y
+   `api-impuestos` ya lo usa.
+2. **Secretos cifrados en reposo** (`CifradoDeSecretos` de MotorFiscal es el molde). Guardamos las
+   claves de API de mil distribuidoras: en texto plano no van.
+3. **API de administración** con clave maestra: alta, listar, cargar credenciales, regenerar la
+   api-key de la tienda. **Validando la credencial contra Keycloak en el acto**, antes de guardar.
+4. **Alta en lote**, parcial y no transaccional: un typo en una fila no frena las otras.
+
+**Criterio de salida**: dar de alta una distribuidora por API, que la validación rechace una
+credencial mala, y que `/valorizaciones` funcione con la credencial que quedó en la base.
+
+### 3b — Auth de la API pública · v0.5.0
+
+1. `x-api-key` por tenant, **validando que la credencial sea del tenant de la ruta**. Sin eso, una
+   tienda puede pedir los datos de otra distribuidora cambiando la URL.
+2. **Alcances**: la clave del checkout **solo valoriza**. `/criterios` es back-office — es la
+   estructura comercial completa y no va en un navegador.
+3. Limitador de intentos (fuerza bruta) y cuota por credencial (que el bug de integración de una
+   tienda no se coma la capacidad del resto).
+
+**Criterio de salida**: con la clave de dyssa, `/v1/senderolaser/...` devuelve 403. Y con la clave
+del checkout, `/criterios` devuelve 403.
+
+### 3c — El panel · v0.6.0
+
+Para los compañeros que no trabajan con APIs. **Lo más valioso del panel no es el ABM: es el
+diagnóstico.** Un ABM lo usás al dar de alta y nunca más; la pantalla de soporte se usa todas las
+semanas.
+
+| Pantalla | Para qué | Prioridad |
+|---|---|---|
+| **Probar una valorización** — cliente + ítems, y ver el resultado con el porqué | *"El cliente dice que no le hizo el descuento"*. Hoy eso se contesta con curl. Es **la razón de ser del panel** | **1** |
+| **Ver los criterios de una distribuidora** | Qué promos hay cargadas, cuáles vencen, a quién aplican. Ya existe el endpoint | **2** |
+| **Estado de las distribuidoras** — cuáles andan, probar la credencial con un botón | Detecta una credencial vencida antes que un cliente | **3** |
+| **ABM de distribuidoras** | Alta, editar, regenerar la api-key | **4** |
+
+**Tecnología: se copia la de MotorFiscal**, no se inventa. Export estático de Next.js embebido en
+el jar, servido en `/admin` — mismo origen que la API, **sin CORS ni mixed content**, un solo
+artefacto para deployar.
+
+> ⚠️ **El panel arrastra una trampa conocida.** Si va detrás de un IIS que lo cuelga como
+> aplicación anidada, hay que compilarlo con el prefijo de ruta completo o queda en blanco con
+> 404. En `api-impuestos` ese bug **llegó a producción tres veces** (el redirect de `/admin`,
+> `swagger-ui.url` y `swagger-ui.config-url`). Toda URL que el panel arme para sí mismo sale de
+> configuración, y se prueba **a través** del proxy, nunca contra `localhost:8080` directo. Desde
+> que exista el panel, eso es parte del checklist de deploy.
+
+### 3d — Endurecer y deployar · v0.6.x
+
+1. Timeouts, reintentos acotados y qué devolver cuando el ERP está caído.
+2. Métricas y logs útiles sin un solo secreto adentro.
+3. Deploy: servicio de Windows, igual que `api-impuestos` (sin Docker en el entorno).
+4. Colección Postman del gateway, para el integrador.
+
+**Criterio de salida de la Fase 3**: corriendo en el servidor real, con auth, con una distribuidora
+dada de alta desde el panel, y la tienda haciendo una valorización end-to-end.
 
 ---
 
