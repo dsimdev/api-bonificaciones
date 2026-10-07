@@ -11,6 +11,7 @@ import com.axum.bonificaciones.core.model.Fuente;
 import com.axum.bonificaciones.core.model.LineaValorizada;
 import com.axum.bonificaciones.core.model.Operacion;
 import com.axum.bonificaciones.core.model.PedidoAValorizar;
+import com.axum.bonificaciones.core.model.Supuesto;
 import com.axum.bonificaciones.core.model.Valorizacion;
 import com.axum.bonificaciones.core.puerto.Valorizador;
 import java.math.BigDecimal;
@@ -72,8 +73,15 @@ public class ValorizadorGescom implements Valorizador {
         var ventas = cliente.post(tenant, gescom, "ventas", "eval-pedido", sobre,
                 DtosGescom.VentaEvaluada[].class);
 
+        // Si no vino la lista, el ERP usa la del cliente. No es un error, pero cambia el PRECIO,
+        // asi que el consumidor tiene que verlo: nunca un default silencioso.
+        var supuestos = new ArrayList<Supuesto>();
+        if (pedido.codigoListaPrecio() == null || pedido.codigoListaPrecio().isBlank()) {
+            supuestos.add(Supuesto.listaDePrecioNoEnviada());
+        }
+
         var valorizacion = new Valorizacion(Fuente.GESCOM, tenant, CalculadoPor.ERP,
-                OffsetDateTime.now(reloj), lineas(tenant, ventas));
+                OffsetDateTime.now(reloj), supuestos, lineas(tenant, ventas));
 
         var noCierran = valorizacion.lineasQueNoCierran();
         if (!noCierran.isEmpty()) {

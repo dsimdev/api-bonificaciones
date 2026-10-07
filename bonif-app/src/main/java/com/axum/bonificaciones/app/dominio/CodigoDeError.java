@@ -41,7 +41,19 @@ public enum CodigoDeError {
      * La respuesta de la fuente es internamente incoherente (el neto con descuento no se
      * corresponde con el neto y el descuento). No se devuelve un numero que no cierra.
      */
-    RESPUESTA_INCOHERENTE(502);
+    RESPUESTA_INCOHERENTE(502),
+
+    /**
+     * La fuente rechazo el pedido por validacion de modelo: falta un dato o uno es invalido.
+     *
+     * Es error del CONSUMIDOR, no de la fuente. GESCOM tapa los errores de runtime con un
+     * generico, pero la validacion de modelo SI informa: cuando informa, devolver 502 le estaria
+     * diciendo al consumidor "reintenta" algo que nunca va a andar.
+     */
+    PEDIDO_RECHAZADO_POR_LA_FUENTE(400),
+
+    /** El codigo de cliente no existe en el ERP de esa distribuidora. */
+    CLIENTE_INEXISTENTE(400);
 
     private final int http;
 

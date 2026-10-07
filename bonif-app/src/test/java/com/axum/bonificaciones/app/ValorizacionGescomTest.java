@@ -215,6 +215,38 @@ class ValorizacionGescomTest {
                 .andExpect(jsonPath("$.codigo").value("COMANDO_INEXISTENTE"));
     }
 
+    /**
+     * Un cliente que no existe es error de LA TIENDA, no del ERP: 400, no 502. GESCOM tapa los
+     * errores de runtime con un generico, pero la validacion de modelo si informa, y cuando
+     * informa hay que creerle. Devolver 502 seria decirle "reintenta" a algo que nunca va a andar.
+     */
+    @Test
+    void unClienteInexistenteEsErrorDeLaTiendaNoDelErp() throws Exception {
+        gescom.stubFor(post(urlPathEqualTo("/data/cmd/ventas/api/v1/eval-pedido"))
+                .willReturn(aResponse().withStatus(400).withBody(
+                        "{\"errorCode\":\"0\",\"message\":\"El campo CodigoCliente tiene un codigo invalido\"}")));
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON).content(PEDIDO))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("CLIENTE_INEXISTENTE"))
+                .andExpect(jsonPath("$.mensaje")
+                        .value("El campo CodigoCliente tiene un codigo invalido"));
+    }
+
+    /** Cualquier otra validacion de modelo tambien es del consumidor. */
+    @Test
+    void otraValidacionDeModeloTambienEs400() throws Exception {
+        gescom.stubFor(post(urlPathEqualTo("/data/cmd/ventas/api/v1/eval-pedido"))
+                .willReturn(aResponse().withStatus(400).withBody(
+                        "{\"errorCode\":\"0\",\"message\":\"No se ha especificado la cantidad\"}")));
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON).content(PEDIDO))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("PEDIDO_RECHAZADO_POR_LA_FUENTE"));
+    }
+
     /** El generico de GESCOM se devuelve con el crudo adjunto, no se traga. */
     @Test
     void elErrorGenericoDeGescomLlegaConSuCrudo() throws Exception {
@@ -228,6 +260,52 @@ class ValorizacionGescomTest {
                 .andExpect(jsonPath("$.codigo").value("FUENTE_ERROR_DESCONOCIDO"))
                 .andExpect(jsonPath("$.crudo").value(
                         "{\"errorCode\":\"0\",\"message\":\"Error desconocido\"}"));
+    }
+
+    /** El total viene calculado: la tienda no suma y no diverge por redondeo. */
+    @Test
+    void devuelveLosTotalesDelPedido() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON).content(PEDIDO))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totales.neto").value(58424.22))
+                .andExpect(jsonPath("$.totales.netoConDescuento").value(52581.80))
+                .andExpect(jsonPath("$.totales.descuento").value(5842.42));
+    }
+
+    /** La referencia de la tienda vuelve tal cual, para poder rastrear despues. */
+    @Test
+    void devuelveLaReferenciaDeLaTienda() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"cliente":"8380","listaPrecio":"2","referencia":"carrito-991",
+                                 "items":[{"codigo":"5000014792","cantidad":6}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.referencia").value("carrito-991"));
+    }
+
+    /** Con lista, no hay nada que suponer. */
+    @Test
+    void sinSupuestosCuandoElPedidoViencompleto() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON).content(PEDIDO))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supuestos").isEmpty());
+    }
+
+    /**
+     * Sin lista de precios el ERP usa la del cliente. No es un error, pero cambia el PRECIO, asi
+     * que sale marcado: nunca un default silencioso.
+     */
+    @Test
+    void sinListaDePrecioLoAvisaEnSupuestos() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cliente\":\"8380\",\"items\":[{\"codigo\":\"5000014792\",\"cantidad\":6}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supuestos[0].codigo").value("LISTA_PRECIO_NO_ENVIADA"));
     }
 
     @Test

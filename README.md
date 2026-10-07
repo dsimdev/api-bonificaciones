@@ -54,6 +54,9 @@ Para pegarle a un ERP real hacen falta credenciales por distribuidora: copiar `.
 
 ## Documentación
 
+- **[docs/guia-de-integracion.md](docs/guia-de-integracion.md) — el contrato, para quien integra la
+  tienda.** Es lo que hay que pasarle al dev del checkout.
+
 - [docs/proyecto/](docs/proyecto/) — arquitectura, plan de fases y decisiones abiertas.
 - [docs/metodo/](docs/metodo/) — cómo se trabaja: deploy, testing, auditoría, memoria.
 - `C:\Dev\docs\gescom\eval-pedido.md` — la referencia de la API de GESCOM (cross-project).

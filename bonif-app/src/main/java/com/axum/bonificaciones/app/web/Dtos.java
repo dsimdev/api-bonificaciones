@@ -22,9 +22,16 @@ public final class Dtos {
 
     private Dtos() {}
 
+    /**
+     * @param listaPrecio fuertemente recomendado: la lista CAMBIA EL PRECIO. Si no viene, el ERP
+     *                    usa la del cliente y la respuesta lo avisa en `supuestos`
+     * @param referencia  identificador propio de la tienda (el carrito, el pedido). Se devuelve
+     *                    tal cual, para poder rastrear despues que le respondimos a quien
+     */
     public record PedidoRequest(
             @NotBlank String cliente,
             String listaPrecio,
+            String referencia,
             @NotEmpty @Valid List<ItemRequest> items) {}
 
     public record ItemRequest(
@@ -52,7 +59,17 @@ public final class Dtos {
             String tenant,
             CalculadoPor calculadoPor,
             OffsetDateTime consultadoEn,
+            String referencia,
+            List<SupuestoResponse> supuestos,
+            TotalesResponse totales,
             List<LineaResponse> lineas) {}
+
+    /** Algo que resolvimos nosotros porque el pedido no lo traia. Vacio = no hubo ninguno. */
+    public record SupuestoResponse(String codigo, String mensaje) {}
+
+    /** @param descuento el ahorro en PESOS, no un porcentaje. */
+    public record TotalesResponse(
+            BigDecimal neto, BigDecimal descuento, BigDecimal netoConDescuento) {}
 
     /** @param descuento PORCENTAJE: 10 = 10%. */
     /**

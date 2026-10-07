@@ -38,12 +38,18 @@ public class ValorizacionController {
                 .toList();
         var resultado = valorizador.valorizar(tenant,
                 new PedidoAValorizar(pedido.cliente(), pedido.listaPrecio(), items));
-        return aResponse(resultado);
+        return aResponse(resultado, pedido.referencia());
     }
 
-    private Dtos.ValorizacionResponse aResponse(Valorizacion v) {
-        return new Dtos.ValorizacionResponse(v.fuente(), v.tenant(), v.calculadoPor(),
-                v.consultadoEn(), v.lineas().stream().map(this::aLinea).toList());
+    private Dtos.ValorizacionResponse aResponse(Valorizacion v, String referencia) {
+        var t = v.totales();
+        return new Dtos.ValorizacionResponse(
+                v.fuente(), v.tenant(), v.calculadoPor(), v.consultadoEn(), referencia,
+                v.supuestos().stream()
+                        .map(s -> new Dtos.SupuestoResponse(s.codigo(), s.mensaje()))
+                        .toList(),
+                new Dtos.TotalesResponse(t.neto(), t.descuento(), t.netoConDescuento()),
+                v.lineas().stream().map(this::aLinea).toList());
     }
 
     private Dtos.LineaResponse aLinea(LineaValorizada l) {

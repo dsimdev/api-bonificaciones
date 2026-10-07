@@ -3,6 +3,7 @@ package com.axum.bonificaciones.app.gescom;
 import com.axum.bonificaciones.app.config.ConfiguracionDeDistribuidoras.Gescom;
 import com.axum.bonificaciones.app.dominio.CodigoDeError;
 import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
@@ -28,6 +29,9 @@ public class ClienteGescom {
      * la unica forma de descubrir endpoints en esta API.
      */
     private static final String UNITY_NO_REGISTRADO = "InvalidRegistrationException";
+
+    /** El mensaje con el que GESCOM tapa todos los errores de runtime. */
+    private static final String MENSAJE_GENERICO = "Error desconocido";
 
     private static final Logger log = LoggerFactory.getLogger(ClienteGescom.class);
 
@@ -95,9 +99,34 @@ public class ClienteGescom {
                     "GESCOM respondio " + e.getStatusCode().value()
                             + " en " + servicio + "/" + comando, cuerpo);
         }
-        // Lo que queda es el generico de GESCOM. No se puede clasificar mas: se devuelve con el
-        // crudo para que alguien lo pueda mirar, en vez de tragarselo.
+        // GESCOM colapsa los errores de RUNTIME en {"errorCode":"0","message":"Error desconocido"},
+        // pero la VALIDACION DE MODELO si informa. Cuando informa, el pedido esta mal y es del
+        // consumidor: devolver 502 ahi le estaria diciendo "reintenta" algo que nunca va a andar.
+        var mensaje = mensajeDe(cuerpo);
+        if (mensaje != null && !mensaje.equalsIgnoreCase(MENSAJE_GENERICO)) {
+            if (mensaje.contains("CodigoCliente")) {
+                return new ErrorDeGateway(CodigoDeError.CLIENTE_INEXISTENTE, mensaje, cuerpo);
+            }
+            return new ErrorDeGateway(CodigoDeError.PEDIDO_RECHAZADO_POR_LA_FUENTE, mensaje, cuerpo);
+        }
+
+        // Lo que queda es el generico. No se puede clasificar mas: se devuelve con el crudo para
+        // que alguien lo pueda mirar, en vez de tragarselo.
         return new ErrorDeGateway(CodigoDeError.FUENTE_ERROR_DESCONOCIDO,
                 "GESCOM devolvio un error no clasificable en " + servicio + "/" + comando, cuerpo);
+    }
+
+    /**
+     * El "message" del JSON de error. Se saca con regex y no parseando: el cuerpo de un error de
+     * GESCOM no siempre es JSON valido, y un fallo del parser no puede tapar el error original.
+     */
+    private static final Pattern MENSAJE =
+            Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+
+    /** El "message" del cuerpo, que es lo unico util que manda GESCOM cuando manda algo. */
+    private String mensajeDe(String cuerpo) {
+        if (cuerpo == null) return null;
+        var m = MENSAJE.matcher(cuerpo);
+        return m.find() ? m.group(1) : null;
     }
 }
