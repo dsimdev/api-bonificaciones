@@ -40,7 +40,7 @@ de Axum y en MotorFiscal.
 
 | Campo | ¿Obligatorio? | Qué es |
 |---|---|---|
-| `cliente` | **sí** | El código de cliente **del ERP**, el mismo que usa GESCOM. No hay traducción. |
+| `cliente` | **sí** | El código de cliente **del ERP**, el mismo que usa GESCOM. No hay traducción. **Tiene que existir en el ERP** — ver "Clientes que no están en el ERP". |
 | `listaPrecio` | no, pero **mandala** | Ver la advertencia de abajo: **cambia el precio**. |
 | `referencia` | no | Un identificador tuyo (el carrito, el pedido). Te lo devolvemos tal cual, para poder rastrear después qué te respondimos. |
 | `items[].codigo` | **sí** | Código del artículo. |
@@ -138,6 +138,22 @@ respuesta trae **una línea de más** con `creadaPorPromo: true`:
 
 **Tenés que contemplarlo**: la cantidad de líneas que devolvemos puede ser mayor que la que
 mandaste. Mostralas como regalo, no como un ítem más del carrito.
+
+---
+
+## Clientes que no están en el ERP
+
+`eval-pedido` exige el cliente y rechaza el pedido entero si no existe, así que **para un cliente
+que no está en GESCOM no podemos devolver nada** — ni descuento ni precio.
+
+Si en tu flujo puede haber clientes que no vengan del ERP, **hablemos antes de que lo implementes**.
+La salida depende de algo que solo vos sabés: **¿usás nuestro `neto` como precio del carrito, o ya
+tenés el precio y solo nos pedís el descuento?**
+
+- Si ya tenés el precio: un cliente nuevo es trivial. Recibís `CLIENTE_INEXISTENTE`, aplicás 0% de
+  descuento y mostrás precio de lista. No hay nada que construir de ninguno de los dos lados.
+- Si usás nuestro `neto`: ahí sí hay que resolverlo, y hay opciones (que el alta pase primero por
+  el ERP, o un cliente genérico por distribuidora). Ninguna es gratis.
 
 ---
 

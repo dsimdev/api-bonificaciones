@@ -5,6 +5,50 @@ anota en la memoria del proyecto (`MEMORY.md` → "Temas CERRADOS") con fecha y 
 
 ---
 
+## 0. ¿Qué pasa con un cliente que no existe en el ERP? — **bloquea el checkout de clientes nuevos**
+
+### El problema
+
+`eval-pedido` **exige** `CodigoCliente` y rechaza el pedido entero si no existe. Verificado en
+vivo: devuelve `CLIENTE_INEXISTENTE` (400). O sea que para un cliente que no está en GESCOM **no
+podemos devolver ni el descuento ni el precio**: los dos vienen de la misma llamada.
+
+Y el caso existe, está documentado en `integracion-axum.md`:
+
+> *"no todos los clientes de la tienda nueva van a venir por acá: los que llegan por fuera no
+> tienen ERP que los alimente, así que **MotorFiscal tiene que funcionar también sin Axum**"*
+
+MotorFiscal pudo resolverlo cayendo a defaults (consumidor final, alícuota general). **Nosotros no
+podemos**: nuestra única fuente de verdad es el ERP, y el ERP se niega.
+
+### La pregunta que lo desempata
+
+**¿La tienda usa nuestro `neto`, o solo nuestro `descuento`?**
+
+| Si la tienda… | Entonces un cliente nuevo… |
+|---|---|
+| ya tiene su precio (de Axum o su catálogo) y nos pide **solo el descuento** | es **trivial**: `CLIENTE_INEXISTENTE` ⇒ aplica 0% y muestra precio de lista. No hay nada que construir |
+| usa **nuestro `neto`** como precio del carrito | **le rompe el checkout**. Hace falta una salida |
+
+Hay que preguntárselo al dev. No es una decisión nuestra.
+
+### Las salidas, si hiciera falta una
+
+| Opción | Qué implica | Riesgo |
+|---|---|---|
+| **A. El cliente se da de alta en el ERP antes de comprar** | Nada de código. Es lo coherente con "el ERP manda", y en un mayorista B2B los clientes son empresas con cuenta, lista y condición de pago — no se dan de alta solos | La tienda no puede vender a alguien nuevo sin pasar por el ERP |
+| **B. Cliente genérico ("mostrador") por distribuidora** | Un `clientePorDefecto` en la config del tenant + un `supuesto` en la respuesta diciendo que se valorizó contra el genérico | **El descuento sería el del genérico, no el del cliente real.** Cuando lo den de alta de verdad, el precio le cambia. Tiene que verse |
+| **C. La tienda maneja el 400** | Nada de código nuestro | Solo sirve si la tienda tiene su propio precio |
+
+**Recomendación**: **A como regla, C si la tienda tiene precio propio.** B solo si hace falta de
+verdad, porque un precio calculado contra un cliente que no es el real es exactamente la clase de
+número que después nadie puede explicar.
+
+Ojo con no confundir esto con las **altas de distribuidoras** (tenants), que es otro problema y
+está en [multi-tenant-y-auth.md](multi-tenant-y-auth.md).
+
+---
+
 ## ✅ Cerradas al construir la Fase 1 (2026-10-06)
 
 - **El descuento del contrato se expone como PORCENTAJE** (`10` = 10%), no como fracción.
