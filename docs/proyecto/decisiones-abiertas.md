@@ -50,13 +50,15 @@ manda a MotorFiscal. Si la tienda ya tiene un `precioUnitario` / `neto` / `descu
 nombres aunque no sean los que elegiríamos. Mientras tanto el contrato queda marcado como
 **borrador**, no versionado como estable.
 
-**Estado (2026-10-07)**: la tienda va a pasar un JSON de ejemplo de lo que emite. Ese JSON define
-el contrato de entrada. Lo que hay que mirar cuando llegue, en orden de impacto:
+**Cerrado el 2026-10-07**: el **código de cliente es el mismo que en GESCOM**. No hace falta
+traducción: lo que manda la tienda va derecho al `CodigoCliente` de `eval-pedido`.
+
+**Pendiente**: la tienda va a pasar un JSON de ejemplo de lo que emite. Ese JSON define el
+contrato de entrada. Lo que hay que mirar cuando llegue, en orden de impacto:
 
 | Qué mirar | Por qué cambia algo |
 |---|---|
 | **¿Manda `listaPrecio`?** | **Lo más importante.** Dyssa tiene criterios con condición `ListaPrecioVenta`: la lista **decide qué bonificación aplica**. Si no la mandamos, `eval-pedido` usa la lista por defecto del cliente y el descuento puede ser otro — y nadie se entera, porque la respuesta es igual de verosímil. Hoy el campo es opcional en nuestro contrato; si la tienda la tiene, pasa a obligatorio |
-| **¿El código de cliente es el de GESCOM?** | Si la tienda usa un id propio, falta una traducción que hoy no existe en ningún lado |
 | **¿Manda el carrito entero o ítem por ítem?** | Los criterios se evalúan **sobre la venta completa** (`requiredQuantity`, condiciones de marca/rubro que miran todos los ítems). Pedir ítem por ítem da descuentos distintos a pedir el carrito. No es una optimización: es corrección |
 | **¿Manda precio?** | Si la tienda ya tiene un precio y nosotros devolvemos otro, hay que decidir cuál manda antes de que lo descubra un cliente |
 | **¿Unidad y bultos?** | `CodigoUnidad` / `UnidadFactor`. Hoy ponemos `"Unidad"` y factor 1 por defecto; si la tienda vende por bulto, eso está mal |

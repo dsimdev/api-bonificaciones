@@ -25,7 +25,7 @@ versión real embebida por el build y las distribuidoras configuradas.
 
 ---
 
-## Fase 1 — Valorizar con `eval-pedido`, con catálogo · v0.2.0 · **✅ CERRADA para dyssa**
+## Fase 1 — Valorizar con `eval-pedido`, con catálogo · v0.2.0 · **✅ CERRADA**
 
 `POST /v1/{tenant}/valorizaciones` sobre GESCOM. Es la llamada del checkout y lo que paga el
 proyecto.
@@ -56,11 +56,14 @@ reproduce el caso verificado (cliente 8380 / ítem 5000014792 / lista 2 → `584
 `CatalogoContraGescomRealIT` confirma que el parseo del catálogo real no pierde nada: ningún tipo
 de condición ni de modificador sin mapear, ninguna condición conocida sin valores.
 
-Falta `senderolaser` (se saltea sin credenciales): con una sola distribuidora no se prueba el
-aislamiento entre tenants del cache de tokens.
+**Y cerrado del todo con senderolaser el 2026-10-07**: los dos casos verificados pasan en vivo, el
+informe de parseo corre contra las dos distribuidoras, y
+`cadaDistribuidoraRecibeSuPropioCatalogoYNoElDeLaOtra` prueba el **aislamiento entre tenants** del
+cache de tokens — que era el motivo real de necesitar una segunda distribuidora.
 
-46 tests verdes (1 salteado). Correr los que pegan al ERP: `gradlew build -PincludeErpTests` con
-el `.env` cargado.
+51 tests verdes, ninguno salteado. Correr los que pegan al ERP: `gradlew cleanTest test
+-PincludeErpTests` con el `.env` cargado (hace falta `cleanTest`: si no, Gradle los da por
+up-to-date y no los vuelve a correr).
 
 ---
 

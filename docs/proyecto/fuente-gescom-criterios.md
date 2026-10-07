@@ -98,8 +98,10 @@ Frecuencia en los 70 criterios de dyssa: `CodigoItem` 45, `CodigoCliente` 26, `T
 `ListaPrecioVenta` 2, `FamiliaArticulo` 1, `RubroItem` 1, `CalibreArticulo` 1. Más 70 `All` y 2
 `Any` como combinadores.
 
-Los códigos de agrupador vienen **prefijados por origen**: `pepsico-11`, `dyssa-122`, `dyssa-02`.
-Conviven los dos prefijos en el mismo catálogo.
+⚠️ **El formato de los códigos de agrupador cambia entre distribuidoras.** En dyssa vienen
+prefijados por origen (`pepsico-11`, `dyssa-122`, `dyssa-02`, y conviven dos prefijos en el mismo
+catálogo); en senderolaser son números pelados (`subRamoCodigos: ["100","105","108"]`). **No
+asumir un formato ni parsear el prefijo**: son identificadores opacos que solo se comparan.
 
 ### Otras claves del `configuracionJson`
 
@@ -172,10 +174,11 @@ dyssa (NOEL POTE 1KG, FRIGOR 1KG, CHOMP, los combos de BIC…).
   referencia los muestra redondeados a dos (`52581.80`) y de ahí salió una expectativa equivocada
   en el primer test contra el ERP real. **Esa doc es para leer, no para fijar expectativas.**
 - **Los `marcadores` no aportan nada hoy**: todos son `ItemQMarker` con `configuracionJson: null`.
-- ⚠️ **La `descripcion` puede mentir sobre el número.** El criterio 205 se llama *"FRIGOR
-  CADENAS"* y su descripción dice *"DESCUENTO 20% EN CADENAS"*, pero el modificador aplica
-  **0.15**. La descripción es texto libre que escribió una persona: sirve para explicar, **no**
-  como fuente del número.
+- ⚠️ **El nombre y la descripción pueden mentir sobre el número, y pasa en las dos
+  distribuidoras.** En dyssa, el criterio 205 *"FRIGOR CADENAS"* dice *"DESCUENTO 20%"* y aplica
+  **0.15**. En senderolaser, el criterio 163 se llama literalmente *"ALM/REF/INS 22%"* y aplica
+  **0.24**. Son texto libre que escribió una persona: sirven para explicar, **nunca** como fuente
+  del número. Si alguien audita promos leyendo nombres, va a encontrar varias así.
 
 ## Lo que sigue sin verificar
 

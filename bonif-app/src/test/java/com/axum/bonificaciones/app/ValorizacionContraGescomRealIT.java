@@ -50,11 +50,14 @@ class ValorizacionContraGescomRealIT {
                 new BigDecimal("58424.22"), new BigDecimal("10"), new BigDecimal("52581.798"));
     }
 
-    /** senderolaser, criterio 159: 12% sobre el item 610030 en la lista 1. */
+    /**
+     * senderolaser, criterio 159 ("ALM/REF/INS 12%"): subramo del cliente en [100,105,108] + item
+     * 610030. Los decimales, otra vez, son los del ERP: la doc redondea 5456.9328 a 5456.93.
+     */
     @Test
     void reproduceElCasoVerificadoDeSenderolaser() {
         valorizaYVerifica("senderolaser", "301", "610030", "1",
-                new BigDecimal("6201.06"), new BigDecimal("12"), new BigDecimal("5456.93"));
+                new BigDecimal("6201.06"), new BigDecimal("12"), new BigDecimal("5456.9328"));
     }
 
     private void valorizaYVerifica(String tenant, String cliente, String item, String lista,

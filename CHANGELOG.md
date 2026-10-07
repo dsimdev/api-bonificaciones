@@ -104,6 +104,20 @@ instead of passing as 0%**; that rule paid for itself on its first outing.
 - `Condicion` now also carries the ERP's raw `tipo` string — without it, a `DESCONOCIDA` condition
   is unidentifiable, which is exactly how `ListaPrecioVenta` stayed invisible.
 
+### Verified live against both distributors
+- `ValorizacionContraGescomRealIT` reproduces both documented cases end to end through our own
+  endpoint: dyssa 558 (10%) and senderolaser 159 (12%).
+- `CatalogoContraGescomRealIT` is parameterized over both tenants, and
+  `cadaDistribuidoraRecibeSuPropioCatalogoYNoElDeLaOtra` covers **tenant isolation of the token
+  cache** — the one bug a single distributor can never catch, and the worst this service could
+  have: one distributor being served another is commercial data.
+- The client code is the same one GESCOM uses, confirmed by the user: no translation layer needed.
+- Grouper codes are formatted differently per distributor — prefixed in dyssa (`pepsico-11`,
+  `dyssa-122`), bare numbers in senderolaser (`"100"`). They are opaque identifiers; do not parse
+  the prefix.
+- A criterion name can contradict its own discount in both catalogues: senderolaser 163 is called
+  "ALM/REF/INS 22%" and applies 24%.
+
 ### Notes
 - Amounts come back with **six decimals** (`58424.220000` → `52581.7980000`). The reference doc
   rounds them to two, which is where the first live test's wrong expectation came from. The shared
