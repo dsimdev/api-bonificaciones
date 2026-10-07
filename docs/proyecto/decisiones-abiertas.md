@@ -45,10 +45,22 @@ La lección de MotorFiscal: copió los nombres de `facturasimpagas` (`totalIva`,
 `percepcionIva`, …) para que la factura mapeara 1:1 sin traducción en el medio. Acá hay que hacer
 lo mismo con la **línea de carrito de la tienda**.
 
-**Recomendación**: antes de congelar los DTO de la Fase 2, mirar cómo arma la tienda su línea
-hoy y qué campos manda a MotorFiscal. Si la tienda ya tiene un `precioUnitario` / `neto` /
-`descuento`, usamos esos nombres aunque no sean los que elegiríamos. Mientras tanto el contrato
-queda marcado como **borrador**, no versionado como estable.
+**Recomendación**: antes de congelar los DTO, mirar cómo arma la tienda su línea hoy y qué campos
+manda a MotorFiscal. Si la tienda ya tiene un `precioUnitario` / `neto` / `descuento`, usamos esos
+nombres aunque no sean los que elegiríamos. Mientras tanto el contrato queda marcado como
+**borrador**, no versionado como estable.
+
+**Estado (2026-10-07)**: la tienda va a pasar un JSON de ejemplo de lo que emite. Ese JSON define
+el contrato de entrada. Lo que hay que mirar cuando llegue, en orden de impacto:
+
+| Qué mirar | Por qué cambia algo |
+|---|---|
+| **¿Manda `listaPrecio`?** | **Lo más importante.** Dyssa tiene criterios con condición `ListaPrecioVenta`: la lista **decide qué bonificación aplica**. Si no la mandamos, `eval-pedido` usa la lista por defecto del cliente y el descuento puede ser otro — y nadie se entera, porque la respuesta es igual de verosímil. Hoy el campo es opcional en nuestro contrato; si la tienda la tiene, pasa a obligatorio |
+| **¿El código de cliente es el de GESCOM?** | Si la tienda usa un id propio, falta una traducción que hoy no existe en ningún lado |
+| **¿Manda el carrito entero o ítem por ítem?** | Los criterios se evalúan **sobre la venta completa** (`requiredQuantity`, condiciones de marca/rubro que miran todos los ítems). Pedir ítem por ítem da descuentos distintos a pedir el carrito. No es una optimización: es corrección |
+| **¿Manda precio?** | Si la tienda ya tiene un precio y nosotros devolvemos otro, hay que decidir cuál manda antes de que lo descubra un cliente |
+| **¿Unidad y bultos?** | `CodigoUnidad` / `UnidadFactor`. Hoy ponemos `"Unidad"` y factor 1 por defecto; si la tienda vende por bulto, eso está mal |
+| **¿Qué hace con la respuesta?** | Define los nombres de salida. Si arma la línea de factura, copiamos esos nombres |
 
 ---
 
