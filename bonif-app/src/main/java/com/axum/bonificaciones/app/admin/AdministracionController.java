@@ -51,11 +51,24 @@ public class AdministracionController {
                     + "se guarda nada: es preferible que el alta falle a que quede una "
                     + "distribuidora rota que nadie descubre hasta que falla su checkout.")
     @PostMapping
-    public Resultado crear(@Valid @RequestBody AltaRequest alta) {
-        int criterios = altas.crear(alta.codigo(), alta.nombre(), alta.host(), alta.realm(),
+    public Creada crear(@Valid @RequestBody AltaRequest alta) {
+        var r = altas.crear(alta.codigo(), alta.nombre(), alta.host(), alta.realm(),
                 alta.usuario(), alta.clave());
-        return new Resultado(alta.codigo(), criterios,
-                "Listo: la credencial anda y la distribuidora trajo " + criterios + " criterios.");
+        return new Creada(alta.codigo(), r.criterios(), r.claveDeLaTienda(),
+                "Listo: la credencial de GESCOM anda y la distribuidora trajo " + r.criterios()
+                        + " criterios. GUARDA LA CLAVE DE LA TIENDA AHORA: no se puede recuperar "
+                        + "despues, solo regenerar.");
+    }
+
+    @Operation(summary = "Regenera la clave de la tienda",
+            description = "La anterior queda revocada al instante. Para cuando se filtro o se "
+                    + "perdio.")
+    @PostMapping("/{codigo}/clave-tienda")
+    public Creada regenerarClaveDeTienda(@PathVariable String codigo) {
+        var clave = altas.regenerarClaveDeTienda(codigo);
+        return new Creada(codigo, -1, clave,
+                "Clave nueva. La anterior quedo revocada: la tienda deja de funcionar hasta que "
+                        + "la cambie. Guardala ahora.");
     }
 
     @Operation(summary = "Cambia las credenciales de GESCOM, probandolas antes de guardar")
@@ -103,4 +116,10 @@ public class AdministracionController {
 
     /** @param criterios cuantos trajo. Es la prueba de que anda, no un dato de color. */
     public record Resultado(String codigo, int criterios, String mensaje) {}
+
+    /**
+     * @param claveDeLaTienda en claro, y es la UNICA vez que se ve
+     * @param criterios -1 cuando no corresponde (al regenerar la clave no se consulta el ERP)
+     */
+    public record Creada(String codigo, int criterios, String claveDeLaTienda, String mensaje) {}
 }

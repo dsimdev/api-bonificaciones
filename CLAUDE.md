@@ -153,9 +153,21 @@ Estas no se negocian: son el motivo de existir del servicio.
 ## 10. Contexto del proyecto
 
 **Arquitectura**: Java 21 + Spring Boot 3.4, Gradle multi-módulo (Kotlin DSL). `bonif-core` =
-modelo normalizado y puertos, sin framework. `bonif-app` = REST + **un conector por fuente**. Sin
-base de datos por ahora (ver `docs/proyecto/decisiones-abiertas.md`). Detalle en
-`docs/proyecto/arquitectura.md`.
+modelo normalizado y puertos, sin framework. `bonif-app` = REST + el conector de GESCOM +
+administración. **SQL Server + Flyway** desde la v0.3.0: las distribuidoras y sus credenciales
+viven en la base porque son ~1000 y un alta no puede implicar reiniciar el servicio. Detalle en
+`docs/proyecto/arquitectura.md` y `docs/proyecto/multi-tenant-y-auth.md`.
+
+**Seguridad**: las claves de GESCOM se guardan **cifradas** (AES-256-GCM, `CIFRADO_KEY`). La API
+pública pide `x-api-key` **atada al tenant de la ruta** y con alcance (`VALORIZACION` solo
+valoriza; el catálogo necesita `ADMIN`, porque es la estructura comercial completa y la clave del
+checkout vive en un navegador). La administración usa **usuarios** con BCrypt, no una clave
+compartida: hace falta saber quién dio de alta qué.
+
+**Los tests corren SIN base** (`bonificaciones.distribuidoras-en-base=false` en
+`src/test/resources`). Los que la necesitan llevan el tag `db` y se corren con `-PincludeDbTests`;
+los que pegan al ERP, `erp` y `-PincludeErpTests`. Para los dos hace falta `cleanTest`: si no,
+Gradle los da por up-to-date y no los vuelve a correr.
 
 **La única fuente es GESCOM** (decidido 2026-10-07). El gateway de Axum se evaluó y quedó **fuera
 de alcance**: la tienda consume las bonificaciones de Axum directamente, sin pasar por acá. Por eso

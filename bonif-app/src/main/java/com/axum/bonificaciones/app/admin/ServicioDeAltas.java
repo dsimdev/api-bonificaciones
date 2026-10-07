@@ -5,6 +5,9 @@ import com.axum.bonificaciones.app.config.RepositorioDeDistribuidoras;
 import com.axum.bonificaciones.app.dominio.CodigoDeError;
 import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
 import com.axum.bonificaciones.app.gescom.VerificadorDeCredenciales;
+import com.axum.bonificaciones.app.seguridad.ContextoDeLlamada;
+import com.axum.bonificaciones.app.seguridad.Credencial;
+import com.axum.bonificaciones.app.seguridad.RepositorioDeCredenciales;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -26,11 +29,14 @@ public class ServicioDeAltas {
 
     private final RepositorioDeDistribuidoras distribuidoras;
     private final VerificadorDeCredenciales verificador;
+    private final RepositorioDeCredenciales credenciales;
 
     ServicioDeAltas(RepositorioDeDistribuidoras distribuidoras,
-                    VerificadorDeCredenciales verificador) {
+                    VerificadorDeCredenciales verificador,
+                    RepositorioDeCredenciales credenciales) {
         this.distribuidoras = distribuidoras;
         this.verificador = verificador;
+        this.credenciales = credenciales;
     }
 
     /**
@@ -38,8 +44,8 @@ public class ServicioDeAltas {
      * @param realm null = se usa la convencion {@code gcw-<codigo>}
      * @return cuantos criterios trajo la distribuidora, que es la prueba de que anda de verdad
      */
-    public int crear(String codigo, String nombre, String host, String realm,
-                     String usuario, String clave) {
+    public Alta crear(String codigo, String nombre, String host, String realm,
+                      String usuario, String clave) {
         if (distribuidoras.existe(codigo)) {
             throw new ErrorDeGateway(CodigoDeError.DISTRIBUIDORA_YA_EXISTE,
                     "Ya hay una distribuidora con el codigo " + codigo + ".");
@@ -47,8 +53,16 @@ public class ServicioDeAltas {
 
         var criterios = verificar(codigo, host, realm, usuario, clave);
         distribuidoras.crear(codigo, nombre, host, realm, usuario, clave);
-        return criterios;
+
+        // La clave que va a usar la tienda. Se muestra UNA sola vez: despues solo queda el hash.
+        var claveTienda = credenciales.generar(distribuidoras.idDe(codigo),
+                Credencial.Alcance.VALORIZACION, "Checkout de la tienda",
+                ContextoDeLlamada.usuario());
+        return new Alta(criterios, claveTienda);
     }
+
+    /**  claveDeLaTienda en claro. Es la unica vez que se puede ver */
+    public record Alta(int criterios, String claveDeLaTienda) {}
 
     /** Cambiar las credenciales tambien las prueba antes: las claves de API tambien se rotan. */
     public int actualizarCredenciales(String codigo, String usuario, String clave) {
@@ -56,6 +70,14 @@ public class ServicioDeAltas {
         var criterios = verificar(codigo, existente.host(), existente.realm(), usuario, clave);
         distribuidoras.actualizarCredenciales(codigo, usuario, clave);
         return criterios;
+    }
+
+    /** Regenera la clave con la que la tienda nos llama. La anterior queda revocada. */
+    public String regenerarClaveDeTienda(String codigo) {
+        distribuidoras.requerir(codigo);
+        return credenciales.generar(distribuidoras.idDe(codigo),
+                Credencial.Alcance.VALORIZACION, "Checkout de la tienda",
+                ContextoDeLlamada.usuario());
     }
 
     /** Vuelve a probar las credenciales YA guardadas. Para el panel: "esta anda hoy?". */

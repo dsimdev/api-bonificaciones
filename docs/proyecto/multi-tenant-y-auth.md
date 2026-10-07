@@ -1,3 +1,4 @@
+| `host` | `https://<codigo>.gescom.online` — **derivable** |
 # Multi-tenant y autenticación
 
 > Escrito el 2026-10-07, cuando aparecieron dos datos que cambian el diseño: **esto escala a ~1000

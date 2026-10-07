@@ -56,6 +56,7 @@ CREATE TABLE credencial (
 );
 GO
 
--- El lookup de cada request autenticado: por hash, y solo las vigentes.
-CREATE INDEX ix_credencial_hash_vigente ON credencial (clave_hash) WHERE revocada = 0;
-GO
+-- No hace falta un indice adicional para el lookup por hash: uq_credencial_hash ya es un indice
+-- unico sobre clave_hash. Hubo uno filtrado (WHERE revocada = 0) y se saco: no aportaba nada y
+-- obligaba a SET QUOTED_IDENTIFIER ON para cualquier DELETE o UPDATE sobre la tabla, que es con
+-- lo que se choca quien hace mantenimiento desde sqlcmd (el driver JDBC lo pone, sqlcmd no).

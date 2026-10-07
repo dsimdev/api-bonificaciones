@@ -19,6 +19,7 @@ carrito  →  api-bonificaciones  →  neto con descuento  →  MotorFiscal  →
 
 ```
 POST /v1/{tenant}/valorizaciones
+x-api-key: bon_...        ← la clave de TU distribuidora
 Content-Type: application/json
 ```
 
@@ -172,6 +173,9 @@ decidir sin leer el texto:
 
 | Código | HTTP | Qué significa | ¿Reintentar? |
 |---|---|---|---|
+| `NO_AUTORIZADO` | 401 | Falta `x-api-key`, es inválida, o **no es de esa distribuidora** | No |
+| `ALCANCE_INSUFICIENTE` | 403 | Tu clave no alcanza para eso (p. ej. `/criterios` con la del checkout) | No |
+| `DEMASIADOS_INTENTOS` | 429 | Demasiados intentos fallidos de autenticación para esa distribuidora | Sí, en unos minutos |
 | `PEDIDO_INVALIDO` | 400 | El pedido no pasa nuestras validaciones (sin ítems, cantidad ≤ 0). **No se consulta al ERP.** | No, corregilo |
 | `CLIENTE_INEXISTENTE` | 400 | Ese código de cliente no existe en el ERP | No |
 | `PEDIDO_RECHAZADO_POR_LA_FUENTE` | 400 | El ERP rechazó el pedido: falta un dato o uno es inválido (p. ej. un artículo que no existe). `mensaje` trae lo que dijo el ERP | No |
@@ -189,14 +193,26 @@ damos el crudo en vez de inventar.
 
 ## Autenticación
 
-**Todavía no está implementada.** Va a ser un header `x-api-key`, una clave por distribuidora, y
-vas a recibir la tuya. La clave va a estar atada al tenant: con la de `dyssa` no vas a poder pedir
-`/v1/senderolaser/...`.
+Va un header **`x-api-key`**, una clave por distribuidora. **Vas a recibir la tuya** cuando demos
+de alta tu distribuidora; se muestra una sola vez y si se pierde se regenera (y la anterior queda
+revocada al instante).
 
-Dos cosas a tener en cuenta cuando llegue:
+```
+x-api-key: bon_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**La clave está atada a tu distribuidora**: con la de `dyssa`, pedir `/v1/senderolaser/...` da 401.
+No es una convención, está verificado con un test.
+
+**Tu clave solo puede valorizar.** `GET /criterios` —el catálogo completo de bonificaciones— pide
+una clave de alcance `ADMIN` y devuelve **403** con la del checkout. Es a propósito, y el motivo es
+el de abajo.
+
+Dos cosas a tener en cuenta:
 
 - Si llamás **desde el navegador**, esa clave queda a la vista de cualquiera que abra el DevTools.
-  Lo asumimos y limitamos el daño: la clave del checkout **solo va a poder valorizar**.
+  Lo asumimos y limitamos el daño: por eso la clave del checkout **solo valoriza** y no puede leer
+  el catálogo.
 - Para cerrarlo del todo haría falta que **tu backend emita un token corto** que diga "este
   navegador es el cliente 8380". Si lo podés hacer, hablemos: es la diferencia entre que alguien
   pueda consultar los precios de **cualquier** cliente de la distribuidora o solo los suyos.
@@ -223,7 +239,8 @@ habilitar CORS explícitamente y es un cambio nuestro.
 
 ```bash
 curl -X POST http://localhost:8080/v1/dyssa/valorizaciones \
-  -H 'Content-Type: application/json' \
+  -H "x-api-key: bon_tuClaveAca" \
+  -H "Content-Type: application/json" \
   -d '{"cliente":"8380","listaPrecio":"2","items":[{"codigo":"5000014792","cantidad":6}]}'
 ```
 

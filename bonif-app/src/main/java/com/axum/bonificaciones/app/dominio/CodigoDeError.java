@@ -73,6 +73,12 @@ public enum CodigoDeError {
     /** No existe ese usuario. */
     USUARIO_INEXISTENTE(404),
 
+    /** La clave no alcanza para lo que se esta pidiendo. */
+    ALCANCE_INSUFICIENTE(403),
+
+    /** Demasiados intentos fallidos de autenticacion para ese tenant. */
+    DEMASIADOS_INTENTOS(429),
+
     /**
      * Administrar esta deshabilitado porque falta CIFRADO_KEY. Preferible fallar explicito a
      * guardar mil claves de produccion sin cifrar.
