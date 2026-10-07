@@ -10,3 +10,9 @@ out/
 
 # Permisos personales de Claude Code: no se comparten con el equipo.
 .claude/settings.local.json
+
+# Panel (Next): dependencias y artefactos de build. `out/` ya esta arriba.
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo

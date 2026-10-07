@@ -3,6 +3,8 @@ package com.axum.bonificaciones.app.gescom;
 import com.axum.bonificaciones.app.config.ConfiguracionDeDistribuidoras.Gescom;
 import com.axum.bonificaciones.app.dominio.CodigoDeError;
 import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,10 +39,12 @@ public class ClienteGescom {
 
     private final RestClient http;
     private final ServicioDeToken tokens;
+    private final ObjectMapper json;
 
-    ClienteGescom(RestClient http, ServicioDeToken tokens) {
+    ClienteGescom(RestClient http, ServicioDeToken tokens, ObjectMapper json) {
         this.http = http;
         this.tokens = tokens;
+        this.json = json;
     }
 
     public <T> T get(String tenant, Gescom config, String servicio, String comando,
@@ -75,6 +79,67 @@ public class ClienteGescom {
                 .retrieve()
                 .body(tipo));
     }
+
+    /**
+     * Como {@link #post}, pero devolviendo tambien el cuerpo crudo que mando GESCOM.
+     *
+     * Existe para el diagnostico del panel. Cuando una tienda reclama un descuento, hay tres
+     * sospechosos -- el ERP, nuestra normalizacion y lo que muestra la tienda -- y sin el crudo
+     * del ERP al lado del nuestro no se puede saber cual es. El contrato publico NO lo lleva: es
+     * un dato de back-office y no se agrega a la respuesta que ve el navegador.
+     *
+     * Se pide como String y se parsea aca, en vez de dejar que lo haga el conversor del
+     * RestClient, porque el cuerpo se necesita entero y sin tocar: leerlo dos veces de la misma
+     * respuesta no se puede.
+     */
+    public <T> ConCrudo<T> postConCrudo(String tenant, Gescom config, String servicio,
+                                        String comando, Object cuerpo, Class<T> tipo) {
+        var enviado = aJson(cuerpo);
+        var crudo = ejecutar(config, servicio, comando, () -> http.post()
+                .uri(url(config, servicio, comando))
+                .header("Authorization", "Bearer " + tokens.token(tenant, config))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(cuerpo)
+                .retrieve()
+                .body(String.class));
+
+        if (crudo == null || crudo.isBlank()) {
+            return new ConCrudo<>(null, crudo, enviado);
+        }
+        try {
+            return new ConCrudo<>(json.readValue(crudo, tipo), crudo, enviado);
+        } catch (JsonProcessingException e) {
+            // Un 200 con un cuerpo que no se puede parsear es tan util de ver como un error: el
+            // crudo viaja igual en vez de perderse en un stack trace.
+            throw new ErrorDeGateway(CodigoDeError.FUENTE_ERROR_DESCONOCIDO,
+                    "GESCOM respondio algo que no se pudo interpretar en " + servicio + "/"
+                            + comando, crudo);
+        }
+    }
+
+    /**
+     * El cuerpo del pedido como JSON, para poder mostrarlo.
+     *
+     * Devuelve String y no el DTO: los DTO de GESCOM no salen de este paquete (ver DtosGescom), y
+     * el diagnostico necesita justamente los nombres de campo del ERP -- CodigoItem y no codigo --
+     * para que se pueda pegar en Postman tal cual.
+     */
+    private String aJson(Object cuerpo) {
+        try {
+            return json.writeValueAsString(cuerpo);
+        } catch (JsonProcessingException e) {
+            // Que no se pueda mostrar el pedido no puede voltear el pedido.
+            log.warn("No se pudo serializar el pedido para el diagnostico: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * @param cuerpo  null cuando GESCOM respondio vacio; el crudo viaja igual
+     * @param crudo   lo que contesto GESCOM, sin tocar
+     * @param enviado lo que le mandamos, con sus nombres de campo
+     */
+    public record ConCrudo<T>(T cuerpo, String crudo, String enviado) {}
 
     private String url(Gescom config, String servicio, String comando) {
         return config.host() + "/data/cmd/" + servicio + "/api/v1/" + comando;

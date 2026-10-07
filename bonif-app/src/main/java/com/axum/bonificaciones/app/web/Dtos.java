@@ -1,7 +1,13 @@
 package com.axum.bonificaciones.app.web;
 
+import com.axum.bonificaciones.core.model.BonificacionAplicada;
 import com.axum.bonificaciones.core.model.CalculadoPor;
+import com.axum.bonificaciones.core.model.Condicion;
 import com.axum.bonificaciones.core.model.Fuente;
+import com.axum.bonificaciones.core.model.ItemAValorizar;
+import com.axum.bonificaciones.core.model.LineaValorizada;
+import com.axum.bonificaciones.core.model.PedidoAValorizar;
+import com.axum.bonificaciones.core.model.Valorizacion;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -158,4 +164,50 @@ public final class Dtos {
     public record TramoResponse(BigDecimal desdeCantidad, BigDecimal descuento) {}
 
     public record ErrorResponse(String codigo, String mensaje, String crudo) {}
+
+    // --- Del modelo normalizado al contrato
+    //
+    // Vive aca y no en el controller porque hay dos que la necesitan: /v1/{tenant}/valorizaciones
+    // y el diagnostico del panel. El panel tiene que ver EXACTAMENTE lo que ve la tienda, asi que
+    // los dos tienen que armar la respuesta con el mismo codigo, no con dos copias que se
+    // despeguen.
+
+    /**
+     * El pedido del contrato publico al del modelo. Lo usa tambien el diagnostico del panel: lo
+     * que se prueba desde ahi tiene que recorrer el mismo camino que lo que manda la tienda, o
+     * deja de servir para decidir de quien es el problema.
+     */
+    public static PedidoAValorizar pedidoDe(PedidoRequest pedido) {
+        var items = pedido.items().stream()
+                .map(i -> new ItemAValorizar(i.codigo(), i.cantidad(), i.unidadODefecto(),
+                        i.factorODefecto()))
+                .toList();
+        return new PedidoAValorizar(pedido.cliente(), pedido.listaPrecio(), items);
+    }
+
+    public static ValorizacionResponse respuestaDe(Valorizacion v, String referencia) {
+        var t = v.totales();
+        return new ValorizacionResponse(
+                v.fuente(), v.tenant(), v.calculadoPor(), v.consultadoEn(), referencia,
+                v.supuestos().stream().map(s -> new SupuestoResponse(s.codigo(), s.mensaje()))
+                        .toList(),
+                new TotalesResponse(t.neto(), t.descuento(), t.netoConDescuento()),
+                v.lineas().stream().map(Dtos::lineaDe).toList());
+    }
+
+    private static LineaResponse lineaDe(LineaValorizada l) {
+        return new LineaResponse(l.codigoItem(), l.cantidad(), l.neto(), l.descuento(),
+                l.netoConDescuento(), l.creadaPorPromo(),
+                l.bonificaciones().stream().map(Dtos::bonificacionDe).toList());
+    }
+
+    private static BonificacionResponse bonificacionDe(BonificacionAplicada b) {
+        return new BonificacionResponse(b.id(), b.nombre(), b.descuento(),
+                b.condiciones().stream().map(Dtos::condicionDe).toList());
+    }
+
+    public static CondicionResponse condicionDe(Condicion c) {
+        return new CondicionResponse(c.tipo().name(), c.descripcion(), c.valores(),
+                c.invertida(), c.cantidadMinima());
+    }
 }

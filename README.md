@@ -23,34 +23,60 @@ repartidos entre servicios (`ventas` / `inventario`) y errores que casi siempre 
 `"Error desconocido"`. Cada consumidor que quiera saber "qué bonificación le cae a este pedido"
 tiene que resolver todo eso de nuevo. Este servicio lo resuelve una vez.
 
+## El panel
+
+En **<http://localhost:8080/admin>**, embebido en el mismo jar. Desde ahí se da de alta una
+distribuidora **probando la credencial contra GESCOM antes de guardar** (si no anda, no se guarda
+nada), se vuelve a probar una credencial ya cargada, y se **prueba una valorización mostrando las
+tres capas**: lo que le pedimos al ERP, lo que el ERP contestó crudo y lo que devolvemos nosotros.
+Eso último es para soporte: sirve para decidir si un descuento mal está mal en el ERP, en nuestra
+normalización o en la tienda.
+
+Entra con **usuario y contraseña** (no una clave compartida): cada distribuidora guarda quién la
+dio de alta.
+
 ## Arrancar
 
-Requisitos: **JDK 21** (no hace falta instalar Gradle, está el wrapper).
+Requisitos: **JDK 21** y **SQL Server** (las distribuidoras viven en la base). Gradle no hace
+falta instalarlo, está el wrapper. **Node** solo si se va a tocar el panel.
 
 ```powershell
+& 'C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\SQLCMD.EXE' -S localhost -E -i scripts\crear-base.sql
 .\arrancar.ps1 -Build
 ```
 
-- salud: <http://localhost:8080/health>
+- panel: <http://localhost:8080/admin>
+- salud: <http://localhost:8080/health> — dice si está leyendo de la base (`"origen": "BASE"`)
 - swagger: <http://localhost:8080/swagger-ui.html>
 
-Para pegarle a un ERP real hacen falta credenciales por distribuidora: copiar `.env.example` a
-`.env` y completarlo (está en `.gitignore`, no se commitea). Detalle en
-[docs/proyecto/entorno-local.md](docs/proyecto/entorno-local.md).
+En el `.env` (gitignored) van los secretos del entorno: `CIFRADO_KEY` (cifra las claves de GESCOM),
+y `USUARIO_INICIAL` / `CLAVE_INICIAL` para el primer usuario del panel. **Las credenciales de las
+distribuidoras ya no van en el `.env`**: se cargan desde el panel. Detalle en
+[docs/proyecto/deploy.md](docs/proyecto/deploy.md).
 
 ## Build y tests
 
 ```powershell
-.\gradlew.bat build                      # compila y corre los tests
-.\gradlew.bat build -PincludeErpTests    # suma los tests que pegan contra un ERP real
+.\gradlew.bat build                                 # compila (panel incluido) y corre los tests
+.\gradlew.bat cleanTest build -PincludeDbTests      # suma los que necesitan SQL Server
+.\gradlew.bat cleanTest build -PincludeErpTests     # suma los que pegan contra un ERP real
 ```
+
+`cleanTest` no es opcional en los dos últimos: sin él Gradle los da por *up to date* y no los
+corre. **Los que llevan `-PincludeDbTests` vacían `distribuidora` y `credencial` de la base
+local** — después hay que volver a dar de alta lo que tuvieras cargado a mano.
+
+Para un deploy detrás de un proxy anidado, el panel se compila distinto:
+`-PpanelBasePath=/api/bonificaciones/admin`. Ver [docs/proyecto/deploy.md](docs/proyecto/deploy.md),
+que explica por qué saltearlo deja el panel en blanco.
 
 ## Estructura
 
 | Módulo | Qué hay adentro |
 |---|---|
 | `bonif-core` | Modelo normalizado de criterios y los puertos hacia las fuentes. Sin Spring: solo JDK. |
-| `bonif-app` | API REST, configuración y el conector de GESCOM. |
+| `bonif-app` | API REST, administración, seguridad y el conector de GESCOM. |
+| `panel` | El panel (Next, export estático). `gradlew build` lo compila y lo mete en el jar, en `/admin`. |
 
 ## Documentación
 

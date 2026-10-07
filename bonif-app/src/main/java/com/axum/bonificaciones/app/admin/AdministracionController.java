@@ -20,11 +20,12 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El alta y la administracion de distribuidoras.
  *
- * Protegido por la clave maestra (header {@code x-master-key}): no es por tenant, porque quien
- * administra opera sobre todas. Es el mismo criterio que la clave maestra de MotorFiscal.
+ * Protegido por la sesion del panel ({@code Authorization: Bearer <token>}, ver LoginController):
+ * son <b>usuarios con nombre</b>, no una clave compartida, porque hace falta saber quien dio de
+ * alta que. No es por tenant: quien administra opera sobre todas.
  *
- * Es lo que va a llamar el panel. Mientras el panel no exista, se opera desde Swagger: no es
- * lindo, pero desbloquea el alta de las primeras distribuidoras sin esperar un frontend.
+ * Es lo que llama el panel. Tambien se puede operar desde Swagger, que es como se dieron de alta
+ * las primeras distribuidoras antes de que el panel existiera.
  */
 @RestController
 @RequestMapping("/admin/v1/distribuidoras")
@@ -40,10 +41,12 @@ public class AdministracionController {
         this.distribuidoras = distribuidoras;
     }
 
-    @Operation(summary = "Lista los codigos de las distribuidoras activas")
+    @Operation(summary = "Lista las distribuidoras, con lo necesario para diagnosticarlas",
+            description = "Incluye las inactivas: una distribuidora que desaparecio del listado "
+                    + "es una pregunta de soporte. Nunca devuelve la clave de GESCOM.")
     @GetMapping
-    public List<String> listar() {
-        return distribuidoras.codigosActivos();
+    public List<RepositorioDeDistribuidoras.Resumen> listar() {
+        return distribuidoras.listar();
     }
 
     @Operation(summary = "Da de alta una distribuidora, probando sus credenciales antes de guardar",

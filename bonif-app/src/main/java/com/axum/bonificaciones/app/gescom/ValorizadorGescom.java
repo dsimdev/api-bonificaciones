@@ -54,6 +54,33 @@ public class ValorizadorGescom implements Valorizador {
 
     @Override
     public Valorizacion valorizar(String tenant, PedidoAValorizar pedido) {
+        var d = diagnosticar(tenant, pedido);
+
+        var noCierran = d.valorizacion().lineasQueNoCierran();
+        if (!noCierran.isEmpty()) {
+            // No se devuelve un numero que no cierra: en un checkout eso termina en una factura
+            // mal. Falla explicito, no ajusta en silencio. El diagnostico del panel SI lo
+            // devuelve, con el crudo, que es la unica forma de ver por que no cerro.
+            log.error("eval-pedido devolvio {} linea(s) incoherentes para el tenant {}: {}",
+                    noCierran.size(), tenant,
+                    noCierran.stream().map(LineaValorizada::codigoItem).toList());
+            throw new ErrorDeGateway(CodigoDeError.RESPUESTA_INCOHERENTE,
+                    "eval-pedido devolvio lineas donde el neto con descuento no se corresponde "
+                            + "con el neto y el descuento");
+        }
+        return d.valorizacion();
+    }
+
+    /**
+     * Lo mismo que {@link #valorizar}, pero conservando lo que se le mando al ERP y lo que
+     * contesto crudo, y <b>sin voltear</b> cuando las lineas no cierran.
+     *
+     * Es para el panel. Cuando una tienda reclama un descuento hay tres sospechosos -- el ERP,
+     * nuestra normalizacion y lo que muestra la tienda -- y la unica forma de saber cual es poner
+     * el crudo del ERP al lado de lo que devolvemos nosotros. Que no tire en el caso incoherente
+     * es a proposito: ese es justo el caso que hay que poder mirar.
+     */
+    public Diagnostico diagnosticar(String tenant, PedidoAValorizar pedido) {
         var gescom = distribuidoras.requerir(tenant).gescom();
         if (gescom == null) {
             throw new ErrorDeGateway(CodigoDeError.FUENTE_NO_CONFIGURADA,
@@ -70,7 +97,7 @@ public class ValorizadorGescom implements Valorizador {
         var sobre = new DtosGescom.SobreDePedido(new DtosGescom.Pedido(
                 UUID.randomUUID().toString(), pedido.codigoCliente(), items));
 
-        var ventas = cliente.post(tenant, gescom, "ventas", "eval-pedido", sobre,
+        var respuesta = cliente.postConCrudo(tenant, gescom, "ventas", "eval-pedido", sobre,
                 DtosGescom.VentaEvaluada[].class);
 
         // Si no vino la lista, el ERP usa la del cliente. No es un error, pero cambia el PRECIO,
@@ -81,20 +108,79 @@ public class ValorizadorGescom implements Valorizador {
         }
 
         var valorizacion = new Valorizacion(Fuente.GESCOM, tenant, CalculadoPor.ERP,
-                OffsetDateTime.now(reloj), supuestos, lineas(tenant, ventas));
+                OffsetDateTime.now(reloj), supuestos, lineas(tenant, respuesta.cuerpo()));
 
-        var noCierran = valorizacion.lineasQueNoCierran();
-        if (!noCierran.isEmpty()) {
-            // No se devuelve un numero que no cierra: en un checkout eso termina en una factura
-            // mal. Falla explicito, no ajusta en silencio.
-            log.error("eval-pedido devolvio {} linea(s) incoherentes para el tenant {}: {}",
-                    noCierran.size(), tenant,
-                    noCierran.stream().map(LineaValorizada::codigoItem).toList());
-            throw new ErrorDeGateway(CodigoDeError.RESPUESTA_INCOHERENTE,
-                    "eval-pedido devolvio lineas donde el neto con descuento no se corresponde "
-                            + "con el neto y el descuento");
+        return new Diagnostico(valorizacion, respuesta.enviado(), respuesta.crudo(),
+                comparar(respuesta.cuerpo(), valorizacion));
+    }
+
+    /**
+     * @param pedidoEnviado  el cuerpo exacto que se le mando a eval-pedido, con los nombres de
+     *                       campo de GESCOM. Sirve para pegarlo en Postman tal cual
+     * @param respuestaCruda lo que contesto GESCOM, sin normalizar. El descuento aca viene como
+     *                       FRACCION (0.1); el nuestro, como porcentaje (10)
+     * @param comparacion    linea por linea, el numero del ERP contra el que exponemos
+     */
+    public record Diagnostico(Valorizacion valorizacion, String pedidoEnviado,
+                              String respuestaCruda, List<Comparacion> comparacion) {}
+
+    /**
+     * Lo que dijo el ERP al lado de lo que exponemos, para un item.
+     *
+     * @param descuentoEnElErp    FRACCION, como lo da GESCOM (0.1)
+     * @param descuentoQueDevolvemos PORCENTAJE, como lo expone el contrato (10)
+     * @param coincide            false = el bug es NUESTRO, de la normalizacion. Es la unica
+     *                            manera de distinguirlo de un numero que ya venia mal del ERP
+     */
+    public record Comparacion(String codigoItem,
+                              BigDecimal descuentoEnElErp,
+                              BigDecimal descuentoQueDevolvemos,
+                              BigDecimal netoEnElErp,
+                              BigDecimal netoQueDevolvemos,
+                              BigDecimal netoConDescuentoEnElErp,
+                              BigDecimal netoConDescuentoQueDevolvemos,
+                              boolean coincide) {}
+
+    /**
+     * Cruza la respuesta cruda del ERP con lo que quedo en nuestro modelo.
+     *
+     * Vive en el conector y no en el controller del panel porque hay que conocer los nombres de
+     * campo de GESCOM para hacerlo, y esos no salen de este paquete.
+     *
+     * Se cruza por POSICION, no por codigo de item: eval-pedido puede devolver dos lineas del
+     * mismo item (la que se pidio y la que regalo una promo), asi que buscar por codigo
+     * compararia la linea equivocada contra la otra.
+     */
+    private List<Comparacion> comparar(DtosGescom.VentaEvaluada[] ventas, Valorizacion nuestra) {
+        if (ventas == null) return List.of();
+        var delErp = new ArrayList<DtosGescom.ItemEvaluado>();
+        for (var venta : ventas) {
+            if (venta.items() != null) delErp.addAll(venta.items());
         }
-        return valorizacion;
+
+        var comparaciones = new ArrayList<Comparacion>();
+        for (int i = 0; i < delErp.size() && i < nuestra.lineas().size(); i++) {
+            var erp = delErp.get(i);
+            var linea = nuestra.lineas().get(i);
+            var esperado = aPorcentaje(erp.descuentoTotal());
+            comparaciones.add(new Comparacion(
+                    erp.itemCodigo(),
+                    erp.descuentoTotal(),
+                    linea.descuento(),
+                    erp.precioNetoTotal(),
+                    linea.neto(),
+                    erp.precioNetoTotalConDesc(),
+                    linea.netoConDescuento(),
+                    esperado.compareTo(linea.descuento()) == 0
+                            && iguales(erp.precioNetoTotal(), linea.neto())
+                            && iguales(erp.precioNetoTotalConDesc(), linea.netoConDescuento())));
+        }
+        return comparaciones;
+    }
+
+    private boolean iguales(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) return a == b;
+        return a.compareTo(b) == 0;
     }
 
     private List<LineaValorizada> lineas(String tenant, DtosGescom.VentaEvaluada[] ventas) {

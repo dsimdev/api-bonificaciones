@@ -25,6 +25,11 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
  *
  * No pega contra GESCOM: las distribuidoras se insertan a mano. Lo que se prueba aca es la puerta,
  * no el conector.
+ *
+ * <b>OJO: VACIA las tablas `credencial` y `distribuidora` de la base local</b> antes de cada test.
+ * Si tenias distribuidoras cargadas a mano para probar el panel, despues de correr el build con
+ * -PincludeDbTests ya no estan -- y peor, quedan las de este test, que parecen validas (activa=1)
+ * pero apuntan a un puerto cerrado. Volve a darlas de alta. La tabla `usuario` no se toca.
  */
 @Tag("db")
 @SpringBootTest(properties = {

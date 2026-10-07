@@ -53,9 +53,36 @@ de entorno y las altas que se hagan por el panel no se van a ver al reiniciar.
 
 Y `total` tiene que coincidir con las distribuidoras que esperás.
 
-## 4. Pendiente
+## 4. El panel
 
-- El **panel** (Fase 3c) todavía no existe; administrar se hace por `/admin/v1/**` desde Swagger.
-- Cuando el panel exista, el checklist suma el paso del **proxy anidado**: compilarlo con el
-  prefijo de ruta completo y probarlo **a través** del IIS, nunca contra `localhost:8080`. En
-  api-impuestos ese bug llegó a producción tres veces.
+Vive en `/admin`, **embebido en el jar** (export estático de Next). No se deploya aparte y no
+necesita Node en el servidor: `gradlew build` lo compila y lo mete adentro. Node sí hace falta en
+la máquina donde se **compila**; si no hay `node_modules`, el build no falla y el jar sale sin
+panel (la API funciona igual).
+
+### ⛔ El paso que no se puede saltear: con qué `panelBasePath` se compila
+
+El `basePath` queda **horneado en el HTML y el JS** en tiempo de build, así que **el jar para un
+deploy detrás de proxy anidado es un artefacto distinto** del que se prueba en local:
+
+| Cómo entra el navegador | Cómo se compila | Jar que sale |
+|---|---|---|
+| `http://servidor:8080/admin` (directo a Spring) | `gradlew build` | `bonif-app-X.Y.Z.jar` |
+| `https://dominio/api/bonificaciones/admin` (IIS lo cuelga anidado) | `gradlew build -PpanelBasePath=/api/bonificaciones/admin` | `bonif-app-X.Y.Z-prod.jar` |
+
+El `-prod` del nombre no es cosmético: sin él los dos jars se llaman igual y un build local
+posterior **pisa en silencio** el de producción ya verificado. En api-impuestos eso pasó dos veces.
+
+Si se compila con el basePath equivocado, **el panel queda en blanco con 404 en la consola** y la
+API no es el problema. En api-impuestos ese bug llegó a producción **tres veces**. El detalle de
+por qué está en el comentario de `panel/next.config.mjs`.
+
+**Probar el panel a través del proxy, nunca contra `localhost:8080` directo.** Contra localhost
+anda igual con el basePath mal, así que esa prueba no detecta nada.
+
+### Verificación del panel
+
+1. Abrir `/admin` (sin barra final también tiene que andar: va por *forward*, no por redirect).
+2. Entrar con el usuario inicial, dar de alta una distribuidora y ver que diga
+   *"trajo N criterios"*. Eso prueba de punta a punta la base, el cifrado, Keycloak y GESCOM.
+3. Guardar la clave de la tienda que muestra: **se ve una sola vez.**

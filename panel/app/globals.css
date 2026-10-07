@@ -1,0 +1,107 @@
+:root {
+  --fondo: #0f1115;
+  --panel: #171a21;
+  --borde: #262b36;
+  --texto: #e6e8ee;
+  --tenue: #949bab;
+  --acento: #5b9dff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --error: #f85149;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+a { color: var(--acento); }
+
+.contenedor { max-width: 1100px; margin: 0 auto; padding: 24px 20px 64px; }
+
+header.barra {
+  border-bottom: 1px solid var(--borde);
+  background: var(--panel);
+  position: sticky; top: 0; z-index: 10;
+}
+header.barra .contenedor { padding: 12px 20px; display: flex; gap: 16px; align-items: center; }
+header.barra strong { font-size: 15px; letter-spacing: .2px; }
+header.barra .sep { flex: 1; }
+header.barra .tenant { color: var(--tenue); font-family: ui-monospace, monospace; font-size: 13px; }
+
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 20px 0 24px; }
+nav.tabs button {
+  background: transparent; border: 1px solid transparent; color: var(--tenue);
+  padding: 7px 13px; border-radius: 7px; cursor: pointer; font-size: 14px;
+}
+nav.tabs button:hover { color: var(--texto); }
+nav.tabs button[data-activa='true'] {
+  background: var(--panel); border-color: var(--borde); color: var(--texto);
+}
+
+.tarjeta {
+  background: var(--panel); border: 1px solid var(--borde);
+  border-radius: 10px; padding: 18px; margin-bottom: 18px;
+  overflow-x: auto;
+}
+.tarjeta h2 { margin: 0 0 4px; font-size: 15px; }
+.tarjeta p.ayuda { margin: 0 0 16px; color: var(--tenue); font-size: 13px; }
+
+label, .etiqueta { display: block; font-size: 12px; color: var(--tenue); margin-bottom: 5px; }
+input, select, textarea {
+  width: 100%; background: #0e1015; color: var(--texto);
+  border: 1px solid var(--borde); border-radius: 7px; padding: 8px 10px;
+  font: inherit;
+}
+textarea { font-family: ui-monospace, monospace; font-size: 12.5px; min-height: 150px; }
+input:focus, select:focus, textarea:focus { outline: 1px solid var(--acento); border-color: var(--acento); }
+
+.fila { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.fila > div { flex: 1; min-width: 130px; }
+
+button.accion {
+  background: var(--acento); color: #07101f; border: 0; border-radius: 7px;
+  padding: 9px 15px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+button.accion:disabled { opacity: .5; cursor: not-allowed; }
+button.secundaria { background: transparent; border: 1px solid var(--borde); color: var(--texto); }
+button.peligro { background: transparent; border: 1px solid var(--error); color: var(--error); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+th { color: var(--tenue); font-weight: 500; font-size: 12px; }
+.num { text-align: right; }
+td.num { font-family: ui-monospace, monospace; }
+tr[data-anulada='true'] td { opacity: .45; text-decoration: line-through; }
+tr[data-activa='true'] td { background: rgba(255, 255, 255, .06); }
+tr.clicable { cursor: pointer; }
+tr.clicable:hover td { background: rgba(255, 255, 255, .04); }
+
+/* Pill: insignia de estado de solo lectura. button.pill: el mismo aspecto, pero clickeable --
+   mismo alto y forma que una insignia estatica de al lado, hover como unica diferencia. Antes un
+   toggle era <button class="accion secundaria"><span class="pill">...</span></button>: dos formas
+   (rectangulo + capsula) encimadas, con altura y bordes distintos. */
+.pill { display: inline-block; padding: 1px 8px; border-radius: 20px; font-size: 11px; border: 1px solid; }
+.pill.ok { color: var(--ok); border-color: var(--ok); }
+.pill.warn { color: var(--warn); border-color: var(--warn); }
+.pill.error { color: var(--error); border-color: var(--error); }
+.pill.tenue { color: var(--tenue); border-color: var(--borde); }
+button.pill { appearance: none; background: transparent; font: inherit; cursor: pointer; }
+button.pill:hover:not(:disabled) { background: rgba(255, 255, 255, .08); }
+button.pill:disabled { opacity: .5; cursor: not-allowed; }
+
+.aviso { padding: 10px 13px; border-radius: 7px; margin-bottom: 14px; font-size: 13px; }
+.aviso.error { background: #2d1418; border: 1px solid var(--error); }
+.aviso.ok { background: #11291a; border: 1px solid var(--ok); }
+.aviso.warn { background: #2a2313; border: 1px solid var(--warn); }
+
+pre.json {
+  background: #0e1015; border: 1px solid var(--borde); border-radius: 7px;
+  padding: 12px; overflow-x: auto; font-size: 12.5px; margin: 0;
+}
+.tenue { color: var(--tenue); }
+.mono { font-family: ui-monospace, monospace; }

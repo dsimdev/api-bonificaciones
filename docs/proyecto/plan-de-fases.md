@@ -148,7 +148,7 @@ del checkout, `/criterios` devuelve 403.
 > distribuidora 401 con el mensaje "Esa clave no es de la distribuidora dyssa", y `/criterios` con
 > la del checkout 403 `ALCANCE_INSUFICIENTE`. `AutenticacionConBaseIT` (7 tests, tag `db`) lo fija.
 
-### 3c — El panel · v0.6.0
+### 3c — El panel · v0.6.0 — ✅ HECHO (2026-10-07)
 
 Para los compañeros que no trabajan con APIs.
 
@@ -163,6 +163,35 @@ Para los compañeros que no trabajan con APIs.
 | **Estado de las distribuidoras** — cuáles andan, reprobar la credencial con un botón | "¿El alta que hice ayer quedó bien?" y detectar una credencial vencida antes que un cliente | **2** |
 | **Probar una valorización** — cliente + ítems, y ver el resultado con el porqué | *"El cliente dice que no le hizo el descuento"*. Hoy eso se contesta con curl | **3** |
 | **Ver los criterios de una distribuidora** | Qué promos hay cargadas, cuáles vencen, a quién aplican. Ya existe el endpoint | **4** |
+
+> **Hecho: las pantallas 1, 2 y 3, más usuarios. Falta la 4 (ver criterios).**
+>
+> Yo había propuesto hacer solo 1 y 2, con el argumento de que probar una valorización es soporte y
+> no operación. **El usuario lo corrigió y el motivo cambia el diseño de la pantalla**: *"el
+> valorizador para probar lo necesito para ver si está fallando el cálculo de la api, lo que
+> muestra la tienda o el origen"*. No es una pantalla de resultado, es una de **triage entre tres
+> sospechosos** — y para eso no alcanza con mostrar nuestra respuesta.
+>
+> Por eso hay un endpoint de diagnóstico aparte
+> (`POST /admin/v1/distribuidoras/{codigo}/diagnostico/valorizacion`) que devuelve **las tres
+> capas**: lo que le mandamos al ERP (con los nombres de GESCOM, para pegar en Postman), lo que el
+> ERP contestó **crudo**, y nuestra respuesta normalizada — más una comparación línea por línea.
+> El crudo **no** va en el contrato público: es back-office y va con la sesión del panel, no con la
+> api-key de la tienda.
+>
+> Dos diferencias deliberadas con el endpoint público: el diagnóstico **no falla** cuando el ERP
+> devuelve líneas que no cierran (ese es justo el caso que hay que poder mirar; el público sigue
+> rechazándolo con `RESPUESTA_INCOHERENTE`), y recorre **el mismo camino** que la tienda, porque
+> si probara por otro lado no diría nada del problema real.
+>
+> **Lo que la comparación sí y no detecta**: marca divergencias entre lo que dijo el ERP y lo que
+> exponemos, que es donde vive la clase de bug fracción/porcentaje que ya nos costó un release.
+> **No** puede detectar un error que estuviera a la vez en el mapeo y en la comparación. Para eso
+> están los tests contra el caso verificado en vivo.
+>
+> El panel **no necesita la api-key de ninguna tienda** para diagnosticar: va con la sesión. Es una
+> mejora sobre el molde de MotorFiscal, donde `/calculos` exige la clave propia del tenant y el
+> panel termina guardándola en `sessionStorage` para poder probar.
 
 ### Lo que el formulario de alta tiene que hacer bien
 

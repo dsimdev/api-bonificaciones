@@ -10,11 +10,17 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.axum.bonificaciones.core.model.ItemAValorizar;
+import com.axum.bonificaciones.core.model.PedidoAValorizar;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,6 +74,9 @@ class ValorizacionGescomTest {
 
     @Autowired
     com.axum.bonificaciones.app.gescom.ServicioDeToken tokens;
+
+    @Autowired
+    com.axum.bonificaciones.app.gescom.ValorizadorGescom valorizador;
 
     @AfterAll
     static void bajarGescom() {
@@ -358,5 +367,68 @@ class ValorizacionGescomTest {
                         .contentType(MediaType.APPLICATION_JSON).content(PEDIDO))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.codigo").value("RESPUESTA_INCOHERENTE"));
+    }
+
+    // --- El diagnostico del panel. Se prueba el servicio y no el endpoint porque el controller
+    // solo existe con la base enchufada, y lo que importa aca es lo que hace el conector.
+
+    private static final PedidoAValorizar UN_PEDIDO = new PedidoAValorizar("8380", "2",
+            List.of(new ItemAValorizar("5000014792", new BigDecimal("6"), "Unidad",
+                    BigDecimal.ONE)));
+
+    /**
+     * El crudo del ERP se conserva. Es lo unico que permite decidir si un descuento mal viene del
+     * ERP o lo rompimos nosotros al normalizar.
+     */
+    @Test
+    void elDiagnosticoConservaElCrudoDelErpYElPedidoEnviado() {
+        var d = valorizador.diagnosticar("dyssa", UN_PEDIDO);
+
+        assertTrue(d.respuestaCruda().contains("\"descuentoTotal\""),
+                "el crudo tiene que venir tal cual lo manda el ERP");
+        // Con los nombres de GESCOM, no los nuestros: se pega en Postman tal cual.
+        assertTrue(d.pedidoEnviado().contains("\"CodigoItem\":\"5000014792\""));
+        assertTrue(d.pedidoEnviado().contains("\"CodigoListaPrecio\":\"2\""));
+    }
+
+    /**
+     * La comparacion pone el numero del ERP al lado del nuestro. El del ERP es FRACCION y el
+     * nuestro PORCENTAJE, asi que la relacion tiene que ser exactamente x100.
+     *
+     * Lo que fija este test es que los dos numeros viajen separados y comparados. No puede
+     * detectar un error que estuviera a la vez en el mapeo y en la comparacion -- para eso estan
+     * los tests de arriba, que comparan contra el caso verificado en vivo.
+     */
+    @Test
+    void elDiagnosticoComparaLineaPorLineaContraElErp() {
+        var c = valorizador.diagnosticar("dyssa", UN_PEDIDO).comparacion();
+
+        assertEquals(1, c.size());
+        assertEquals("5000014792", c.get(0).codigoItem());
+        assertEquals(0, new BigDecimal("0.1").compareTo(c.get(0).descuentoEnElErp()));
+        assertEquals(0, new BigDecimal("10").compareTo(c.get(0).descuentoQueDevolvemos()));
+        assertTrue(c.get(0).coincide());
+    }
+
+    /**
+     * El endpoint publico rechaza una linea incoherente con 502 (test de arriba). El diagnostico
+     * NO: ese es justo el caso que hay que poder mirar, y si tambien volteara, la pantalla de
+     * soporte seria inutil para el unico problema que no se puede diagnosticar de otra forma.
+     */
+    @Test
+    void elDiagnosticoNoVoltearCuandoLasLineasNoCierran() {
+        gescom.stubFor(post(urlPathEqualTo("/data/cmd/ventas/api/v1/eval-pedido"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                [{"indiceVenta":1,"items":[{"itemCodigo":"5000014792",
+                                  "precioNetoTotal":58424.22,"precioNetoTotalConDesc":58424.22,
+                                  "descuentoTotal":0.1,"cantidad":6.0,"detalleDescuento":[]}]}]
+                                """)));
+
+        var d = valorizador.diagnosticar("dyssa", UN_PEDIDO);
+
+        assertEquals(1, d.valorizacion().lineasQueNoCierran().size());
+        assertTrue(d.respuestaCruda().contains("58424.22"),
+                "el crudo tiene que estar disponible justo en este caso");
     }
 }

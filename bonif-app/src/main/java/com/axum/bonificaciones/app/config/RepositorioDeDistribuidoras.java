@@ -78,6 +78,50 @@ public class RepositorioDeDistribuidoras implements Distribuidoras {
                 .list();
     }
 
+    /**
+     * Todas, con lo que el panel necesita para diagnosticar. Incluye las inactivas: una
+     * distribuidora que "desaparecio" del listado es una pregunta de soporte.
+     *
+     * Devuelve el {@code usuario} de GESCOM a proposito -- y nunca la clave. Los usuarios de dos
+     * distribuidoras se parecen peligrosamente (`apiaxum` y `axumapi` son dos distintas, de dos
+     * distribuidoras distintas), asi que ver con cual quedo cargada es lo que permite descubrir
+     * que alguien copio de la coleccion de Postman equivocada.
+     */
+    public List<Resumen> listar() {
+        return jdbc.sql("""
+                        SELECT codigo, nombre, host, realm, gescom_usuario, activa,
+                               creada_en, creada_por, actualizada_en, actualizada_por
+                        FROM distribuidora
+                        ORDER BY codigo
+                        """)
+                .query((rs, n) -> {
+                    var codigo = rs.getString("codigo");
+                    return new Resumen(
+                            codigo,
+                            rs.getString("nombre"),
+                            valorOConvencion(rs.getString("host"), hostPorConvencion(codigo)),
+                            valorOConvencion(rs.getString("realm"), realmPorConvencion(codigo)),
+                            rs.getString("host") != null || rs.getString("realm") != null,
+                            rs.getString("gescom_usuario"),
+                            rs.getBoolean("activa"),
+                            rs.getTimestamp("creada_en").toInstant(),
+                            rs.getString("creada_por"),
+                            rs.getTimestamp("actualizada_en").toInstant(),
+                            rs.getString("actualizada_por"));
+                })
+                .list();
+    }
+
+    /**
+     * @param host           el que se usa de verdad, ya resuelto por convencion si la fila no lo pisa
+     * @param fueraDeConvencion true cuando la fila pisa host o realm. Vale verlo: lo normal es que
+     *                          salgan del codigo, y una excepcion explica comportamientos raros
+     */
+    public record Resumen(String codigo, String nombre, String host, String realm,
+                          boolean fueraDeConvencion, String usuario, boolean activa,
+                          java.time.Instant creadaEn, String creadaPor,
+                          java.time.Instant actualizadaEn, String actualizadaPor) {}
+
     public boolean existe(String codigo) {
         return jdbc.sql("SELECT COUNT(1) FROM distribuidora WHERE codigo = :codigo")
                 .param("codigo", codigo)

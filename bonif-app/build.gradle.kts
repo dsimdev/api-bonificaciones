@@ -48,3 +48,90 @@ tasks.named<ProcessResources>("processResources") {
             "tokens" to mapOf("version" to project.version.toString()))
     }
 }
+
+/**
+ * Publica el panel dentro del jar, en /admin.
+ *
+ * Es lo que hace que ande sin CORS ni mixed content: el panel queda en el MISMO origen que la API,
+ * y se deploya una sola cosa, el jar. Copiado del molde de api-impuestos, incluidas sus lecciones.
+ *
+ * `gradlew build` RECONSTRUYE el panel, no solo copia lo que haya en panel/out: en api-impuestos
+ * antes solo copiaba, asi que un cambio en el panel sin correr `npm run build` a mano quedaba
+ * invisible -- el jar seguia sirviendo la version vieja aunque el build pasara y los tests dieran
+ * verde.
+ *
+ * Si no hay `node_modules`, la tarea no falla: el gateway es util sin panel y `gradlew build` no
+ * puede exigir Node instalado en cualquier maquina. Si `node_modules` SI existe, se asume que el
+ * panel es parte del trabajo y un build roto del panel rompe el build -- visible es mejor que
+ * silencioso.
+ */
+val panelSourceDir = layout.projectDirectory.dir("../panel")
+val panelDir = panelSourceDir.dir("out")
+val panelInstalado = panelSourceDir.dir("node_modules").asFile.exists()
+
+// Default '/admin': acceso directo a Spring, sin proxy anidado adelante. Un deploy detras de un
+// IIS que cuelgue esto como aplicacion anidada necesita compilar el panel con la ruta COMPLETA que
+// ve el navegador -- ej. -PpanelBasePath=/api/bonificaciones/admin -- o el panel queda en blanco
+// con 404 en la consola. Ver el comentario de panel/next.config.mjs: en api-impuestos ese bug
+// llego a produccion TRES veces.
+val panelBasePath = (project.findProperty("panelBasePath") as String?) ?: "/admin"
+
+// El basePath queda horneado en el HTML/JS en tiempo de build: dos builds con distinto
+// -PpanelBasePath son dos artefactos distintos, no el mismo jar en dos momentos. Sin el
+// classifier, ambos se llaman igual y un build local posterior pisa en silencio el jar de
+// produccion que ya se habia verificado -- paso dos veces en api-impuestos.
+val esBuildDeProduccion = panelBasePath != "/admin"
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    if (esBuildDeProduccion) {
+        archiveClassifier.set("prod")
+        doLast {
+            logger.lifecycle("Jar de PRODUCCION (panelBasePath=$panelBasePath): " +
+                    archiveFile.get().asFile.name)
+        }
+    } else {
+        doLast {
+            logger.lifecycle("Jar LOCAL (panelBasePath=$panelBasePath): " +
+                    archiveFile.get().asFile.name + " -- no usar para un deploy detras de proxy.")
+        }
+    }
+}
+
+val buildPanel by tasks.registering(Exec::class) {
+    onlyIf {
+        if (!panelInstalado) {
+            logger.lifecycle("Panel: node_modules no existe, no se reconstruye " +
+                    "(cd panel && npm install primero).")
+        }
+        panelInstalado
+    }
+    workingDir = panelSourceDir.asFile
+    val npmCmd = if (System.getProperty("os.name").lowercase().contains("win")) "npm.cmd" else "npm"
+    commandLine(npmCmd, "run", "build")
+    environment("PANEL_BASE_PATH", panelBasePath)
+    inputs.dir(panelSourceDir.dir("app"))
+    inputs.dir(panelSourceDir.dir("lib"))
+    inputs.file(panelSourceDir.file("next.config.mjs"))
+    inputs.file(panelSourceDir.file("package.json"))
+    inputs.file(panelSourceDir.file("tsconfig.json"))
+    inputs.property("panelBasePath", panelBasePath)
+    outputs.dir(panelDir)
+}
+
+// Sync y no Copy: un Copy nunca borra lo que ya estaba en el destino, asi que los chunks hasheados
+// de builds anteriores se acumularian para siempre e hincharian el jar sin necesidad.
+val copiarPanel by tasks.registering(Sync::class) {
+    dependsOn(buildPanel)
+    from(panelDir)
+    into(layout.buildDirectory.dir("resources/main/static/admin"))
+    onlyIf {
+        val existe = panelDir.asFile.exists()
+        if (!existe) {
+            logger.lifecycle("Panel sin compilar (panel/out no existe). " +
+                    "Para incluirlo: cd panel && npm install && npm run build")
+        }
+        existe
+    }
+}
+
+tasks.named("classes") { dependsOn(copiarPanel) }
