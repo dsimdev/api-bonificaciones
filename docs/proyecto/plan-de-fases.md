@@ -99,7 +99,7 @@ distribuidoras" a "lo operan mil". Detalle en [multi-tenant-y-auth.md](multi-ten
 API es lo que permite el alta masiva, y el panel es lo que permite que lo opere gente que no
 trabaja con APIs. Los dos tienen usuarios distintos.
 
-### 3a — La base · v0.4.0
+### 3a — La base · v0.4.0 — ✅ HECHO (2026-10-07)
 
 Sin esto no hay nada más: las variables de entorno no escalan a 1000.
 
@@ -124,17 +124,29 @@ Sin esto no hay nada más: las variables de entorno no escalan a 1000.
 **Criterio de salida**: dar de alta una distribuidora por API, que la validación rechace una
 credencial mala, y que `/valorizaciones` funcione con la credencial que quedó en la base.
 
-### 3b — Auth de la API pública · v0.5.0
+### 3b — Auth de la API pública · v0.5.0 — ✅ HECHO (2026-10-07)
 
 1. `x-api-key` por tenant, **validando que la credencial sea del tenant de la ruta**. Sin eso, una
    tienda puede pedir los datos de otra distribuidora cambiando la URL.
 2. **Alcances**: la clave del checkout **solo valoriza**. `/criterios` es back-office — es la
    estructura comercial completa y no va en un navegador.
-3. Limitador de intentos (fuerza bruta) y cuota por credencial (que el bug de integración de una
-   tienda no se coma la capacidad del resto).
+3. Limitador de intentos (fuerza bruta): por tenant, 10 fallos en 5 minutos, y cuenta **solo los
+   fallidos**. La **cuota por credencial** (que el bug de integración de una tienda no se coma la
+   capacidad del resto) **pasó a 3d**: es otra cosa —limita tráfico legítimo— y necesita saber
+   cuánto consume un checkout de verdad, dato que todavía no tenemos.
 
 **Criterio de salida**: con la clave de dyssa, `/v1/senderolaser/...` devuelve 403. Y con la clave
 del checkout, `/criterios` devuelve 403.
+
+> **Cumplido, con una corrección sobre el criterio escrito acá.** Cruzar de tenant devuelve
+> **401, no 403**: un 403 confirmaría que esa clave es válida en algún lado, y eso no se le dice a
+> quien está probando URLs. El 403 queda para cuando la clave **sí** es del tenant pero no le
+> alcanza el alcance (`/criterios` con la del checkout): ahí el que pregunta ya está identificado y
+> el 403 no filtra nada.
+>
+> Verificado en vivo contra la base y GESCOM: sin clave 401, clave propia 200, clave de otra
+> distribuidora 401 con el mensaje "Esa clave no es de la distribuidora dyssa", y `/criterios` con
+> la del checkout 403 `ALCANCE_INSUFICIENTE`. `AutenticacionConBaseIT` (7 tests, tag `db`) lo fija.
 
 ### 3c — El panel · v0.6.0
 
@@ -182,9 +194,12 @@ artefacto para deployar.
 ### 3d — Endurecer y deployar · v0.6.x
 
 1. Timeouts, reintentos acotados y qué devolver cuando el ERP está caído.
-2. Métricas y logs útiles sin un solo secreto adentro.
-3. Deploy: servicio de Windows, igual que `api-impuestos` (sin Docker en el entorno).
-4. Colección Postman del gateway, para el integrador.
+2. **Cuota por credencial** (viene de 3b): que una tienda con un bug de integración no se coma la
+   capacidad del resto. Va acá y no antes porque primero hay que medir cuánto consume un checkout
+   real — un límite inventado rompe a la tienda que funciona bien.
+3. Métricas y logs útiles sin un solo secreto adentro.
+4. Deploy: servicio de Windows, igual que `api-impuestos` (sin Docker en el entorno).
+5. Colección Postman del gateway, para el integrador.
 
 **Criterio de salida de la Fase 3**: corriendo en el servidor real, con auth, con una distribuidora
 dada de alta desde el panel, y la tienda haciendo una valorización end-to-end.
