@@ -94,3 +94,72 @@ sí hay CORS en algún lado (IIS), copiamos esa configuración.
   un archivo. Pero antes de construirlo hay que preguntar: **¿el alta puede ser automática?** Si
   una distribuidora ya existe en Axum, lo lógico es provisionarla acá desde ahí, no a mano.
   Un panel para 1000 altas manuales es trabajo que capaz no hay que hacer.
+
+---
+
+# Cómo se dan de alta 1000 distribuidoras
+
+> Agregado el 2026-10-07. La pregunta era: *"en algún lado los tenemos que cargar, ¿es necesario
+> un panel?"*. La respuesta corta: **sí, pero el panel no es lo que da de alta 1000.**
+
+## El alta nuestra es de tres campos
+
+De los cuatro datos que necesita una distribuidora, **dos salen por convención** —verificada en
+dyssa y senderolaser, y documentada en `eval-pedido.md`:
+
+| Dato | De dónde sale |
+|---|---|
+| `host` | `https://<codigo>.gescom.online` — **derivable** |
+| `realm` | `gcw-<codigo>` — **derivable** |
+| `usuario` | hay que cargarlo |
+| `clave` | hay que cargarlo |
+| nuestra api-key para la tienda | **la generamos nosotros** |
+
+Así que el alta es **código + usuario + clave**. Eso cambia todo: un import masivo es un CSV de
+tres columnas, y el formulario del panel es trivial.
+
+> **Y se puede validar en el momento.** Con esos tres datos podemos **mintear un token contra
+> Keycloak antes de guardar** y decir "anda" o "no anda". Un alta mal cargada se detecta ahí, no
+> cuando la tienda hace su primer checkout. Es barato y hay que hacerlo.
+
+## Lo que hizo MotorFiscal con 200 tiendas
+
+Tiene las dos cosas, y su `OnboardingController` explica por qué, textual:
+
+> *"el ABM de reglas está pensado para el uso **ocasional** desde el panel —corregir una regla
+> puntual— **no para dar de alta 200 distribuidoras una por una**. (…) cargarlos no tiene por qué
+> ser interactivo. **Quien dé de alta a una distribuidora nueva llama esto una vez, con todo el
+> paquete, desde su propio sistema.**"*
+
+Y su `TenantsController` ya tiene la forma que necesitamos: crear tenant, cargar sus credenciales,
+listar, y **`POST /{codigo}/regenerar-clave`** que devuelve la clave nueva una sola vez
+(*"Guardala ahora: la clave anterior quedó revocada y esta tampoco se puede recuperar después"*).
+
+Un detalle del lote que vale copiar: es **parcial y no transaccional a propósito** — si una fila
+falla por un typo, las demás se aplican igual y el error queda listado. Frenar un alta de 40 por
+un renglón sería peor.
+
+## El orden que proponemos
+
+**1. API de administración, protegida por clave maestra.** Crear distribuidora, cargar
+credenciales (validándolas contra Keycloak en el acto), regenerar api-key, listar. **Es esto lo
+que permite el alta masiva**, llamándolo desde donde ya estén los datos hoy.
+
+**2. Panel encima, después.** Para lo ocasional: ver qué hay cargado, corregir una, regenerar una
+clave, diagnosticar por qué una distribuidora no responde.
+
+El panel de MotorFiscal es un **export estático de Next.js embebido en el jar**, servido en
+`/admin` — mismo origen que la API, sin CORS ni mixed content. Es el molde: se copia, no se
+inventa.
+
+**Mientras tanto Swagger alcanza.** La API de administración queda documentada sola en
+`/swagger-ui.html`, y con la clave maestra se opera desde ahí. No es lindo, pero es suficiente
+hasta que lo use alguien que no sea el equipo.
+
+## Lo que falta decidir
+
+- **¿De dónde salen hoy las credenciales de las 1000?** Si están en colecciones de Postman, una
+  por distribuidora, hay un trabajo de recolección previo que no es software. Si están en una
+  planilla o en un sistema de provisioning, el import es directo.
+- **¿Quién da de alta una distribuidora nueva, y cada cuánto?** Define cuándo el panel deja de ser
+  un lujo.
