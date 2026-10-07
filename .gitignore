@@ -7,3 +7,6 @@ out/
 .vscode/
 *.log
 .env
+
+# Permisos personales de Claude Code: no se comparten con el equipo.
+.claude/settings.local.json
