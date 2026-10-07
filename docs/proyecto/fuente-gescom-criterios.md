@@ -164,6 +164,56 @@ dyssa (NOEL POTE 1KG, FRIGOR 1KG, CHOMP, los combos de BIC…).
 > contrato expone `creadaPorPromo` por línea para que el consumidor distinga lo pedido de lo
 > regalado.
 
+## La lista de precios: qué hace y qué no
+
+Verificado en vivo contra dyssa el 2026-10-07, y **corrige una suposición nuestra anterior**.
+
+### Lo que sí hace: cambia el precio
+
+El `CodigoListaPrecio` que mandamos **por ítem** determina el precio. Mismo ítem, misma cantidad,
+cliente 8380:
+
+| Lista enviada | Neto (50 un. del ítem `1000031861`) |
+|---|---|
+| `2` | `63175.000000` |
+| `3` | `59976.000000` |
+| sin mandar nada | `63175.000000` (igual que la 2) |
+
+Sin lista, GESCOM **no falla**: usa la del cliente. Para el 8380 eso resulta la lista 2.
+
+### Lo que NO hace: decidir qué criterio aplica
+
+Esto era lo que habíamos supuesto mal. Dyssa tiene dos criterios gemelos:
+
+| Criterio | Condición de lista | Ítems | Escala |
+|---|---|---|---|
+| 610 "MATARAZZO + TERRABUSI - **TRADE**" | `ListaPrecioVenta: [2]` | los mismos 40 | 5% desde 3 un., **12% desde 45** |
+| 611 "MATARAZZO + TERRABUSI - **AASS**" | `ListaPrecioVenta: [3]` | los mismos 40 | 5% desde 3 un., **12% desde 150** |
+
+Pidiendo **50 unidades con lista 3**, debería aplicar el 611 → 5% (50 < 150). Pero aplica el
+**610 → 12%**. O sea: **la condición `ListaPrecioVenta` no mira la lista que mandamos.** Lo más
+probable es que mire la que tiene asignada el cliente en `get-clientes` (el 8380 está en la 2).
+Eso explica también por qué omitir la lista da el mismo resultado que mandar la 2.
+
+> ⚠️ **No está probado al 100%** que sea la lista del cliente: haría falta un cliente asignado a
+> la lista 3 para confirmarlo. Lo que sí está probado es que **la lista enviada no cambia el
+> criterio**. Lo fija `laListaCambiaElPrecioPeroNoElCriterioQueAplica`.
+
+### Por qué importa igual
+
+Porque **mandar la lista equivocada da el descuento correcto sobre el precio equivocado**. El
+porcentaje engaña: sale 12% en los dos casos, y parece que está todo bien. El importe no: 55594
+contra 52778. Nadie lo nota mirando el descuento.
+
+Entonces la pregunta para la tienda **no** es "¿mandás la lista para que aplique la promo
+correcta?" sino: **¿de dónde sale el precio que ve el cliente en el carrito?** Si la tienda muestra
+precios de una lista, tiene que mandarnos esa misma, o el neto que devolvemos no va a coincidir
+con el suyo.
+
+Y una consecuencia de negocio que conviene mirar: la lista no es solo un precio, **es el segmento
+comercial**. TRADE y AASS (autoservicios) pagan distinto y además llegan al 12% con distinta
+cantidad: 45 unidades contra 150.
+
 ## Detalles que ahorran tiempo
 
 - **`id` y `promoId` llegan como NÚMERO**, no como string. Es el mismo valor en los dos endpoints,

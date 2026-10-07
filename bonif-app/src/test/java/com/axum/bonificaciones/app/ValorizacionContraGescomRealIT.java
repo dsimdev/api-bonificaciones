@@ -1,11 +1,13 @@
 package com.axum.bonificaciones.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.axum.bonificaciones.core.model.CalculadoPor;
 import com.axum.bonificaciones.core.model.ItemAValorizar;
+import com.axum.bonificaciones.core.model.LineaValorizada;
 import com.axum.bonificaciones.core.model.PedidoAValorizar;
 import com.axum.bonificaciones.core.puerto.Valorizador;
 import java.math.BigDecimal;
@@ -58,6 +60,49 @@ class ValorizacionContraGescomRealIT {
     void reproduceElCasoVerificadoDeSenderolaser() {
         valorizaYVerifica("senderolaser", "301", "610030", "1",
                 new BigDecimal("6201.06"), new BigDecimal("12"), new BigDecimal("5456.9328"));
+    }
+
+    /**
+     * LO QUE LA LISTA DE PRECIOS HACE, Y LO QUE NO. Verificado en vivo el 2026-10-07.
+     *
+     * El `CodigoListaPrecio` que mandamos por item **cambia el precio**: el mismo item y la misma
+     * cantidad dan neto 63175 en la lista 2 y 59976 en la lista 3.
+     *
+     * Pero NO cambia que criterio aplica. El criterio 610 de dyssa tiene una condicion
+     * ListaPrecioVenta=[2] y un escalon del 12% a partir de 45 unidades; el 611 es igual pero con
+     * ListaPrecioVenta=[3] y el escalon en 150. Mandando lista 3 con 50 unidades sigue aplicando
+     * el 610 (12%), no el 611 (que daria 5%). O sea: la condicion ListaPrecioVenta NO mira la
+     * lista que mandamos, sino -- muy probablemente -- la que tiene asignada el cliente.
+     *
+     * Consecuencia practica: mandar la lista equivocada da el descuento correcto sobre el precio
+     * EQUIVOCADO. El porcentaje engania porque es el mismo; el importe no.
+     */
+    @Test
+    void laListaCambiaElPrecioPeroNoElCriterioQueAplica() {
+        assumeHayCredenciales("dyssa");
+
+        var conLista2 = valoriza("dyssa", "8380", "1000031861", "2", "50");
+        var conLista3 = valoriza("dyssa", "8380", "1000031861", "3", "50");
+
+        assertNotEquals(0, conLista2.neto().compareTo(conLista3.neto()),
+                "la lista tiene que cambiar el precio");
+        assertEquals(0, conLista2.descuento().compareTo(conLista3.descuento()),
+                "pero no el porcentaje de descuento");
+        assertEquals(conLista2.bonificaciones().get(0).id(), conLista3.bonificaciones().get(0).id(),
+                "ni el criterio que lo otorga");
+    }
+
+    private LineaValorizada valoriza(String tenant, String cliente, String item, String lista,
+                                     String cantidad) {
+        var r = valorizador.valorizar(tenant, new PedidoAValorizar(cliente, lista,
+                List.of(new ItemAValorizar(item, new BigDecimal(cantidad), "Unidad", BigDecimal.ONE))));
+        return r.lineas().get(0);
+    }
+
+    private void assumeHayCredenciales(String tenant) {
+        var d = configuracion.distribuidoras().get(tenant);
+        assumeTrue(d != null && d.gescom() != null && d.gescom().usuario() != null
+                && !d.gescom().usuario().isBlank(), "Sin credenciales de " + tenant);
     }
 
     private void valorizaYVerifica(String tenant, String cliente, String item, String lista,

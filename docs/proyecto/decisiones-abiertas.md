@@ -58,7 +58,7 @@ contrato de entrada. Lo que hay que mirar cuando llegue, en orden de impacto:
 
 | Qué mirar | Por qué cambia algo |
 |---|---|
-| **¿Manda `listaPrecio`?** | **Lo más importante.** Dyssa tiene criterios con condición `ListaPrecioVenta`: la lista **decide qué bonificación aplica**. Si no la mandamos, `eval-pedido` usa la lista por defecto del cliente y el descuento puede ser otro — y nadie se entera, porque la respuesta es igual de verosímil. Hoy el campo es opcional en nuestro contrato; si la tienda la tiene, pasa a obligatorio |
+| **¿De dónde sale el precio que ve el cliente, y con qué lista?** | **Lo más importante.** La lista que mandamos **cambia el precio** (verificado en vivo: `63175` en la lista 2 contra `59976` en la 3, mismo ítem y cantidad). Si la tienda muestra precios de una lista y no nos la manda, devolvemos un neto que no coincide con su carrito. Y el **porcentaje de descuento sale igual en los dos casos**, así que el error no se nota mirando el descuento — solo el importe. Detalle en `fuente-gescom-criterios.md` → "La lista de precios: qué hace y qué no" |
 | **¿Manda el carrito entero o ítem por ítem?** | Los criterios se evalúan **sobre la venta completa** (`requiredQuantity`, condiciones de marca/rubro que miran todos los ítems). Pedir ítem por ítem da descuentos distintos a pedir el carrito. No es una optimización: es corrección |
 | **¿Manda precio?** | Si la tienda ya tiene un precio y nosotros devolvemos otro, hay que decidir cuál manda antes de que lo descubra un cliente |
 | **¿Unidad y bultos?** | `CodigoUnidad` / `UnidadFactor`. Hoy ponemos `"Unidad"` y factor 1 por defecto; si la tienda vende por bulto, eso está mal |
