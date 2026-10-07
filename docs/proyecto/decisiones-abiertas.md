@@ -140,62 +140,8 @@ API. O sea, el equipo ya decidió una vez que la forma de lidiar con CORS es no 
 
 ---
 
-## 6. ¿Cómo leemos los settings de bonificaciones de cada distribuidora? — **bloquea el motor de Axum**
 
-La doc de Axum documenta tres configuraciones que **cambian el resultado** y que **no vienen en el
-payload de bonificaciones**:
-
-- `Bonificaciones.HabilitarOrdenManual` — si está off, se usa la prioridad automática en vez de
-  `ordenManual`;
-- `Bonificaciones.HabilitarFiltroSucursalVendedor` — si está off, se ignora el filtro de sucursal;
-- **LP + cantidad de listas** — si está on, evalúa **todas** las listas y aplica **la de mayor
-  beneficio**, ignorando el filtro de lista. Eso convierte la resolución en un `max()`.
-
-Con el mismo payload y distintos settings, el descuento que corresponde es distinto.
-
-**Recomendación**: preguntar si hay endpoint que los exponga. Si no lo hay, van como configuración
-nuestra por tenant, **explícita y visible en `/health`** — un setting mal puesto que nadie ve es
-un descuento mal calculado que nadie ve.
-
----
-
-## 7. ¿La agregación por cantidad vale para todos los agrupadores o solo para canasta?
-
-La doc muestra el ejemplo solo con **canasta**: el umbral (`cantidadSuperior`) se evalúa sobre la
-**suma de los ítems del grupo**, no por ítem — 5 Coca + 5 Pepsi dispara una bonificación de "más
-de 9", 5 Coca + 5 Fanta no.
-
-Falta confirmar si lo mismo vale para grupo, rubro, línea, marca y proveedor.
-
-**Recomendación**: asumir que **sí** agrega (es lo coherente) pero **no darlo por cierto**:
-confirmarlo antes de la Fase 2 y dejar un test por cada agrupador. Si el motor evalúa por línea
-donde debía agregar, la bonificación no dispara y nadie se entera hasta el reclamo.
-
----
-
-## 8. ¿Se acumulan varias bonificaciones sobre el mismo ítem?
-
-La jerarquía de Axum sugiere que **gana una sola** (la del filtro de mayor prioridad presente).
-El flujo de la app —*"se borra la card del descuento aplicado y quedan las que se podrían
-aplicar"*— sugiere que las demás siguen disponibles.
-
-**Recomendación**: confirmarlo antes de escribir el motor. Si se acumulan, el orden de aplicación
-es parte del contrato y hay que testearlo. Relacionado: `topeDescuento` es idéntico a `descuento`
-en toda la muestra — **pedir un caso donde difieran**, porque un tope que nunca se activa o es
-redundante, o es la señal de que sí se apilan.
-
----
-
-## 9. ¿Qué más le pedimos a Axum, aparte de bonificaciones?
-
-- **resolver atributos de cliente/artículo desde Axum** en vez de desde GESCOM, si la tienda ya
-  los tiene ahí y queremos ahorrarnos llamadas;
-- **enriquecer la respuesta** con descripción, rubro o línea del artículo;
-- **validar** que lo que ve la tienda y lo que ve GESCOM es el mismo artículo.
-
----
-
-## 10. ¿Qué es Chess y qué aporta?
+## 6. ¿Qué es Chess y qué aporta?
 
 No hay una sola mención en `C:\Dev\docs`. **Recomendación**: cuando se acerque, arrancar por el
 método de reversing que ya funcionó con GESCOM y escribir la referencia en `C:\Dev\docs` antes de
@@ -204,7 +150,7 @@ hecha para un sistema que nadie vio casi siempre sale mal.
 
 ---
 
-## 11. ¿Dónde se deploya?
+## 7. ¿Dónde se deploya?
 
 Falta definir servidor, puerto, y si va detrás de IIS. Si va detrás de un IIS que lo cuelga como
 aplicación anidada, **hay que resolver el prefijo de ruta desde el día uno**: en `api-impuestos`
