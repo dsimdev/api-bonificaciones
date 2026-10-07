@@ -80,8 +80,12 @@ es una decisión aparte, con su propio costo.
 
 ## 3. ¿Hace falta base de datos?
 
-**Recomendación**: **no todavía.** Stateless + cache en memoria alcanza para las fases 1 a 3, y
-no tener base es una pieza menos que operar. Entra el día que aparezca uno de estos:
+**Recomendación (2026-10-07): SÍ, y ya no por auditoría: por configuración.** Esto escala a ~1000
+tiendas, y 1000 × (host, realm, usuario, clave, api-key) no entra en variables de entorno. Es
+SQL Server + Flyway, igual que `api-impuestos`. Ver
+[multi-tenant-y-auth.md](multi-tenant-y-auth.md).
+
+Los otros motivos que ya estaban, y que ahora vienen de arriba:
 
 - **auditoría**: "¿qué le respondimos a la tienda el martes?" — probable que haga falta, porque
   es plata y alguien va a reclamar;

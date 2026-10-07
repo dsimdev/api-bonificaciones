@@ -1,4 +1,5 @@
-# docs/proyecto/ — lo específico de api-bonificaciones
+| [multi-tenant-y-auth.md](multi-tenant-y-auth.md) | Cómo escalar a ~1000 tiendas y cómo autenticarlas: lo que MotorFiscal ya resolvió y en qué nuestro caso es distinto |
+| [fuente-gescom-criterios.md]# docs/proyecto/ — lo específico de api-bonificaciones
 
 El método portable vive en `docs/metodo/`. Acá va todo lo que es de este proyecto y cambia.
 
