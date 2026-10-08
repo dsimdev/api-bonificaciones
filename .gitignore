@@ -16,3 +16,7 @@ node_modules/
 .next/
 next-env.d.ts
 *.tsbuildinfo
+
+# El jar de la entrega de deploy es un binario de 32 MB: va en la carpeta que se
+# pasa por fuera de git (se rehace con `gradlew build -PpanelBasePath=/api/bonificaciones/admin`).
+entrega-servidor/*.jar
