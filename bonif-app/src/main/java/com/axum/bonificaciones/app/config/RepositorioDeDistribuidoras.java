@@ -70,6 +70,25 @@ public class RepositorioDeDistribuidoras implements Distribuidoras {
         return buscar(codigo).orElseThrow(() -> new DistribuidoraDesconocidaException(codigo));
     }
 
+    /**
+     * Host y realm de una distribuidora activa, SIN descifrar su clave de GESCOM.
+     *
+     * Para cambiar la credencial no hace falta leer la vieja: se va a pisar. Y si se la leyera,
+     * perder la CIFRADO_KEY dejaria a todas las distribuidoras sin forma de recargarse, que es
+     * justo lo que la guia de deploy manda hacer en ese caso.
+     */
+    public Destino destino(String codigo) {
+        return jdbc.sql("SELECT host, realm FROM distribuidora WHERE codigo = :codigo AND activa = 1")
+                .param("codigo", codigo)
+                .query((rs, n) -> new Destino(
+                        valorOConvencion(rs.getString("host"), hostPorConvencion(codigo)),
+                        valorOConvencion(rs.getString("realm"), realmPorConvencion(codigo))))
+                .optional()
+                .orElseThrow(() -> new DistribuidoraDesconocidaException(codigo));
+    }
+
+    public record Destino(String host, String realm) {}
+
     /** Los codigos de las distribuidoras activas. Lo informa /health. */
     @Override
     public List<String> codigosActivos() {

@@ -64,10 +64,14 @@ public class ServicioDeAltas {
     /**  claveDeLaTienda en claro. Es la unica vez que se puede ver */
     public record Alta(int criterios, String claveDeLaTienda) {}
 
-    /** Cambiar las credenciales tambien las prueba antes: las claves de API tambien se rotan. */
+    /**
+     * Cambiar las credenciales tambien las prueba antes: las claves de API tambien se rotan.
+     *
+     * No descifra la clave vieja: es la unica salida cuando la CIFRADO_KEY cambio o se perdio.
+     */
     public int actualizarCredenciales(String codigo, String usuario, String clave) {
-        var existente = distribuidoras.requerir(codigo).gescom();
-        var criterios = verificar(codigo, existente.host(), existente.realm(), usuario, clave);
+        var destino = distribuidoras.destino(codigo);
+        var criterios = verificar(codigo, destino.host(), destino.realm(), usuario, clave);
         distribuidoras.actualizarCredenciales(codigo, usuario, clave);
         return criterios;
     }
