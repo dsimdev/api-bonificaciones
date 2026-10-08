@@ -31,21 +31,40 @@ dependencies {
     testImplementation("org.wiremock:wiremock-standalone:3.10.0")
 }
 
+// Donde IIS cuelga la app, visto desde el NAVEGADOR. Default '/admin' = acceso directo a Spring,
+// sin proxy anidado, y entonces el prefijo externo es vacio. Detras de un IIS que la cuelgue
+// anidada (-PpanelBasePath=/api/bonificaciones/admin) el prefijo es /api/bonificaciones.
+//
+// Declarado aca arriba porque lo usan DOS cosas: el panel (buildPanel, mas abajo) y Swagger, que
+// tambien arma URLs absolutas para el navegador y por el mismo motivo se rompe detras del proxy.
+val panelBasePath = (project.findProperty("panelBasePath") as String?) ?: "/admin"
+val externalBasePath = panelBasePath.removeSuffix("/admin")
+
 /**
- * Reemplaza @version@ en application.yml al empaquetar, para que /health informe la version que
- * realmente esta corriendo. Sin esto habria que acordarse de actualizarla a mano y terminaria
- * mintiendo, que es peor que no tenerla.
+ * Reemplaza @version@ y @externalBasePath@ en application.yml al empaquetar.
+ *
+ * La version, para que /health informe la que realmente esta corriendo: sin esto habria que
+ * acordarse de actualizarla a mano y terminaria mintiendo, que es peor que no tenerla.
+ *
+ * El prefijo externo, para que Swagger arme bien sus propias URLs detras del proxy anidado. Esa
+ * clase de bug llego a produccion tres veces en api-impuestos y dos de las tres fueron Swagger.
  */
 tasks.named<ProcessResources>("processResources") {
     // Gradle no rastrea el valor de un filter() como input de la tarea: sin esta linea, un bump de
     // version sin tocar el archivo deja la tarea "up to date" y el jar queda con la version VIEJA
     // embebida. En api-impuestos eso se comio un release entero.
     inputs.property("version", project.version)
-    // ReplaceTokens y no expand(): expand usa plantillas Groovy y romperia con los ${PORT:8080} del
+    // Mismo motivo que la linea de arriba: sin esto, cambiar -PpanelBasePath no invalida la tarea
+    // y el yml queda con el prefijo del build anterior. Eso dejaria a Swagger apuntando a la ruta
+    // equivocada en un jar que por fuera parece el correcto.
+    inputs.property("externalBasePath", externalBasePath)
+    // ReplaceTokens y no expand(): expand usa plantillas Groovy y romperia con los ${PORT:8081} del
     // propio yml, que son placeholders de Spring y no del build.
     filesMatching("application.yml") {
         filter<org.apache.tools.ant.filters.ReplaceTokens>(
-            "tokens" to mapOf("version" to project.version.toString()))
+            "tokens" to mapOf(
+                "version" to project.version.toString(),
+                "externalBasePath" to externalBasePath))
     }
 }
 
@@ -69,12 +88,12 @@ val panelSourceDir = layout.projectDirectory.dir("../panel")
 val panelDir = panelSourceDir.dir("out")
 val panelInstalado = panelSourceDir.dir("node_modules").asFile.exists()
 
-// Default '/admin': acceso directo a Spring, sin proxy anidado adelante. Un deploy detras de un
-// IIS que cuelgue esto como aplicacion anidada necesita compilar el panel con la ruta COMPLETA que
-// ve el navegador -- ej. -PpanelBasePath=/api/bonificaciones/admin -- o el panel queda en blanco
-// con 404 en la consola. Ver el comentario de panel/next.config.mjs: en api-impuestos ese bug
-// llego a produccion TRES veces.
-val panelBasePath = (project.findProperty("panelBasePath") as String?) ?: "/admin"
+// panelBasePath se declara arriba, junto a externalBasePath: lo necesitan tanto el panel como
+// Swagger. Un deploy detras de un IIS que cuelgue esto como aplicacion anidada necesita compilar
+// el panel con la ruta COMPLETA que ve el navegador -- ej.
+// -PpanelBasePath=/api/bonificaciones/admin -- o el panel queda en blanco con 404 en la consola.
+// Ver el comentario de panel/next.config.mjs: en api-impuestos ese bug llego a produccion TRES
+// veces.
 
 // El basePath queda horneado en el HTML/JS en tiempo de build: dos builds con distinto
 // -PpanelBasePath son dos artefactos distintos, no el mismo jar en dos momentos. Sin el

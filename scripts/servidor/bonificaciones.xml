@@ -1,0 +1,52 @@
+<!--
+  Configuracion del servicio de Windows, para WinSW (https://github.com/winsw/winsw).
+
+  Mismo enfoque que MotorFiscal: un servicio propio y no el HttpPlatformHandler de IIS, porque el
+  ciclo de vida del gateway no deberia depender del reciclado del application pool. IIS reinicia
+  pools por inactividad o por memoria, y eso cortaria una valorizacion a la mitad — en un checkout,
+  con alguien esperando.
+
+  Instalacion (una vez, como administrador, en C:\bonificaciones):
+    WinSW.exe install
+    WinSW.exe start
+-->
+<service>
+  <id>bonificaciones</id>
+  <name>API Bonificaciones</name>
+  <description>Gateway de bonificaciones (criterios de venta de GESCOM). Escucha en localhost:8081; IIS le hace de reverse proxy.</description>
+
+  <executable>java</executable>
+  <arguments>-jar "C:\bonificaciones\bonificaciones.jar"</arguments>
+  <workingdirectory>C:\bonificaciones</workingdirectory>
+
+  <!--
+    8081 y NO 8080: en este servidor tambien corre MotorFiscal, que usa el 8080. Dos servicios en
+    el mismo puerto no arrancan los dos, y el segundo falla con un "Address already in use" que no
+    dice de quien es el puerto que ya esta tomado.
+
+    Los SECRETOS no van aca: ni la clave de la base ni CIFRADO_KEY. Este archivo se sube por FTP,
+    asi que todo lo que tenga adentro viaja y queda en el servidor en texto plano. Se definen como
+    variables de entorno de MAQUINA (lo hace preparar-sistema.ps1) y el servicio las hereda.
+  -->
+  <env name="DB_URL" value="jdbc:sqlserver://localhost:1433;databaseName=bonificaciones;encrypt=true;trustServerCertificate=true" />
+  <env name="DB_USER" value="bonificaciones" />
+  <env name="PORT" value="8081" />
+
+  <logpath>C:\bonificaciones\logs</logpath>
+  <log mode="roll-by-size-time">
+    <sizeThreshold>10240</sizeThreshold>
+    <pattern>yyyyMMdd</pattern>
+    <autoRollAtTime>00:00:00</autoRollAtTime>
+  </log>
+
+  <!--
+    Si el proceso se cae, se reintenta. Sin esto un OOM deja el gateway abajo hasta que alguien lo
+    note, y lo que se nota es que las tiendas dejaron de poder mostrar descuentos en el checkout.
+  -->
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+</service>

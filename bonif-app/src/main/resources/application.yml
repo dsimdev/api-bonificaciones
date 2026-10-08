@@ -51,6 +51,12 @@ bonificaciones:
   # que /health informe la version que realmente esta corriendo y no una escrita a mano.
   version: "@version@"
 
+  # El prefijo con el que el NAVEGADOR ve esta app cuando hay un proxy que la cuelga anidada.
+  # Vacio = acceso directo a Spring, que es el caso local. Lo pone el build a partir de
+  # -PpanelBasePath y NO se configura por variable de entorno a proposito: tiene que ser el mismo
+  # con el que se compilo el panel, y dos fuentes de verdad para el mismo dato se despegan.
+  external-base-path: "@externalBasePath@"
+
   # Las distribuidoras viven en la BASE, no acá: son ~1000 y un alta no puede implicar reiniciar
   # el servicio. Se dan de alta por la API de administración (o el panel).
   #
@@ -61,6 +67,17 @@ bonificaciones:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    # "/v3/api-docs" (el default de springdoc) es una ruta ABSOLUTA: el navegador la resuelve
+    # contra la raíz del dominio, no contra donde está parada la app. Detrás del proxy anidado de
+    # IIS eso cae AFUERA de este servicio y la UI queda con "Failed to load remote configuration".
+    # `external-base-path` está vacío sin proxy, así que en local esto sigue siendo exactamente
+    # "/v3/api-docs" y no cambia nada ahí.
+    url: ${bonificaciones.external-base-path}/v3/api-docs
+    # Mismo problema, campo DISTINTO: springdoc arma "configUrl" (lo que index.html usa para pedir
+    # la config de la UI, no el spec) con su propia auto-detección, ignorando el "url" de arriba.
+    # Solo se saltea esa auto-detección si "config-url" viene seteado. En MotorFiscal arreglar
+    # "url" solo NO alcanzó, y la UI siguió sin cargar detrás del proxy.
+    config-url: ${bonificaciones.external-base-path}/v3/api-docs/swagger-config
 
 logging:
   level:

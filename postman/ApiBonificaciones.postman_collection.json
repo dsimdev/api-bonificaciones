@@ -1,0 +1,317 @@
+{
+  "info": {
+    "name": "API Bonificaciones",
+    "description": "Gateway de bonificaciones / criterios de venta.\n\nEl número lo da el ERP de la distribuidora, no este servicio: GESCOM tiene su propio motor (`eval-pedido`) y acá se delega. `calculadoPor` dice de dónde salió el número.\n\n## Para arrancar\n\n1. Elegí el environment o editá las variables de la colección: `base` y `tenant`.\n2. Para el checkout: pegá en `apiKey` la clave que te dieron de tu distribuidora.\n3. Para administrar: corré **Entrar al panel** y el token queda guardado solo.\n\n## Convenciones que sorprenden\n\n- El descuento va en **PORCENTAJE** (`10` = 10%), no en fracción.\n- Los importes vienen **sin redondear** (el ERP da hasta 6 decimales). Redondear para mostrar es decisión tuya.\n- Hay que mandar el carrito **entero**: los criterios se evalúan sobre toda la venta, así que preguntar ítem por ítem da descuentos distintos.\n- Mandá **la misma `listaPrecio`** que usaste para mostrar el precio: la lista cambia el importe pero **no** el porcentaje de descuento, así que si está mal no se nota mirando el descuento.\n- La respuesta puede traer **más líneas que las que mandaste**: las promos que regalan unidades agregan una línea con `creadaPorPromo: true`.\n\nDetalle completo en `docs/guia-de-integracion.md`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081",
+      "description": "Local: http://localhost:8081. Producción: https://<dominio>/api/bonificaciones"
+    },
+    {
+      "key": "tenant",
+      "value": "dyssa",
+      "description": "El código de la distribuidora, igual que en el gateway de Axum y en MotorFiscal."
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "description": "La clave de TU distribuidora, para /v1/**. Se muestra una sola vez al dar de alta."
+    },
+    {
+      "key": "cliente",
+      "value": "8380",
+      "description": "Código de cliente DEL ERP. No hay traducción: es el mismo que usa GESCOM."
+    },
+    {
+      "key": "articulo",
+      "value": "5000014792"
+    },
+    {
+      "key": "usuarioPanel",
+      "value": "admin"
+    },
+    {
+      "key": "clavePanel",
+      "value": ""
+    },
+    {
+      "key": "tokenPanel",
+      "value": "",
+      "description": "Lo llena 'Entrar al panel'. No se escribe a mano."
+    }
+  ],
+  "item": [
+    {
+      "name": "Para la tienda",
+      "description": "Lo único que hace falta para un checkout. Header `x-api-key` con la clave de tu distribuidora.",
+      "item": [
+        {
+          "name": "Salud",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "No pide clave: lo mira el monitoreo. `origen` dice si está leyendo las distribuidoras de la base (BASE) o de variables de entorno (CONFIGURACION). En producción tiene que decir BASE."
+          }
+        },
+        {
+          "name": "Valorizar un pedido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Las dos cosas que más seguido se leen mal del contrato.",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test('el descuento viene en PORCENTAJE, no en fraccion', () => {",
+                  "    r.lineas.forEach(l => pm.expect(l.descuento).to.be.at.most(100));",
+                  "});",
+                  "pm.test('calculadoPor dice de donde salio el numero', () => {",
+                  "    pm.expect(r.calculadoPor).to.be.oneOf(['ERP', 'GATEWAY']);",
+                  "});",
+                  "if (r.supuestos && r.supuestos.length) {",
+                  "    console.warn('Hay supuestos, leelos:', r.supuestos.map(s => s.mensaje).join(' | '));",
+                  "}",
+                  "if (r.lineas.some(l => l.creadaPorPromo)) {",
+                  "    console.warn('Hay lineas REGALADAS por una promo: son mas lineas que las que mandaste.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": \"{{cliente}}\",\n  \"listaPrecio\": \"2\",\n  \"referencia\": \"carrito-991\",\n  \"items\": [\n    { \"codigo\": \"{{articulo}}\", \"cantidad\": 6, \"unidad\": \"Unidad\", \"unidadFactor\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "{{tenant}}", "valorizaciones"]
+            },
+            "description": "Es solo lectura: un dry-run. Consultá las veces que quieras, no se crea ni se confirma ningún pedido.\n\n`unidad` y `unidadFactor` son opcionales (por defecto `\"Unidad\"` y `1`).\n\n`referencia` es un identificador tuyo y se devuelve tal cual, para poder rastrear después qué te respondimos."
+          }
+        },
+        {
+          "name": "Valorizar — carrito de varios ítems",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": \"{{cliente}}\",\n  \"listaPrecio\": \"2\",\n  \"items\": [\n    { \"codigo\": \"{{articulo}}\", \"cantidad\": 6 },\n    { \"codigo\": \"1331001095\", \"cantidad\": 5 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "{{tenant}}", "valorizaciones"]
+            },
+            "description": "Así se manda un carrito: TODO junto, en una llamada.\n\nNo es una optimización, es corrección: hay bonificaciones que piden una cantidad mínima y otras que miran si el pedido tiene artículos de cierta marca o rubro. Ítem por ítem da descuentos distintos.\n\nEste ejemplo suele devolver una línea de regalo (`creadaPorPromo: true`) si el segundo artículo tiene una promo de unidades sin cargo."
+          }
+        },
+        {
+          "name": "Valorizar — SIN listaPrecio (mirá los supuestos)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": \"{{cliente}}\",\n  \"items\": [\n    { \"codigo\": \"{{articulo}}\", \"cantidad\": 6 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "{{tenant}}", "valorizaciones"]
+            },
+            "description": "No falla, pero la respuesta trae un aviso en `supuestos`: sin lista, el ERP usa la que tiene asignada el cliente.\n\nVerificado contra el ERP: el mismo artículo, la misma cantidad y el mismo cliente dan neto **63.175** en la lista 2 y **59.976** en la lista 3. El **porcentaje de descuento sale igual en los dos casos**, así que si la tienda manda la lista equivocada el error NO se ve mirando el descuento — solo el importe."
+          }
+        },
+        {
+          "name": "Valorizar — pedido inválido (no se consulta al ERP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": \"{{cliente}}\",\n  \"items\": [\n    { \"codigo\": \"{{articulo}}\", \"cantidad\": 0 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "{{tenant}}", "valorizaciones"]
+            },
+            "description": "400 `PEDIDO_INVALIDO`. Las validaciones corren antes de llamar al ERP: cada llamada cuesta un token y tiempo de checkout.\n\nTodos los errores vienen con la misma forma `{codigo, mensaje, crudo}`. **Ramificá por `codigo`, no por el texto**: el `mensaje` es para humanos y puede cambiar."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Administración (panel)",
+      "description": "Lo que usa el panel. Autenticación por **sesión** (`Authorization: Bearer`), con usuarios con nombre — no una clave compartida: cada distribuidora guarda quién la dio de alta.\n\nNormalmente esto se hace desde el panel en `/admin`. Está acá para automatizar o para diagnosticar.",
+      "item": [
+        {
+          "name": "Entrar al panel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('tokenPanel', pm.response.json().token);",
+                  "    console.log('Token guardado. Dura', pm.response.json().duracionMinutos, 'minutos.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"{{usuarioPanel}}\",\n  \"clave\": \"{{clavePanel}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "login"]
+            },
+            "description": "Guarda el token en la variable `tokenPanel` solo. Es el único endpoint de administración sin proteger."
+          }
+        },
+        {
+          "name": "Listar distribuidoras",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/distribuidoras",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "distribuidoras"]
+            },
+            "description": "Incluye las inactivas: una distribuidora que desapareció del listado es una pregunta de soporte.\n\nDevuelve el usuario de GESCOM con el que quedó cargada — **nunca la clave**. Verlo sirve: los usuarios de dos distribuidoras se parecen peligrosamente, así que es como se descubre que alguien copió de la colección equivocada."
+          }
+        },
+        {
+          "name": "Dar de alta una distribuidora",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPanel}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"dyssa\",\n  \"nombre\": \"Dyssa\",\n  \"usuario\": \"<USERNAME de la coleccion Postman de esa distribuidora>\",\n  \"clave\": \"<PASSWORD>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/distribuidoras",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "distribuidoras"]
+            },
+            "description": "**Prueba la credencial contra GESCOM antes de guardar**: mintea el token y trae el catálogo. Si algo falla, no se guarda nada — es preferible a que quede una distribuidora rota que nadie descubre hasta que falla el checkout de esa tienda.\n\nResponde cuántos criterios trajo, que es la prueba de que anda de verdad.\n\n`host` y `realm` son opcionales: salen del código por convención (`https://<codigo>.gescom.online` y `gcw-<codigo>`).\n\n**Devuelve la clave de la tienda en claro, y es la única vez que se puede ver.**"
+          }
+        },
+        {
+          "name": "Reprobar la credencial guardada",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/verificar",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "verificar"]
+            },
+            "description": "\"¿El alta que hice ayer anda hoy?\". Una clave que rotaron del lado del ERP se detecta acá y no en un checkout."
+          }
+        },
+        {
+          "name": "Regenerar la clave de la tienda",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/clave-tienda",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "clave-tienda"]
+            },
+            "description": "La anterior queda **revocada al instante** y la tienda deja de funcionar hasta que la cambie. Para cuando se filtró o se perdió."
+          }
+        },
+        {
+          "name": "Diagnosticar una valorización (las tres capas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenPanel}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": \"{{cliente}}\",\n  \"listaPrecio\": \"2\",\n  \"items\": [\n    { \"codigo\": \"{{articulo}}\", \"cantidad\": 6 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/diagnostico/valorizacion",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "diagnostico", "valorizacion"]
+            },
+            "description": "Cuando una tienda dice que el descuento está mal, hay tres sospechosos y desde afuera son indistinguibles: el ERP, nuestra normalización y lo que muestra la tienda.\n\nDevuelve las tres capas: `pedidoEnviadoAlErp` (con los nombres de GESCOM, se pega en Postman tal cual), `respuestaCrudaDelErp` (sin normalizar: el descuento acá es **fracción**), `nuestraRespuesta` (idéntica a la que recibe la tienda: **porcentaje**) y una `comparacion` línea por línea con un `veredicto`.\n\nA diferencia del endpoint público, **no falla** cuando el ERP devuelve líneas que no cierran: ese es justo el caso que hay que poder mirar."
+          }
+        },
+        {
+          "name": "Actividad por distribuidora",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/metricas",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "metricas"]
+            },
+            "description": "Lo primero que hay que mirar cuando una tienda dice que no funciona: cuántas llamadas hizo, cuántas fallaron y **con qué código**.\n\nSi esa distribuidora no aparece, todavía no nos llamó — ahí el problema no es nuestro.\n\nContadores en memoria desde que arrancó el servicio. Para \"qué pasó ayer a las tres\" está el log del servidor, que se rota por día."
+          }
+        },
+        {
+          "name": "Criterios de una distribuidora",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/criterios?incluirNoVigentes=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "criterios"],
+              "query": [
+                {
+                  "key": "incluirNoVigentes",
+                  "value": "false",
+                  "description": "true suma los vencidos e inactivos: es lo que hace falta para contestar por qué una promo dejó de aplicar"
+                }
+              ]
+            },
+            "description": "El catálogo de bonificaciones cargadas en GESCOM. Es de consulta: el número de un pedido sale de `/valorizaciones`, no de acá.\n\nPor `/admin` con la sesión, para no tener que guardar una api-key de alcance ADMIN de cada distribuidora. El equivalente público es `GET /v1/{tenant}/criterios`, que pide esa clave ADMIN."
+          }
+        }
+      ]
+    }
+  ]
+}

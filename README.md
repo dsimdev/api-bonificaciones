@@ -81,8 +81,14 @@ que explica por qué saltearlo deja el panel en blanco.
 ## Documentación
 
 - **[docs/guia-de-integracion.md](docs/guia-de-integracion.md) — el contrato, para quien integra la
-  tienda.** Es lo que hay que pasarle al dev del checkout.
+  tienda.** Es lo que hay que pasarle al dev del checkout, junto con
+  [`postman/`](postman/ApiBonificaciones.postman_collection.json).
 
+- **[scripts/servidor/GUIA-PRIMER-DEPLOY.md](scripts/servidor/GUIA-PRIMER-DEPLOY.md)** — los pasos
+  del primer deploy, en orden, para quien instala en el servidor.
+
+- [docs/proyecto/deploy.md](docs/proyecto/deploy.md) — el *por qué* del deploy: el puerto, la ruta
+  de IIS y por qué el jar de producción es otro artefacto.
 - [docs/proyecto/](docs/proyecto/) — arquitectura, plan de fases y decisiones abiertas.
 - [docs/metodo/](docs/metodo/) — cómo se trabaja: deploy, testing, auditoría, memoria.
 - `C:\Dev\docs\gescom\eval-pedido.md` — la referencia de la API de GESCOM (cross-project).

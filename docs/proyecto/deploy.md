@@ -3,6 +3,39 @@
 > **Mismo enfoque que `api-impuestos`**, a propósito: quien opera el servidor no tiene que aprender
 > dos formas distintas de instalar un servicio nuestro. Ver `api-impuestos/docs/proyecto/deploy-iis.md`
 > para el detalle de IIS y del servicio de Windows, que acá se replica.
+>
+> **Los pasos concretos, en orden, están en
+> [`scripts/servidor/GUIA-PRIMER-DEPLOY.md`](../../scripts/servidor/GUIA-PRIMER-DEPLOY.md).** Este
+> documento es el *por qué*; esa guía es el *cómo*.
+
+## 0. Dónde corre, y las dos cosas que no se pueden improvisar
+
+**Va en el mismo servidor que MotorFiscal** (decidido 2026-10-08). Eso define dos cosas:
+
+| | Valor | Por qué no se puede cambiar a la ligera |
+|---|---|---|
+| **Puerto** | **8081** | MotorFiscal usa el 8080. Dos servicios en el mismo puerto no arrancan los dos, y el segundo falla con un `Address already in use` que no dice de quién es el puerto |
+| **Ruta de IIS** | `/api/bonificaciones` | Tiene que ser **la misma** con la que se compila el panel (`-PpanelBasePath=/api/bonificaciones/admin`). Si no coinciden, la API anda y el panel queda en blanco |
+
+Lo bueno de compartir servidor: Java, IIS, ARR, URL Rewrite y el certificado **ya están** porque
+MotorFiscal los usa. Por eso `preparar-iis.ps1` es mucho más corto que el de MotorFiscal — solo
+cuelga una aplicación más, con su propio `web.config` y su propio application pool, y no toca el
+sitio ni a MotorFiscal.
+
+### Los scripts
+
+| Script | Qué hace | Dónde se corre |
+|---|---|---|
+| `scripts/servidor/preparar-sistema.ps1` | Java, base, variables de entorno de máquina, carpeta + WinSW. Idempotente | en el servidor, como admin |
+| `scripts/servidor/preparar-iis.ps1` | cuelga la aplicación de IIS en `/api/bonificaciones` | en el servidor, como admin |
+| `scripts/servidor/simular-proxy-anidado.ps1` | **reproduce la topología de producción en tu máquina, sin IIS** | en tu máquina |
+| `scripts/deploy.ps1` | build + verifica el jar + FTP + reinicia + verifica a través del proxy | en tu máquina |
+| `scripts/servidor/bonificaciones.xml` | el servicio de Windows (WinSW) | se copia al servidor |
+| `scripts/servidor/web.config` | el reverse proxy de IIS | lo copia `preparar-iis.ps1` |
+
+⚠️ **Ninguno se probó contra un servidor real todavía.** Lo que **sí** está verificado es
+`simular-proxy-anidado.ps1`, y con él toda la superficie de la app en la topología anidada: health,
+el panel con sus chunks, el login, la administración y Swagger.
 
 ## 1. SQL Server
 
@@ -79,6 +112,24 @@ por qué está en el comentario de `panel/next.config.mjs`.
 
 **Probar el panel a través del proxy, nunca contra `localhost:8081` directo.** Contra localhost
 anda igual con el basePath mal, así que esa prueba no detecta nada.
+
+`deploy.ps1` abre el jar antes de subirlo y verifica que el panel de adentro pida sus archivos en
+la ruta correcta. Es barato y es exactamente el error que no se nota hasta que alguien abre el
+panel en producción.
+
+### No es solo el panel: Swagger tiene el mismo problema
+
+De las tres veces que esto llegó a producción en api-impuestos, **dos fueron Swagger**, no el
+panel. Swagger UI también arma URLs absolutas para sí mismo (`/v3/api-docs` y, por separado,
+`configUrl`), y detrás del proxy anidado las resuelve contra la raíz del dominio.
+
+Acá eso está resuelto por configuración: el build pasa `externalBasePath` al `application.yml` y de
+ahí salen `springdoc.swagger-ui.url`, `config-url` y el `servers` del spec (ver
+`ConfiguracionOpenApi`). **Hay que setear los dos campos**: en MotorFiscal arreglar solo `url` no
+alcanzó, porque springdoc arma `configUrl` con su propia auto-detección y la ignora.
+
+Verificado con el simulador: sin el arreglo, `swagger-config` devolvía `"/v3/api-docs"` (raíz del
+dominio, 404 detrás del proxy); con el arreglo devuelve `"/api/bonificaciones/v3/api-docs"`.
 
 ### Verificación del panel
 

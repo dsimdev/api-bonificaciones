@@ -220,18 +220,45 @@ artefacto para deployar.
 > configuración, y se prueba **a través** del proxy, nunca contra `localhost:8081` directo. Desde
 > que exista el panel, eso es parte del checklist de deploy.
 
-### 3d — Endurecer y deployar · v0.6.x
+### 3d — Endurecer y deployar · v0.6.x — ✅ HECHO (2026-10-08)
 
-1. Timeouts, reintentos acotados y qué devolver cuando el ERP está caído.
-2. **Cuota por credencial** (viene de 3b): que una tienda con un bug de integración no se coma la
+> **Decidido el 2026-10-08: va en el MISMO servidor que MotorFiscal.** Eso fijó dos cosas que no se
+> pueden improvisar: el **puerto 8081** (MotorFiscal usa el 8080) y la **ruta de IIS**
+> `/api/bonificaciones`, que tiene que coincidir con el `-PpanelBasePath` del panel.
+>
+> **Lo que el simulador de proxy anidado encontró antes de cualquier deploy**: Swagger armaba sus
+> propias URLs contra la raíz del dominio, que detrás del proxy cae afuera de este servicio. Es la
+> misma clase de bug que el del panel y, de las tres veces que llegó a producción en api-impuestos,
+> **dos fueron Swagger**. Arreglado por configuración y verificado.
+>
+> **La cuota por credencial (el ítem 2) sigue pendiente** y es lo único de 3d que no se hizo: se
+> necesita saber cuánto consume un checkout real. Primer dato medido: una valorización tarda
+> **1,7 a 2,0 s** con todo cacheado, y es casi todo `eval-pedido`.
+
+1. ✅ Timeouts (configurables), **un** reintento acotado y un **cortacircuito por distribuidora**
+   para no esperar el timeout completo en cada checkout de una que está caída. Reintentar es
+   seguro acá y eso no es obvio: `eval-pedido` es dry-run y el identificador lo generamos nosotros.
+2. ⬜ **Cuota por credencial** (viene de 3b): que una tienda con un bug de integración no se coma la
    capacidad del resto. Va acá y no antes porque primero hay que medir cuánto consume un checkout
-   real — un límite inventado rompe a la tienda que funciona bien.
-3. Métricas y logs útiles sin un solo secreto adentro.
-4. Deploy: servicio de Windows, igual que `api-impuestos` (sin Docker en el entorno).
-5. Colección Postman del gateway, para el integrador.
+   real — un límite inventado rompe a la tienda que funciona bien. **Lo único pendiente de 3d.**
+3. ✅ Métricas y logs útiles sin un solo secreto adentro: el log es el registro durable (rotado por
+   día) y los contadores por distribuidora son el estado de ahora, visibles en el panel.
+4. ✅ Deploy: WinSW, IIS como reverse proxy, y los scripts de instalación y deploy portados de
+   `api-impuestos`. Más el **simulador de proxy anidado**, que es lo que permite probar la
+   topología de producción sin tocar el servidor.
+5. ✅ Colección Postman, con la mitad para la tienda y la mitad de administración.
 
 **Criterio de salida de la Fase 3**: corriendo en el servidor real, con auth, con una distribuidora
 dada de alta desde el panel, y la tienda haciendo una valorización end-to-end.
+
+> **No cumplido todavía, y no depende de código.** Todo está construido y verificado en local
+> —incluida la topología exacta de producción, con el simulador de proxy anidado— pero **nada corre
+> en el servidor real** y la tienda todavía no llamó. Para cerrar la fase faltan dos cosas que no
+> son nuestras: **acceso al servidor** para correr los scripts, y que el dev de la tienda integre.
+>
+> Lo que sí se puede afirmar: dar de alta una distribuidora desde el panel funciona contra GESCOM
+> de verdad (dyssa y senderolaser), y una valorización end-to-end con la clave que entrega el panel
+> también. Lo que falta es que eso pase en el servidor y no en una máquina de desarrollo.
 
 ---
 
