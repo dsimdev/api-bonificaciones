@@ -3,6 +3,11 @@
   "referencia": "carrito-995",
   "items": [
     {
+      "codigo": "5000014792",
+      "cantidad": 6,
+      "precioUnitario": 1000
+    },
+    {
       "codigo": "1331001095",
       "cantidad": 5,
       "precioUnitario": 100

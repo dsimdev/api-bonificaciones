@@ -5,7 +5,16 @@ tecnicismos.
 
 ## 0.6.1 — 2026-10-08
 
-- Arreglos menores de administración. Nada cambia para quien integra.
+- **Si mandás tu precio, no mandes `listaPrecio`**: verificado que no cambia el descuento. Antes
+  la guía decía lo contrario.
+- **Las líneas de la respuesta no vienen en el orden del carrito**: relacionalas por `codigo` (y
+  `creadaPorPromo` para los regalos).
+- En un carrito mixto (ítems con precio y sin precio) con `listaPrecio`, ya no aparece el aviso
+  `PRECIO_Y_LISTA_JUNTOS`: ahí la lista sí se usa. Sale solo si todos los ítems traen precio.
+- El módulo `bonificaciones.js` llama al servicio en el mismo dominio de la tienda
+  (`/api/bonificaciones`), acepta una clave por distribuidora y corta a los 10 segundos.
+  `conDescuentos` nunca corta la venta, y marca con `hayQueCorregir` los errores que no se
+  arreglan solos. Nuevo `usarRespuestasDePrueba` para desarrollar con los ejemplos.
 - La guía de integración ya no sugiere dar de alta clientes en el ERP: este servicio no da de alta
   clientes. Un cliente que no está en el ERP sigue igual: `CLIENTE_INEXISTENTE`, 0% y tu precio.
 

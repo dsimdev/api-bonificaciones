@@ -2,12 +2,12 @@
   "fuente": "GESCOM",
   "tenant": "dyssa",
   "calculadoPor": "ERP",
-  "consultadoEn": "2026-10-08T09:50:50.0245816-03:00",
+  "consultadoEn": "2026-10-08T13:33:41.214221-03:00",
   "referencia": null,
   "supuestos": [
     {
       "codigo": "PRECIO_Y_LISTA_JUNTOS",
-      "mensaje": "El pedido trae listaPrecio Y precioUnitario en los items: el ERP uso el PRECIO para el importe. La lista igual se envio, porque puede condicionar que criterio aplica."
+      "mensaje": "El pedido trae listaPrecio, pero todos los items traen precioUnitario: el ERP uso los precios y la lista no se uso. Con precio propio no hace falta mandarla: no cambia el descuento."
     }
   ],
   "totales": {

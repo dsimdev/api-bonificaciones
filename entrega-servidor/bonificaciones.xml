@@ -1,0 +1,49 @@
+<!--
+  Configuracion del servicio de Windows, para WinSW (https://github.com/winsw/winsw).
+
+  Mismo enfoque que MotorFiscal: un servicio propio y no el HttpPlatformHandler de IIS, porque el
+  ciclo de vida del gateway no deberia depender del reciclado del application pool. IIS reinicia
+  pools por inactividad o por memoria, y eso cortaria una valorizacion a la mitad: en un checkout,
+  con alguien esperando.
+
+  No se instala a mano: lo hace preparar-sistema.ps1, que ademas pone la ruta completa de java en
+  <executable> y guarda los secretos.
+-->
+<service>
+  <id>bonificaciones</id>
+  <name>API Bonificaciones</name>
+  <description>Gateway de bonificaciones (criterios de venta de GESCOM). Escucha en localhost:8081; IIS le hace de reverse proxy.</description>
+
+  <executable>java</executable>
+  <!-- -Xmx: comparte la maquina con MotorFiscal; sin tope, cada JVM puede tomar 1/4 de la RAM. -->
+  <arguments>-Xmx768m -jar "C:\bonificaciones\bonificaciones.jar"</arguments>
+  <workingdirectory>C:\bonificaciones</workingdirectory>
+
+  <!--
+    8081 y NO 8080: en este servidor tambien corre MotorFiscal, que usa el 8080.
+
+    Los SECRETOS no van aca (este archivo es texto plano y se copia de un lado a otro). Van en el
+    entorno propio del servicio, con nombres BONIF_*, que es lo que escribe preparar-sistema.ps1.
+  -->
+  <env name="DB_URL" value="jdbc:sqlserver://localhost:1433;databaseName=bonificaciones;encrypt=true;trustServerCertificate=true" />
+  <env name="DB_USER" value="bonificaciones" />
+  <env name="PORT" value="8081" />
+
+  <logpath>C:\bonificaciones\logs</logpath>
+  <log mode="roll-by-size-time">
+    <sizeThreshold>10240</sizeThreshold>
+    <pattern>yyyyMMdd</pattern>
+    <autoRollAtTime>00:00:00</autoRollAtTime>
+  </log>
+
+  <!--
+    Si el proceso se cae, se reintenta. Sin esto un OOM deja el gateway abajo hasta que alguien lo
+    note, y lo que se nota es que las tiendas dejaron de poder mostrar descuentos en el checkout.
+  -->
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+</service>

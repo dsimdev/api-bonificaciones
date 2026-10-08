@@ -2,26 +2,21 @@
   "fuente": "GESCOM",
   "tenant": "dyssa",
   "calculadoPor": "ERP",
-  "consultadoEn": "2026-10-08T09:50:54.5142865-03:00",
-  "referencia": null,
-  "supuestos": [
-    {
-      "codigo": "SIN_PRECIO_NI_LISTA",
-      "mensaje": "Estos items no traen precioUnitario y el pedido no trae listaPrecio, asi que el ERP los valorizo con la lista asignada al cliente: 1000031861. El neto de esos items puede no coincidir con el que muestra la tienda."
-    }
-  ],
+  "consultadoEn": "2026-10-08T13:33:28.7216367-03:00",
+  "referencia": "carrito-996",
+  "supuestos": [],
   "totales": {
-    "neto": 121599.22,
-    "descuento": 13423.422,
-    "netoConDescuento": 108175.798
+    "neto": 69175,
+    "descuento": 8181,
+    "netoConDescuento": 60994
   },
   "lineas": [
     {
       "codigo": "5000014792",
       "cantidad": 6,
-      "neto": 58424.22,
+      "neto": 6000,
       "descuento": 10,
-      "netoConDescuento": 52581.798,
+      "netoConDescuento": 5400,
       "creadaPorPromo": false,
       "bonificaciones": [
         {

@@ -16,6 +16,59 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
   without touching the stored password (`RepositorioDeDistribuidoras.destino`). Found when the local
   key turned out to live only in the memory of a running process. Covered by
   `CredencialesConCifradoNuevoIT` (tag `db`), which fails against the previous code.
+- **The installer would have collided with MotorFiscal on the shared server.** MotorFiscal's
+  install left `DB_PASSWORD` and `CIFRADO_KEY` as *machine* environment variables;
+  `preparar-sistema.ps1` used the same names and "did not overwrite existing ones", so this service
+  would have started with MotorFiscal's database password (and failed), and overwriting them would
+  have broken MotorFiscal on its next restart. Now the app reads `BONIF_DB_PASSWORD` /
+  `BONIF_CIFRADO_KEY` first, and the installer stores them in the **service's own environment**
+  (registry `Services\bonificaciones\Environment`), not machine-wide. Verified locally by starting
+  the jar with wrong `DB_PASSWORD`/`CIFRADO_KEY` and correct `BONIF_*`: it reads the database and
+  decrypts the GESCOM credentials.
+- The `PRECIO_Y_LISTA_JUNTOS` notice and the docs said the price list "is still sent because it can
+  condition which criterion applies". Verified live that it does not: with an own price, criterion
+  610 (conditioned on price list 2) applies the same 12% with no list, list 2 and list 3. The rule
+  is now "with your own price, don't send the list".
+- `PRECIO_Y_LISTA_JUNTOS` fired on **mixed carts**, where the list *is* used (it prices the items
+  without `precioUnitario`), and the docs told the store to remove the list — which would have left
+  those items unpriced. It now fires only when every item has a price, i.e. the list was unused.
+  Covered by `carritoMixtoConListaNoAvisaNada`.
+
+### Changed
+- **Deploy kit rewritten for the person who installs, who has no repo.** `preparar-sistema.ps1`
+  now does the whole service install: checks Windows PowerShell 5.1, Java (full path written into
+  the WinSW config, so the service does not depend on PATH), port 8081, SQL Server mixed mode;
+  creates the login with a random password and `CHECK_POLICY = ON` from the start (never the weak
+  dev password of `crear-base.sql`), checks every `sqlcmd` exit code; copies WinSW from MotorFiscal
+  when there is no internet (or downloads a pinned version); installs the jar keeping a versioned
+  copy for rollback; starts the service and checks `/health`. Secrets come from a CSPRNG. Re-run
+  with `-Jar` to upgrade or roll back; `-OlvidarClaveInicial` removes the initial admin password.
+  Also: uses MotorFiscal's SQL Server instance (read from its WinSW config); checks sysadmin and
+  outbound HTTPS to GESCOM; prints the secrets **before** starting the service, so a failed first
+  start does not lose them; refuses to generate a new `CIFRADO_KEY` over a database that already
+  has distributors (`-CifradoKey` to reinstall); backs up the database before every upgrade,
+  because the service migrates its schema on start; caps the heap at 768 MB (measured use: ~33 MB)
+  since it shares the machine with MotorFiscal. The read-only SQL checks were run in Windows
+  PowerShell 5.1 against a local instance.
+- `preparar-iis.ps1` checks ARR's proxy **where MotorFiscal's `/api/impuestos` runs** (effective
+  value), so it works whether MotorFiscal enabled it server-wide or in its own `web.config`.
+  `web.config` stays identical to MotorFiscal's, which already works on that site.
+- `preparar-iis.ps1` finds the IIS site by locating MotorFiscal's `/api/impuestos` application, and
+  **no longer enables ARR's proxy globally**: if it is off it stops and says so. The virtual path is
+  fixed to `api/bonificaciones` (the panel is built for it).
+- `entrega-servidor/` is flat and contains only what runs on the server, with a single install
+  guide. `deploy.ps1`, the proxy simulator and the build steps stay in the repo.
+- `entrega-tienda/`: `bonificaciones.js` calls `/api/bonificaciones` on the store's own domain
+  (no dev host, no CORS — same as MotorFiscal), keeps one key per distributor, times out after
+  10 s including the body, and `conDescuentos` **never blocks the sale**: it returns 0% with
+  `motivoSinDescuento: {codigo, mensaje, hayQueCorregir}`, and logs the errors that will not fix
+  themselves (bad key, malformed order, service credentials). The fallback has the same shape as a
+  real response. New `lineaDelItem` (compares codes as text): response lines are **not** in cart
+  order (verified). New `usarRespuestasDePrueba` to develop against the examples. The store applies
+  `lineas[].descuento` to its own line net (the decision recorded on 2026-10-08); the response's
+  `netoConDescuento` is documented as a cross-check. The contract documents `supuestos`, condition types,
+  nullability, taxes and currency; the store's Postman collection has no admin requests; examples
+  01, 04 and 05 were regenerated live.
 
 ## [0.6.0] - 2026-10-08
 

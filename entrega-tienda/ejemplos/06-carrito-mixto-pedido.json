@@ -1,14 +1,9 @@
 {
   "cliente": "8380",
+  "listaPrecio": "2",
+  "referencia": "carrito-996",
   "items": [
-    {
-      "codigo": "5000014792",
-      "cantidad": 6,
-      "precioUnitario": 9737.37
-    },
-    {
-      "codigo": "1000031861",
-      "cantidad": 50
-    }
+    { "codigo": "5000014792", "cantidad": 6, "precioUnitario": 1000 },
+    { "codigo": "1000031861", "cantidad": 50 }
   ]
 }

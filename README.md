@@ -92,8 +92,8 @@ que explica por qué saltearlo deja el panel en blanco.
 
 - [docs/guia-de-integracion.md](docs/guia-de-integracion.md) — el contrato (fuente de verdad del que
   está en `entrega-tienda/`).
-- [scripts/servidor/GUIA-PRIMER-DEPLOY.md](scripts/servidor/GUIA-PRIMER-DEPLOY.md) — los pasos del
-  primer deploy, en orden.
+- [scripts/servidor/GUIA-PRIMER-DEPLOY.md](scripts/servidor/GUIA-PRIMER-DEPLOY.md) — cómo compilar,
+  probar y armar `entrega-servidor/` (la instalación en sí está en su LEEME).
 
 - [docs/proyecto/deploy.md](docs/proyecto/deploy.md) — el *por qué* del deploy: el puerto, la ruta
   de IIS y por qué el jar de producción es otro artefacto.

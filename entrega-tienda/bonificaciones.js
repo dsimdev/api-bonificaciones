@@ -1,204 +1,216 @@
 /**
- * Cliente de api-bonificaciones para AX-Tienda.
+ * Cliente de api-bonificaciones para la tienda. Va en la carpeta `js/` de la tienda.
  *
- * Escrito para pegarse en `js/` de pwa-tienda: módulo ES, `fetch`, y el mismo patrón `IS_PROD`
- * que ya usa `js/api.js` (same-origin en producción, host absoluto fuera de producción).
- *
- * Qué hace este servicio: dice **qué descuento le corresponde a un pedido y por qué**. El número
- * lo calcula el ERP de la distribuidora (GESCOM), no el gateway ni la tienda.
- *
- * Qué NO hace: no pone el precio (lo pone la tienda), no calcula impuestos (eso es MotorFiscal) y
- * no crea ni confirma pedidos. Es solo lectura: se puede llamar las veces que haga falta.
- *
- * En el checkout va ANTES de MotorFiscal:
- *   carrito -> bonificaciones -> neto con descuento -> MotorFiscal -> IVA y percepciones
+ * Qué hace el servicio: dice qué descuento le corresponde a un carrito y por qué. El número lo
+ * calcula el ERP de la distribuidora. Referencia completa: contrato.md, en esta misma carpeta.
  */
 
-// Mismo criterio que js/api.js. En producción la API cuelga del MISMO host que la tienda, como
-// MotorFiscal (que está en /api/impuestos), así que la llamada es same-origin y no hay CORS.
-const IS_PROD =
-  location.hostname === '18.235.145.108' ||
-  location.hostname === 'tienda.axumweb.com';
+// En el mismo dominio que la tienda, como MotorFiscal en /api/impuestos.
+const BASE = '/api/bonificaciones';
 
-// ⚠️ CONFIRMAR ESTA RUTA antes de usar en producción: el servicio todavía no está deployado.
-// La ruta planificada es /api/bonificaciones, al lado de /api/impuestos.
-const BASE_PROD = '/api/bonificaciones';
+// Una valorización tarda ~2 s. Pasado este tiempo se corta, para no dejar el checkout colgado.
+const TIEMPO_MAXIMO_MS = 10000;
 
-// Para desarrollo: el gateway corriendo en la máquina de quien lo levanta.
-const BASE_DEV = 'http://localhost:8081';
+/** Una clave por distribuidora: la de una no sirve para otra. */
+const claves = new Map();
 
-const BASE = IS_PROD ? BASE_PROD : BASE_DEV;
+/** Si está definida, se usa en vez de llamar al servicio. Ver usarRespuestasDePrueba. */
+let respuestaDePrueba = null;
 
 /**
- * La clave de la distribuidora. **Hay que pedirla**: se genera desde el panel del gateway y se
- * muestra una sola vez.
- *
- * ⚠️ Si la tienda llama desde el navegador, esta clave queda a la vista en el DevTools. Está
- * asumido: la clave del checkout **solo puede valorizar**, no puede leer el catálogo de
- * bonificaciones de la distribuidora. Aun así, no la pongas en el repo: tiene que venir de la
- * configuración de la tienda, igual que cualquier otra credencial.
+ * Registra la clave de una distribuidora. Una vez por cada distribuidora que use la tienda.
+ * La clave sale de la configuración de la tienda, no del código.
  */
-let apiKey = '';
-
-export function configurarBonificaciones({ clave }) {
-  apiKey = clave;
+export function configurarBonificaciones({ tenant, clave }) {
+  claves.set(tenant, clave);
 }
 
 /**
- * Pide el descuento de un carrito.
+ * Para desarrollar sin el servicio (en local la ruta /api/bonificaciones no existe): a partir de
+ * acá, `valorizar` devuelve lo que devuelva `fn(tenant, cliente, items)`, sin llamar a nada. Sirve
+ * con los JSON de ejemplos/. Si `fn` tira un ErrorDeBonificaciones, se comporta como ese error.
+ * `usarRespuestasDePrueba(null)` vuelve al servicio real.
+ */
+export function usarRespuestasDePrueba(fn) {
+  respuestaDePrueba = fn;
+}
+
+/**
+ * Error con un código para decidir sin leer el texto. Los códigos son los del servicio (ver
+ * contrato.md), más tres que genera este módulo:
+ *   SIN_CONFIGURAR      no se llamó a configurarBonificaciones para ese tenant
+ *   SIN_RESPUESTA       no hubo respuesta: sin conexión, o pasaron 10 segundos
+ *   RESPUESTA_INVALIDA  la respuesta no es la del servicio (p. ej. una página de error de IIS)
+ */
+export class ErrorDeBonificaciones extends Error {
+  constructor(codigo, mensaje, status = null) {
+    super(mensaje);
+    this.name = 'ErrorDeBonificaciones';
+    this.codigo = codigo;
+    this.status = status;
+  }
+}
+
+/**
+ * Pide los descuentos de un carrito. Si algo falla, tira ErrorDeBonificaciones.
+ * Para el checkout conviene `conDescuentos`, más abajo.
  *
- * @param {string} tenant   código de la distribuidora (el mismo que usa el resto de la suite)
- * @param {string} cliente  código de cliente DEL ERP. Si no existe en el ERP, tira
- *                          ErrorDeBonificaciones con codigo 'CLIENTE_INEXISTENTE'
+ * @param {string} tenant   código de la distribuidora
+ * @param {string} cliente  código del cliente en el ERP de la distribuidora
  * @param {Array<{codigo: string, cantidad: number, precioUnitario?: number}>} items
- *        El carrito ENTERO, en una sola llamada. `precioUnitario` es POR UNIDAD, no el total de
- *        la línea.
+ *        El carrito ENTERO, en una llamada, con cada artículo una sola vez.
+ *        `precioUnitario` es por unidad y sin impuestos.
  * @param {{listaPrecio?: string, referencia?: string}} [opciones]
- *        `listaPrecio` solo hace falta para los ítems que NO traen precio.
- *        `referencia` es un identificador tuyo (el carrito); se devuelve tal cual.
+ *        `listaPrecio`: solo para ítems SIN precio. `referencia`: tuya, vuelve tal cual.
  */
 export async function valorizar(tenant, cliente, items, opciones = {}) {
-  if (!apiKey) throw new Error('Falta configurarBonificaciones({ clave }).');
-  if (!items || items.length === 0) throw new Error('El carrito está vacío.');
+  if (respuestaDePrueba) return respuestaDePrueba(tenant, cliente, items, opciones);
 
-  const url = `${BASE}/v1/${encodeURIComponent(tenant)}/valorizaciones`;
-
-  let resp;
-  try {
-    resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cliente,
-        listaPrecio: opciones.listaPrecio,
-        referencia: opciones.referencia,
-        items,
-      }),
-    });
-  } catch {
-    // fetch solo tira por red o CORS. En un checkout esto NO debería voltear la compra: ver
-    // `conDescuentos` más abajo.
-    throw new ErrorDeBonificaciones('RED', `No se pudo contactar a ${url}.`);
+  const clave = claves.get(tenant);
+  if (!clave) {
+    throw new ErrorDeBonificaciones('SIN_CONFIGURAR', `Falta configurarBonificaciones para "${tenant}".`);
   }
 
-  const texto = await resp.text();
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), TIEMPO_MAXIMO_MS);
+  let resp;
+  let texto;
+  try {
+    resp = await fetch(`${BASE}/v1/${encodeURIComponent(tenant)}/valorizaciones`, {
+      method: 'POST',
+      headers: { 'x-api-key': clave, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cliente, listaPrecio: opciones.listaPrecio, referencia: opciones.referencia, items }),
+      signal: control.signal,
+    });
+    texto = await resp.text();
+  } catch {
+    throw new ErrorDeBonificaciones('SIN_RESPUESTA', 'El servicio de bonificaciones no respondió.');
+  } finally {
+    clearTimeout(corte);
+  }
+
   let datos = null;
   try {
-    datos = texto ? JSON.parse(texto) : null;
-  } catch { /* el cuerpo no es JSON: cae en el throw de abajo */ }
+    datos = JSON.parse(texto);
+  } catch { /* no es JSON: se informa abajo */ }
 
   if (!resp.ok) {
-    const e = datos || {};
-    throw new ErrorDeBonificaciones(e.codigo || `HTTP_${resp.status}`, e.mensaje || texto);
+    if (datos && datos.codigo) throw new ErrorDeBonificaciones(datos.codigo, datos.mensaje, resp.status);
+    throw new ErrorDeBonificaciones('RESPUESTA_INVALIDA', `HTTP ${resp.status}`, resp.status);
   }
-
-  // Si `supuestos` no viene vacío, es algo que el gateway resolvió porque el pedido no lo traía.
-  // Vale mirarlo en desarrollo: suele ser un dato que la tienda debería estar mandando.
-  if (!IS_PROD && datos.supuestos?.length) {
-    console.warn('[bonificaciones] supuestos:', datos.supuestos.map((s) => s.mensaje));
+  if (!datos || !Array.isArray(datos.lineas)) {
+    throw new ErrorDeBonificaciones('RESPUESTA_INVALIDA', 'La respuesta no tiene el formato esperado.', resp.status);
   }
   return datos;
 }
 
-/** Error con el código de dominio del gateway, para ramificar sin leer el texto. */
-export class ErrorDeBonificaciones extends Error {
-  constructor(codigo, mensaje) {
-    super(mensaje);
-    this.name = 'ErrorDeBonificaciones';
-    this.codigo = codigo;
-  }
-}
+/** Errores que no se arreglan solos: alguien tiene que corregir algo. */
+const HAY_QUE_CORREGIR = new Set(['SIN_CONFIGURAR', 'NO_AUTORIZADO', 'PEDIDO_INVALIDO', 'CREDENCIALES_INVALIDAS']);
 
 /**
- * Lo que probablemente quieras usar: aplica los descuentos al carrito y **nunca voltea la compra**.
+ * Lo que conviene usar en el checkout. **Nunca corta la venta**: si no se puede saber el
+ * descuento, devuelve el carrito con 0% y con tus precios, y dice por qué en `motivoSinDescuento`:
  *
- * Si el gateway o el ERP no responden, devuelve el carrito sin descuento y con `huboError`. Un
- * cliente que no puede comprar porque no pudimos calcularle un descuento es peor que un cliente
- * que compra sin el descuento — y el número definitivo lo fija el ERP cuando el pedido se
- * confirma, así que el descuento se recupera ahí.
+ *   { codigo, mensaje, hayQueCorregir }
  *
- * **Decidilo vos**: si para el negocio es inaceptable vender sin el descuento, cambiá esto por un
- * error visible. Lo que no conviene es quedarse a mitad de camino.
+ * `hayQueCorregir: true` (clave inválida o sin configurar, pedido mal armado, credenciales del
+ * servicio con el ERP) significa que no se va a arreglar solo: además se registra en la consola,
+ * y conviene avisarlo. Con `false` (el servicio no respondió, el cliente no está en el ERP, etc.)
+ * es una situación esperable.
+ *
+ * Si para el negocio no se puede vender sin descuento, usá `valorizar` y mostrá el error.
  */
 export async function conDescuentos(tenant, cliente, items, opciones = {}) {
   try {
-    const r = await valorizar(tenant, cliente, items, opciones);
-    return { lineas: r.lineas, totales: r.totales, supuestos: r.supuestos, huboError: null };
+    const respuesta = await valorizar(tenant, cliente, items, opciones);
+    return { ...respuesta, motivoSinDescuento: null };
   } catch (e) {
-    const codigo = e instanceof ErrorDeBonificaciones ? e.codigo : 'DESCONOCIDO';
-    return {
-      // Sin descuento, pero con el carrito intacto para poder seguir comprando.
-      lineas: items.map((i) => ({
-        codigo: i.codigo,
-        cantidad: i.cantidad,
-        descuento: 0,
-        creadaPorPromo: false,
-        bonificaciones: [],
-      })),
-      totales: null,
-      supuestos: [],
-      huboError: { codigo, mensaje: e.message },
-    };
+    if (!(e instanceof ErrorDeBonificaciones)) throw e;
+    const hayQueCorregir = HAY_QUE_CORREGIR.has(e.codigo);
+    if (hayQueCorregir) console.error(`[bonificaciones] ${e.codigo}: ${e.message}`);
+    return sinDescuento(tenant, items, opciones, { codigo: e.codigo, mensaje: e.message, hayQueCorregir });
   }
 }
 
-/**
- * El texto para mostrarle al cliente por qué ganó el descuento.
- *
- * Esta es la "traza": `bonificaciones[]` dice qué bonificación lo otorgó y qué condiciones la
- * dispararon. La `descripcion` de cada condición la escribe el propio ERP, así que explica mejor
- * que cualquier texto que armemos nosotros.
- */
-export function porQueTieneDescuento(linea) {
-  return (linea.bonificaciones || []).map((b) => ({
-    nombre: b.nombre,
-    porcentaje: b.descuento,
-    porque: (b.condiciones || [])
-      .map((c) => c.descripcion || c.tipo)
-      .join(' y '),
-  }));
+/** Misma forma que una respuesta del servicio, con 0% y tus precios. */
+function sinDescuento(tenant, items, opciones, motivo) {
+  const lineas = items.map((i) => {
+    const neto = i.precioUnitario != null ? i.precioUnitario * i.cantidad : null;
+    return { codigo: String(i.codigo), cantidad: i.cantidad, neto, descuento: 0, netoConDescuento: neto,
+      creadaPorPromo: false, bonificaciones: [] };
+  });
+  const todosConPrecio = lineas.every((l) => l.neto != null);
+  const total = todosConPrecio ? lineas.reduce((a, l) => a + l.neto, 0) : null;
+  return {
+    fuente: null,
+    tenant,
+    calculadoPor: null, // null = no lo calculó nadie: es el respaldo sin descuento
+    consultadoEn: null,
+    referencia: opciones.referencia ?? null,
+    supuestos: [],
+    // Si algún ítem no trae precio, no hay total: ese precio lo tiene tu catálogo.
+    totales: todosConPrecio ? { neto: total, descuento: 0, netoConDescuento: total } : null,
+    lineas,
+    motivoSinDescuento: motivo,
+  };
 }
 
 /**
- * ⚠️ EL ERROR MÁS FÁCIL DE COMETER.
+ * La línea de la respuesta que corresponde a un ítem del carrito, o null si no vino.
  *
- * El número a aplicar es `linea.descuento` (el total de la línea, que calculó el ERP).
- * **No sumes `linea.bonificaciones[].descuento`**: eso es el detalle de quién otorgó qué, una
- * línea puede tener más de una, y no está verificado que compongan sumando.
+ * Hay que buscarla por código: el orden de `lineas` NO es el del carrito, y una promo puede
+ * agregar otra línea con el mismo código, marcada `creadaPorPromo: true` (el regalo). Los códigos
+ * de la respuesta son texto: se compara como texto aunque el carrito los tenga como número.
+ */
+export function lineaDelItem(respuesta, codigo) {
+  return respuesta.lineas.find((l) => String(l.codigo) === String(codigo) && !l.creadaPorPromo) || null;
+}
+
+/** Las líneas que agregó una promo (unidades regaladas). No las pidió el cliente. */
+export function regalos(respuesta) {
+  return respuesta.lineas.filter((l) => l.creadaPorPromo);
+}
+
+/**
+ * Tu neto de la línea con el descuento aplicado. Es la forma de usar el descuento: sobre TU neto
+ * (tu precio × cantidad), con `linea.descuento` (porcentaje: 10 = 10%). Con una línea que no vino
+ * (`null`), devuelve el neto sin descuento.
  *
- * El descuento viene en PORCENTAJE: `10` es 10%. (Ojo: Axum usa la convención opuesta en
- * percepciones, así que es fácil equivocarse viniendo de ahí.)
+ * No sumes `linea.bonificaciones[].descuento`: es el detalle de quién otorgó qué, una línea puede
+ * tener más de una y no está verificado que se sumen.
  */
 export function aplicarDescuento(neto, linea) {
+  if (!linea) return neto;
   return neto - (neto * Number(linea.descuento)) / 100;
 }
 
 /**
- * El ahorro para el cartelito de "te ahorraste $X" — con una parte que SOLO vos podés calcular.
+ * Cuánta plata descontaron las bonificaciones sobre lo que pidió el cliente.
  *
- * Verificado: cuando una promo regala unidades, la línea regalada trae el precio del ERP en su
- * `neto`, no el tuyo, aunque hayas mandado `precioUnitario` (vos no le pusiste precio a algo que
- * no pediste). Entonces el ahorro se parte en dos:
- *
- *  - `porDescuento`: la plata que descontaron las bonificaciones sobre las líneas que pediste.
- *    Es `neto - netoConDescuento` de las líneas con `creadaPorPromo: false`, y es exacto porque
- *    esas líneas sí usan tu precio.
- *  - `regalos`: los artículos que te regalaron, con su cantidad. **El gateway NO sabe cuánto
- *    valen a tu precio** (nunca vio tu precio para una unidad que no pediste), así que esto NO
- *    trae un importe: ponele vos tu precio de lista × cantidad si querés sumarlo al cartel.
- *
- * Para COBRAR no uses nada de esto: usá `totales.netoConDescuento`, que siempre es correcto.
+ * No incluye los regalos: la línea regalada trae el precio del ERP, no el tuyo, así que su
+ * "ahorro" no está en tus precios. Para mostrarlos, usá `regalos(respuesta)` con tu precio.
  */
-export function ahorro(respuesta) {
-  const lineas = respuesta.lineas || [];
-  const porDescuento = lineas
-    .filter((l) => !l.creadaPorPromo)
+export function ahorroPorDescuento(respuesta) {
+  return respuesta.lineas
+    .filter((l) => !l.creadaPorPromo && l.neto != null)
     .reduce((acc, l) => acc + (Number(l.neto) - Number(l.netoConDescuento)), 0);
+}
 
-  const regalos = lineas
-    .filter((l) => l.creadaPorPromo)
-    .map((l) => ({ codigo: l.codigo, cantidad: l.cantidad }));
-
-  // Sin regalos, `porDescuento` ya es el ahorro completo y se puede mostrar tal cual.
-  return { porDescuento, regalos };
+/**
+ * Qué bonificación dio el descuento de una línea, y por qué condiciones. Sirve para rastrear y
+ * para soporte. Los nombres los escribe la distribuidora en su ERP y suelen ser internos: antes de
+ * mostrarlos al cliente, miralos con datos reales.
+ */
+export function porQueTieneDescuento(linea) {
+  return ((linea && linea.bonificaciones) || []).map((b) => ({
+    id: b.id,
+    nombre: b.nombre,
+    porcentaje: b.descuento,
+    condiciones: (b.condiciones || []).map((c) => ({
+      descripcion: c.descripcion || c.tipo,
+      valores: c.valores || [],
+      // `invertida`: la condición se cumple cuando NO está en `valores`.
+      invertida: Boolean(c.invertida),
+    })),
+  }));
 }
