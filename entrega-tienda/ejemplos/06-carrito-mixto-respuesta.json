@@ -1,0 +1,120 @@
+{
+  "fuente": "GESCOM",
+  "tenant": "dyssa",
+  "calculadoPor": "ERP",
+  "consultadoEn": "2026-10-08T09:50:54.5142865-03:00",
+  "referencia": null,
+  "supuestos": [
+    {
+      "codigo": "SIN_PRECIO_NI_LISTA",
+      "mensaje": "Estos items no traen precioUnitario y el pedido no trae listaPrecio, asi que el ERP los valorizo con la lista asignada al cliente: 1000031861. El neto de esos items puede no coincidir con el que muestra la tienda."
+    }
+  ],
+  "totales": {
+    "neto": 121599.22,
+    "descuento": 13423.422,
+    "netoConDescuento": 108175.798
+  },
+  "lineas": [
+    {
+      "codigo": "5000014792",
+      "cantidad": 6,
+      "neto": 58424.22,
+      "descuento": 10,
+      "netoConDescuento": 52581.798,
+      "creadaPorPromo": false,
+      "bonificaciones": [
+        {
+          "id": "558",
+          "nombre": "GANCIA CERO - 14792",
+          "descuento": 10,
+          "condiciones": [
+            {
+              "tipo": "CODIGO_ITEM",
+              "descripcion": "La venta tiene uno o mas items",
+              "valores": [
+                "5000014792"
+              ],
+              "invertida": false,
+              "cantidadMinima": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "1000031861",
+      "cantidad": 50,
+      "neto": 63175,
+      "descuento": 12,
+      "netoConDescuento": 55594,
+      "creadaPorPromo": false,
+      "bonificaciones": [
+        {
+          "id": "610",
+          "nombre": "MATARAZZO + TERRABUSI - TRADE -",
+          "descuento": 12,
+          "condiciones": [
+            {
+              "tipo": "LISTA_PRECIO_VENTA",
+              "descripcion": "Aplica a una lista de listas de precio",
+              "valores": [
+                "2"
+              ],
+              "invertida": false,
+              "cantidadMinima": null
+            },
+            {
+              "tipo": "CODIGO_ITEM",
+              "descripcion": "La venta tiene uno o mas items",
+              "valores": [
+                "1000031861",
+                "1000032000",
+                "1000032001",
+                "1000032002",
+                "1000032003",
+                "1000031867",
+                "1000033593",
+                "1000033594",
+                "1000033597",
+                "1000033599",
+                "1000033620",
+                "1000033630",
+                "1000033631",
+                "1000033632",
+                "1000033600",
+                "1000033621",
+                "1000033622",
+                "1000033629",
+                "1000033598",
+                "1000033811",
+                "1000032207",
+                "1000032208",
+                "1000010101",
+                "1000010204",
+                "1000010206",
+                "1000010205",
+                "1000033810",
+                "1000010620",
+                "1000010262",
+                "1000031971",
+                "1000031974",
+                "1000031977",
+                "1000033567",
+                "1000033646",
+                "1000033644",
+                "1000033647",
+                "1000033653",
+                "1000033816",
+                "1000033815",
+                "1000010104"
+              ],
+              "invertida": false,
+              "cantidadMinima": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

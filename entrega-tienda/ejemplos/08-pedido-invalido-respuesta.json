@@ -1,0 +1,5 @@
+{
+  "codigo": "PEDIDO_INVALIDO",
+  "mensaje": "items[0].cantidad: debe ser mayor que 0",
+  "crudo": null
+}

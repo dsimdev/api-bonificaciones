@@ -1,0 +1,5 @@
+{
+  "codigo": "CLIENTE_INEXISTENTE",
+  "mensaje": "El campo CodigoCliente tiene un codigo invalido",
+  "crudo": "{\"errorCode\":\"0\",\"message\":\"El campo CodigoCliente tiene un codigo invalido\",\"properties\":null}"
+}

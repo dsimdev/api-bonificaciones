@@ -1,0 +1,11 @@
+{
+  "cliente": "8380",
+  "listaPrecio": "2",
+  "items": [
+    {
+      "codigo": "5000014792",
+      "cantidad": 6,
+      "precioUnitario": 1000
+    }
+  ]
+}

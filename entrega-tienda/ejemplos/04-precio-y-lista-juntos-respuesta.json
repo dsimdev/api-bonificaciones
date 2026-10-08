@@ -1,0 +1,46 @@
+{
+  "fuente": "GESCOM",
+  "tenant": "dyssa",
+  "calculadoPor": "ERP",
+  "consultadoEn": "2026-10-08T09:50:50.0245816-03:00",
+  "referencia": null,
+  "supuestos": [
+    {
+      "codigo": "PRECIO_Y_LISTA_JUNTOS",
+      "mensaje": "El pedido trae listaPrecio Y precioUnitario en los items: el ERP uso el PRECIO para el importe. La lista igual se envio, porque puede condicionar que criterio aplica."
+    }
+  ],
+  "totales": {
+    "neto": 6000,
+    "descuento": 600,
+    "netoConDescuento": 5400
+  },
+  "lineas": [
+    {
+      "codigo": "5000014792",
+      "cantidad": 6,
+      "neto": 6000,
+      "descuento": 10,
+      "netoConDescuento": 5400,
+      "creadaPorPromo": false,
+      "bonificaciones": [
+        {
+          "id": "558",
+          "nombre": "GANCIA CERO - 14792",
+          "descuento": 10,
+          "condiciones": [
+            {
+              "tipo": "CODIGO_ITEM",
+              "descripcion": "La venta tiene uno o mas items",
+              "valores": [
+                "5000014792"
+              ],
+              "invertida": false,
+              "cantidadMinima": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

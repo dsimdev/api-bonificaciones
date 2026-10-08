@@ -1,0 +1,11 @@
+{
+  "cliente": "8380",
+  "referencia": "carrito-995",
+  "items": [
+    {
+      "codigo": "1331001095",
+      "cantidad": 5,
+      "precioUnitario": 100
+    }
+  ]
+}

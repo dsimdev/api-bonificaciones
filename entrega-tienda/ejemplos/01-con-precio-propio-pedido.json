@@ -1,0 +1,11 @@
+{
+  "cliente": "8380",
+  "referencia": "carrito-991",
+  "items": [
+    {
+      "codigo": "5000014792",
+      "cantidad": 6,
+      "precioUnitario": 9737.37
+    }
+  ]
+}

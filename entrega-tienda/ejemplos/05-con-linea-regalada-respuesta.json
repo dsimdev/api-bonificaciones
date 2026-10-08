@@ -1,0 +1,52 @@
+{
+  "fuente": "GESCOM",
+  "tenant": "dyssa",
+  "calculadoPor": "ERP",
+  "consultadoEn": "2026-10-08T09:54:39.1695446-03:00",
+  "referencia": "carrito-995",
+  "supuestos": [],
+  "totales": {
+    "neto": 10862.87,
+    "descuento": 10362.87,
+    "netoConDescuento": 500
+  },
+  "lineas": [
+    {
+      "codigo": "1331001095",
+      "cantidad": 1,
+      "neto": 10362.87,
+      "descuento": 100,
+      "netoConDescuento": 0,
+      "creadaPorPromo": true,
+      "bonificaciones": [
+        {
+          "id": "655",
+          "nombre": "NOEL POTE 1KG 5+1 SIN CARGO",
+          "descuento": 100,
+          "condiciones": [
+            {
+              "tipo": "CODIGO_ITEM",
+              "descripcion": "La venta tiene uno o mas items",
+              "valores": [
+                "1331001094",
+                "1331001095",
+                "1331001096"
+              ],
+              "invertida": false,
+              "cantidadMinima": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "1331001095",
+      "cantidad": 5,
+      "neto": 500,
+      "descuento": 0,
+      "netoConDescuento": 500,
+      "creadaPorPromo": false,
+      "bonificaciones": []
+    }
+  ]
+}
