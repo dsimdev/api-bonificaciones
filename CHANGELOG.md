@@ -6,6 +6,17 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-10-08
+
+### Fixed
+- **Credentials could not be reloaded after the `CIFRADO_KEY` changed or was lost.** Updating a
+  distributor's GESCOM credentials first decrypted the old password, only to read the host and
+  realm, so with a new key it failed before saving anything. That made the deploy guide's recovery
+  procedure ("reload every distributor's credentials") impossible. It now reads host and realm
+  without touching the stored password (`RepositorioDeDistribuidoras.destino`). Found when the local
+  key turned out to live only in the memory of a running process. Covered by
+  `CredencialesConCifradoNuevoIT` (tag `db`), which fails against the previous code.
+
 ## [0.6.0] - 2026-10-08
 
 First release that actually reaches the remote. 0.3.0 to 0.5.0 were planned as separate releases

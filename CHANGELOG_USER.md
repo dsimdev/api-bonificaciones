@@ -3,6 +3,10 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
+## 0.6.1 — 2026-10-08
+
+- Arreglos menores de administración. Nada cambia para quien integra.
+
 ## 0.6.0 — 2026-10-08
 
 - **Ahora hace falta una clave.** Cada llamada a `/v1/{tenant}/…` lleva el header `x-api-key` con

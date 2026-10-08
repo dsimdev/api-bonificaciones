@@ -13,7 +13,7 @@ esta — el que integra la tienda nunca lo toca.
 
 ```
 LEEME.md                       ← esto
-bonif-app-0.6.0-prod.jar       ← el jar de producción, YA compilado (ver abajo)
+bonif-app-0.6.1-prod.jar       ← el jar de producción, YA compilado (ver abajo)
 scripts/
   crear-base.sql               ← crea la base y el login de SQL
   deploy.ps1                   ← build + subida + restart por FTP/WinRM (para los RE-deploys)
@@ -38,10 +38,10 @@ dos diferencias por venir el jar ya hecho.
 
 ## El jar ya está compilado — saltate el paso 2 de la guía
 
-El paso 2 de la guía te dice que compiles el jar vos. **No hace falta: `bonif-app-0.6.0-prod.jar` ya
+El paso 2 de la guía te dice que compiles el jar vos. **No hace falta: `bonif-app-0.6.1-prod.jar` ya
 está en esta carpeta**, horneado para la ruta `/api/bonificaciones` (verificado abriendo el jar, y
 probado a través del simulador de proxy anidado: `/health`, el panel, el login y Swagger). Copialo
-tal cual como dice el paso 3. El `/health` del servidor tiene que decir `"version": "0.6.0"`.
+tal cual como dice el paso 3. El `/health` del servidor tiene que decir `"version": "0.6.1"`.
 
 **La única condición es que IIS lo cuelgue en `/api/bonificaciones`** (paso 4 de la guía). El
 `basePath` del panel está horneado en el jar: si lo montás en otra ruta, el panel carga en blanco con
