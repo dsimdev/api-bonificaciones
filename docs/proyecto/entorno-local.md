@@ -45,7 +45,7 @@ Copy-Item .env.example .env
 | Variable | Para qué |
 |---|---|
 | `CIFRADO_KEY` | cifra las claves de GESCOM (AES-256-GCM). `openssl rand -hex 32` |
-| `USUARIO_INICIAL`, `CLAVE_INICIAL` | el primer usuario del panel. Solo se crea si la tabla está **vacía** |
+| `CLAVE_INICIAL` | la contraseña del primer usuario, que se llama **`admin`**. Solo se crea si la tabla está **vacía** |
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | la base, si no son los valores por defecto locales |
 
 `arrancar.ps1` carga el `.env` solo. **`.env` está en `.gitignore`: no se commitea nunca.**

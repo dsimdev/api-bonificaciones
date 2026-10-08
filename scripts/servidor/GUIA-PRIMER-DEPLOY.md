@@ -157,7 +157,7 @@ contra localhost incluso con el basePath mal.
 
 ## 6. Dejarlo usable
 
-1. Entrá al panel con el usuario inicial.
+1. Entrá al panel con **`admin`** y la contraseña que imprimió el paso 1.
 2. **Pestaña Usuarios**: creale un usuario a cada persona que vaya a dar de alta distribuidoras.
    Son usuarios con nombre y no una clave compartida porque cada distribuidora guarda **quién la
    dio de alta**.

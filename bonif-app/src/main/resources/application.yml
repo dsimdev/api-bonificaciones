@@ -41,10 +41,11 @@ bonificaciones:
   # verdad. Generarla con: openssl rand -hex 32
   cifrado-key: ${CIFRADO_KEY:}
 
-  # Usuario inicial del panel. Solo se crea si la tabla de usuarios esta VACIA: es para arrancar
-  # una instalacion nueva, no una puerta de servicio. Despues de usarlo, cambiarle la contrasenia
-  # y sacar CLAVE_INICIAL del entorno.
-  usuario-inicial: ${USUARIO_INICIAL:}
+  # Primer usuario del panel. Se llama `admin` en todas las instalaciones: lo unico que hay que
+  # definir es CLAVE_INICIAL. Solo se crea si la tabla de usuarios esta VACIA -- es para arrancar
+  # una instalacion nueva, no una puerta de servicio. Despues de usarlo: crearle un usuario a cada
+  # persona, cambiarle la contrasenia a admin y SACAR CLAVE_INICIAL del entorno.
+  usuario-inicial: ${USUARIO_INICIAL:admin}
   clave-inicial: ${CLAVE_INICIAL:}
 
   # Lo reemplaza el build al empaquetar (ver processResources en bonif-app/build.gradle.kts), para

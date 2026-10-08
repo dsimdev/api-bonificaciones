@@ -50,7 +50,7 @@ falta instalarlo, está el wrapper. **Node** solo si se va a tocar el panel.
 - swagger: <http://localhost:8081/swagger-ui.html>
 
 En el `.env` (gitignored) van los secretos del entorno: `CIFRADO_KEY` (cifra las claves de GESCOM),
-y `USUARIO_INICIAL` / `CLAVE_INICIAL` para el primer usuario del panel. **Las credenciales de las
+y `CLAVE_INICIAL`, la contraseña del primer usuario del panel (se llama **`admin`**). **Las credenciales de las
 distribuidoras ya no van en el `.env`**: se cargan desde el panel. Detalle en
 [docs/proyecto/deploy.md](docs/proyecto/deploy.md).
 

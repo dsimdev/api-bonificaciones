@@ -66,7 +66,7 @@ Las tablas las crea **Flyway** al arrancar. No hay que correr DDL a mano.
 |---|---|---|
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | la base | no arranca |
 | `CIFRADO_KEY` | cifra las claves de GESCOM (AES-256-GCM). `openssl rand -hex 32` | **dar de alta falla explícito**, a propósito: mejor eso que guardar mil claves de producción sin cifrar |
-| `USUARIO_INICIAL`, `CLAVE_INICIAL` | el primer usuario del panel | si no hay usuarios, nadie puede administrar y avisa por log |
+| `CLAVE_INICIAL` | la contraseña del primer usuario, que se llama **`admin`** en todas las instalaciones (`USUARIO_INICIAL` lo pisa, pero no hace falta) | si no hay usuarios, nadie puede administrar y avisa por log |
 
 > ⚠️ **`CIFRADO_KEY` no se puede perder ni rotar a la ligera.** Si cambia, las claves guardadas no
 > se pueden descifrar y hay que volver a cargar las credenciales de todas las distribuidoras.

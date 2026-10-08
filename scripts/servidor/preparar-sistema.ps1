@@ -192,6 +192,9 @@ $usuarioInicial = [Environment]::GetEnvironmentVariable('USUARIO_INICIAL', 'Mach
 if ($usuarioInicial) {
     Ya "USUARIO_INICIAL ($usuarioInicial)"
 } else {
+    # El nombre ya es 'admin' por defecto en la app (ver UsuarioInicial), asi que lo unico que
+    # hace falta definir es la contrasenia. Se setea igual para que quede explicito en el servidor
+    # con que usuario se arranco.
     $claveInicial = NuevaClave
     [Environment]::SetEnvironmentVariable('USUARIO_INICIAL', 'admin', 'Machine')
     [Environment]::SetEnvironmentVariable('CLAVE_INICIAL', $claveInicial, 'Machine')
