@@ -3,6 +3,11 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
+## 0.6.2 — 2026-10-08
+
+- El contrato ahora deja claro qué hace la tienda con una unidad regalada por una promo
+  (`creadaPorPromo: true`): se muestra como regalo, **no se cobra y no va a MotorFiscal**.
+
 ## 0.6.1 — 2026-10-08
 
 - **Una clave válida nunca queda bloqueada.** Antes, muchos intentos con claves inválidas para una

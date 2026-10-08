@@ -20,3 +20,7 @@ next-env.d.ts
 # El jar de la entrega de deploy es un binario de 32 MB: va en la carpeta que se
 # pasa por fuera de git (se rehace con `gradlew build -PpanelBasePath=/api/bonificaciones/admin`).
 entrega-servidor/*.jar
+
+# Paquetes de entrega que arma el usuario para enviar las carpetas (binarios).
+*.rar
+*.zip

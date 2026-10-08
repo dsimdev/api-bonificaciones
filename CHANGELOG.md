@@ -6,6 +6,16 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-10-08
+
+### Changed
+- Docs only. The contract now states what the store does with a promo's free line
+  (`creadaPorPromo: true`): it is shown as a gift, **not charged and not sent to MotorFiscal**; its
+  `neto` is informational and summed into nothing. Decided by the user — the contract specifies and
+  the store complies, rather than leaving it as an open integration question. Written into
+  `docs/guia-de-integracion.md` (and its copy in `entrega-tienda/`), the store `LEEME.md` and
+  `bonificaciones.js`. No code change.
+
 ## [0.6.1] - 2026-10-08
 
 ### Fixed
