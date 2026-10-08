@@ -199,8 +199,12 @@ Cualquier otro código, o un 5xx sin cuerpo: el servicio no está disponible.
 Header **`x-api-key`** con la clave de la distribuidora. La clave **solo sirve para valorizar** y
 solo para su distribuidora: con la de `dyssa`, `/v1/senderolaser/...` da 401.
 
-Se llama desde el navegador, así que la clave queda visible en el DevTools. Está asumido: por eso
-solo puede valorizar. Igual no va escrita en el código: sale de la configuración de la tienda.
+**La llamada se hace desde el servidor de la tienda, no desde el navegador.** Si se hiciera
+client-side, la clave y el porcentaje de descuento quedarían expuestos en DevTools y el cliente
+podría manipularlos. Server-side, la clave nunca sale del servidor y al browser solo le llega el
+precio final ya calculado.
+
+La clave no va escrita en el código: sale de la configuración del servidor.
 Si hace falta cambiarla, quien administra el servicio genera otra y la anterior deja de andar al
 instante: pedí que te avisen antes.
 

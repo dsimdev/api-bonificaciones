@@ -26,17 +26,25 @@ carrito  →  bonificaciones  →  tu neto con descuento  →  MotorFiscal  → 
 
 El servicio **todavía no está instalado** en el servidor. Cuando lo esté, quien te pasó esta carpeta
 te manda el **código de la distribuidora** (por ejemplo `dyssa`), su **clave** y la **URL** para
-probar con Postman. El módulo no necesita la URL: llama a `/api/bonificaciones` en el mismo dominio
-de la tienda, como MotorFiscal en `/api/impuestos`.
+probar con Postman.
+
+**La llamada va server-side**, no desde el browser. Si se hiciera client-side, la clave y el
+descuento quedarían en DevTools y el cliente podría manipularlos. Desde el servidor de la tienda, la
+clave no se expone y al browser solo le llega el precio final. El módulo `bonificaciones.js` funciona
+igual en Node 18+ (usa `fetch` estándar); en el servidor, la `BASE` se configura con la URL interna
+del servicio en vez de una ruta relativa.
 
 ## Cómo integrarlo
 
-1. Copiá `bonificaciones.js` a `js/`.
-2. Al iniciar, registrá la clave de cada distribuidora (sale de la configuración de la tienda, no
-   del código):
+**La llamada se hace desde el server de la tienda** (Node 18+), no desde el browser. El módulo usa
+`fetch` estándar y funciona igual en Node.
+
+1. Copiá `bonificaciones.js` al server de la tienda.
+2. Configurá la `BASE` con la URL interna del servicio (por ejemplo
+   `http://localhost:8081` o la que te pasen) y registrá la clave de cada distribuidora:
    ```js
    import { configurarBonificaciones } from './bonificaciones.js';
-   configurarBonificaciones({ tenant: 'dyssa', clave: config.claveBonificaciones });
+   configurarBonificaciones({ tenant: 'dyssa', clave: process.env.CLAVE_BONIFICACIONES });
    ```
 3. En el checkout, con el carrito **entero**, los códigos que ya usa la tienda y tu precio **por
    unidad y sin impuestos**:
@@ -54,7 +62,8 @@ de la tienda, como MotorFiscal en `/api/impuestos`.
    const regalados = regalos(r);   // unidades que regaló una promo: se muestran, no se cobran
                                    // y no van a MotorFiscal
    ```
-4. `conDescuentos` **nunca corta la venta**. Si no se puede saber el descuento (el servicio no
+4. Devolvé al browser **solo el precio final**, no el porcentaje ni la traza.
+5. `conDescuentos` **nunca corta la venta**. Si no se puede saber el descuento (el servicio no
    responde, el cliente no está en el ERP, etc.), devuelve 0% y el motivo en
    `r.motivoSinDescuento`. Si `r.motivoSinDescuento.hayQueCorregir` es `true` (por ejemplo una
    clave inválida), además lo registra en la consola: no se arregla solo.

@@ -1,12 +1,13 @@
 /**
- * Cliente de api-bonificaciones para la tienda. Va en la carpeta `js/` de la tienda.
+ * Cliente de api-bonificaciones para el server de la tienda (Node 18+).
  *
- * Qué hace el servicio: dice qué descuento le corresponde a un carrito y por qué. El número lo
- * calcula el ERP de la distribuidora. Referencia completa: contrato.md, en esta misma carpeta.
+ * Se llama server-side para que la clave y el descuento no queden expuestos en el browser.
+ * Al browser se le devuelve solo el precio final. Usa fetch estándar.
+ * Referencia completa: contrato.md, en esta misma carpeta.
  */
 
-// En el mismo dominio que la tienda, como MotorFiscal en /api/impuestos.
-const BASE = '/api/bonificaciones';
+// Server-side: la URL interna del servicio. Se cambia con configurarBonificaciones o directamente.
+let BASE = 'http://localhost:8081';
 
 // Una valorización tarda ~2 s. Pasado este tiempo se corta, para no dejar el checkout colgado.
 const TIEMPO_MAXIMO_MS = 10000;
@@ -18,11 +19,13 @@ const claves = new Map();
 let respuestaDePrueba = null;
 
 /**
- * Registra la clave de una distribuidora. Una vez por cada distribuidora que use la tienda.
- * La clave sale de la configuración de la tienda, no del código.
+ * Registra la clave de una distribuidora y, opcionalmente, la URL del servicio.
+ * `url` es la URL base del servicio (p. ej. 'http://localhost:8081'). Si no se pasa, queda la
+ * anterior. La clave sale de la configuración del servidor, no del código.
  */
-export function configurarBonificaciones({ tenant, clave }) {
+export function configurarBonificaciones({ tenant, clave, url }) {
   claves.set(tenant, clave);
+  if (url) BASE = url;
 }
 
 /**
