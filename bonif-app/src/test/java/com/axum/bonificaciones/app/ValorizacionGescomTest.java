@@ -305,16 +305,99 @@ class ValorizacionGescomTest {
     }
 
     /**
-     * Sin lista de precios el ERP usa la del cliente. No es un error, pero cambia el PRECIO, asi
-     * que sale marcado: nunca un default silencioso.
+     * Sin precio NI lista, el ERP usa la lista del cliente. No es un error, pero cambia el PRECIO,
+     * asi que sale marcado: nunca un default silencioso.
+     *
+     * El mensaje nombra los items, no dice "falta la lista": en un carrito mixto lo que hay que
+     * saber es CUALES quedaron sin precio propio.
      */
     @Test
-    void sinListaDePrecioLoAvisaEnSupuestos() throws Exception {
+    void sinPrecioNiListaLoAvisaEnSupuestos() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"cliente\":\"8380\",\"items\":[{\"codigo\":\"5000014792\",\"cantidad\":6}]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.supuestos[0].codigo").value("LISTA_PRECIO_NO_ENVIADA"));
+                .andExpect(jsonPath("$.supuestos[0].codigo").value("SIN_PRECIO_NI_LISTA"))
+                .andExpect(jsonPath("$.supuestos[0].mensaje")
+                        .value(org.hamcrest.Matchers.containsString("5000014792")));
+    }
+
+    // --- El precio lo pone el consumidor (la tienda usa su propio neto).
+    //
+    // Verificado en vivo contra dyssa el 2026-10-08: con PrecioUnitario el ERP valoriza con ese
+    // precio, sigue aplicando los mismos criterios y sigue siendo EL que calcula el descuento.
+    // Por eso calculadoPor no deja de ser ERP, que es lo que importa frente a un reclamo.
+
+    /** El precio viaja como PrecioUnitario, con el nombre de campo del ERP. */
+    @Test
+    void elPrecioDelConsumidorViajaAlErpComoPrecioUnitario() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"cliente":"8380","items":[
+                          {"codigo":"5000014792","cantidad":6,"precioUnitario":1234.56}]}
+                        """));
+
+        gescom.verify(postRequestedFor(urlPathEqualTo("/data/cmd/ventas/api/v1/eval-pedido"))
+                .withRequestBody(containing("\"PrecioUnitario\":1234.56")));
+    }
+
+    /**
+     * Un item SIN precio no manda el campo, en vez de mandarlo en null: asi el ERP usa la lista.
+     * Es lo que permite el carrito mixto.
+     */
+    @Test
+    void unItemSinPrecioNoMandaElCampo() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                .contentType(MediaType.APPLICATION_JSON).content(PEDIDO));
+
+        gescom.verify(postRequestedFor(urlPathEqualTo("/data/cmd/ventas/api/v1/eval-pedido"))
+                .withRequestBody(notMatching("(?s).*PrecioUnitario.*")));
+    }
+
+    /**
+     * Con precio Y lista gana el precio (verificado en vivo). No es un error -- la lista se manda
+     * igual porque puede condicionar que criterio aplica -- pero si el consumidor cree que
+     * valoriza por lista y le llega otro neto, esta es la explicacion.
+     */
+    @Test
+    void conPrecioYListaJuntosLoAvisaEnSupuestos() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"cliente":"8380","listaPrecio":"2","items":[
+                                  {"codigo":"5000014792","cantidad":6,"precioUnitario":1000}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supuestos[0].codigo").value("PRECIO_Y_LISTA_JUNTOS"));
+    }
+
+    /** Con precio en todos los items y sin lista no hay nada que suponer: supuestos vacio. */
+    @Test
+    void conPrecioEnTodosLosItemsNoHaySupuestos() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"cliente":"8380","items":[
+                                  {"codigo":"5000014792","cantidad":6,"precioUnitario":1000}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supuestos").isEmpty());
+    }
+
+    /** Un precio en cero o negativo es un error del consumidor: no se consulta al ERP. */
+    @Test
+    void unPrecioEnCeroEsPedidoInvalido() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"cliente":"8380","items":[
+                                  {"codigo":"5000014792","cantidad":6,"precioUnitario":0}]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("PEDIDO_INVALIDO"));
+
+        gescom.verify(0, postRequestedFor(urlPathEqualTo("/data/cmd/ventas/api/v1/eval-pedido")));
     }
 
     @Test
@@ -374,7 +457,7 @@ class ValorizacionGescomTest {
 
     private static final PedidoAValorizar UN_PEDIDO = new PedidoAValorizar("8380", "2",
             List.of(new ItemAValorizar("5000014792", new BigDecimal("6"), "Unidad",
-                    BigDecimal.ONE)));
+                    BigDecimal.ONE, null)));
 
     /**
      * El crudo del ERP se conserva. Es lo unico que permite decidir si un descuento mal viene del

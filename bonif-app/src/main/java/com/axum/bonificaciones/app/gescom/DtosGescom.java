@@ -1,6 +1,7 @@
 package com.axum.bonificaciones.app.gescom;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,12 +30,24 @@ final class DtosGescom {
      * Es CodigoItem, NO CodigoArticulo. Con el nombre equivocado GESCOM ignora el item en
      * silencio y la respuesta termina siendo "Error desconocido" -- verificado en vivo.
      */
+    /**
+     * PrecioUnitario es POR UNIDAD y es opcional. Verificado en vivo (dyssa, 2026-10-08): con el
+     * presente el ERP valoriza con ese precio en vez del de la lista, sigue aplicando los mismos
+     * criterios y sigue siendo el que calcula el descuento. Con precio Y lista juntos, gana el
+     * precio para el importe; la lista se manda igual porque puede condicionar que criterio
+     * aplica (hay criterios con condicion ListaPrecioVenta).
+     *
+     * Jackson no serializa los null si la propiedad esta anotada, asi que un item sin precio viaja
+     * sin el campo -- que es lo que el ERP espera para usar la lista.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     record ItemDePedido(
             @JsonProperty("CodigoItem") String codigoItem,
             @JsonProperty("Cantidad") BigDecimal cantidad,
             @JsonProperty("CodigoUnidad") String codigoUnidad,
             @JsonProperty("UnidadFactor") BigDecimal unidadFactor,
-            @JsonProperty("CodigoListaPrecio") String codigoListaPrecio) {}
+            @JsonProperty("CodigoListaPrecio") String codigoListaPrecio,
+            @JsonProperty("PrecioUnitario") BigDecimal precioUnitario) {}
 
     // --- eval-pedido: respuesta. Aca los nombres vuelven a camelCase.
 

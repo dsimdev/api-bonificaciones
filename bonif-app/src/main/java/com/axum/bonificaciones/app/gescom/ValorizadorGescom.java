@@ -8,6 +8,7 @@ import com.axum.bonificaciones.core.model.CalculadoPor;
 import com.axum.bonificaciones.core.model.Condicion;
 import com.axum.bonificaciones.core.model.Criterio;
 import com.axum.bonificaciones.core.model.Fuente;
+import com.axum.bonificaciones.core.model.ItemAValorizar;
 import com.axum.bonificaciones.core.model.LineaValorizada;
 import com.axum.bonificaciones.core.model.Operacion;
 import com.axum.bonificaciones.core.model.PedidoAValorizar;
@@ -89,7 +90,7 @@ public class ValorizadorGescom implements Valorizador {
 
         var items = pedido.items().stream()
                 .map(i -> new DtosGescom.ItemDePedido(i.codigo(), i.cantidad(), i.unidad(),
-                        i.unidadFactor(), pedido.codigoListaPrecio()))
+                        i.unidadFactor(), pedido.codigoListaPrecio(), i.precioUnitario()))
                 .toList();
 
         // El GUID lo generamos nosotros, uno por llamada: asi un reintento no depende de que el
@@ -100,18 +101,42 @@ public class ValorizadorGescom implements Valorizador {
         var respuesta = cliente.postConCrudo(tenant, gescom, "ventas", "eval-pedido", sobre,
                 DtosGescom.VentaEvaluada[].class);
 
-        // Si no vino la lista, el ERP usa la del cliente. No es un error, pero cambia el PRECIO,
-        // asi que el consumidor tiene que verlo: nunca un default silencioso.
-        var supuestos = new ArrayList<Supuesto>();
-        if (pedido.codigoListaPrecio() == null || pedido.codigoListaPrecio().isBlank()) {
-            supuestos.add(Supuesto.listaDePrecioNoEnviada());
-        }
-
         var valorizacion = new Valorizacion(Fuente.GESCOM, tenant, CalculadoPor.ERP,
-                OffsetDateTime.now(reloj), supuestos, lineas(tenant, respuesta.cuerpo()));
+                OffsetDateTime.now(reloj), supuestos(pedido),
+                lineas(tenant, respuesta.cuerpo()));
 
         return new Diagnostico(valorizacion, respuesta.enviado(), respuesta.crudo(),
                 comparar(respuesta.cuerpo(), valorizacion));
+    }
+
+    /**
+     * Qué resolvimos nosotros porque el pedido no lo traía. Nunca un default silencioso.
+     *
+     * Un ítem se valoriza con su {@code precioUnitario} si lo trae, y si no con la lista del
+     * pedido. Lo que hay que avisar son los dos bordes: los ítems que no tienen ni lo uno ni lo
+     * otro (el ERP les pone la lista del cliente, que puede no ser la que vio quien compra), y
+     * que cuando vienen los dos gana el precio.
+     *
+     * El carrito mixto —algunos ítems con precio, otros sin— es válido a propósito: el día que la
+     * tienda tenga un artículo sin precio cargado, rechazar el carrito entero sería inventar una
+     * regla que el ERP no tiene.
+     */
+    private List<Supuesto> supuestos(PedidoAValorizar pedido) {
+        var supuestos = new ArrayList<Supuesto>();
+        var hayLista = pedido.codigoListaPrecio() != null && !pedido.codigoListaPrecio().isBlank();
+
+        var sinPrecio = pedido.items().stream()
+                .filter(i -> !i.traePrecio())
+                .map(ItemAValorizar::codigo)
+                .toList();
+
+        if (!hayLista && !sinPrecio.isEmpty()) {
+            supuestos.add(Supuesto.sinPrecioNiLista(sinPrecio));
+        }
+        if (hayLista && sinPrecio.size() < pedido.items().size()) {
+            supuestos.add(Supuesto.precioYListaJuntos());
+        }
+        return supuestos;
     }
 
     /**

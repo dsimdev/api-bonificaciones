@@ -53,7 +53,15 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
             "description": "No pide clave: lo mira el monitoreo. `origen` dice si está leyendo las distribuidoras de la base (BASE) o de variables de entorno (CONFIGURACION). En producción tiene que decir BASE."
           }
         },
@@ -87,8 +95,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "x-api-key", "value": "{{apiKey}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -96,10 +110,48 @@
             },
             "url": {
               "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "{{tenant}}", "valorizaciones"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "{{tenant}}",
+                "valorizaciones"
+              ]
             },
             "description": "Es solo lectura: un dry-run. Consultá las veces que quieras, no se crea ni se confirma ningún pedido.\n\n`unidad` y `unidadFactor` son opcionales (por defecto `\"Unidad\"` y `1`).\n\n`referencia` es un identificador tuyo y se devuelve tal cual, para poder rastrear después qué te respondimos."
+          }
+        },
+        {
+          "name": "Valorizar — con TU precio (precioUnitario)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": \"{{cliente}}\",\n  \"referencia\": \"carrito-991\",\n  \"items\": [\n    { \"codigo\": \"{{articulo}}\", \"cantidad\": 6, \"precioUnitario\": 9737.37 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "{{tenant}}",
+                "valorizaciones"
+              ]
+            },
+            "description": "Mandás TU precio y el ERP valoriza con él — y **sigue aplicando los mismos descuentos**.\n`calculadoPor` sigue diciendo `ERP`, así que el número no deja de tener el respaldo del ERP.\n\n`precioUnitario` es **por unidad**, no el total de la línea.\n\nVerificado contra el ERP el 2026-10-08: con `precioUnitario: 1000` y cantidad 6 el neto sale\n6000 y el descuento es el mismo 10% que con el precio del ERP.\n\nNo hace falta mandar `listaPrecio` si mandás el precio. Si mandás los dos, gana el precio para\nel importe y te avisamos con `PRECIO_Y_LISTA_JUNTOS` en `supuestos`."
           }
         },
         {
@@ -107,8 +159,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "x-api-key", "value": "{{apiKey}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -116,19 +174,31 @@
             },
             "url": {
               "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "{{tenant}}", "valorizaciones"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "{{tenant}}",
+                "valorizaciones"
+              ]
             },
             "description": "Así se manda un carrito: TODO junto, en una llamada.\n\nNo es una optimización, es corrección: hay bonificaciones que piden una cantidad mínima y otras que miran si el pedido tiene artículos de cierta marca o rubro. Ítem por ítem da descuentos distintos.\n\nEste ejemplo suele devolver una línea de regalo (`creadaPorPromo: true`) si el segundo artículo tiene una promo de unidades sin cargo."
           }
         },
         {
-          "name": "Valorizar — SIN listaPrecio (mirá los supuestos)",
+          "name": "Valorizar — sin precio NI lista (mirá los supuestos)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "x-api-key", "value": "{{apiKey}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -136,10 +206,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "{{tenant}}", "valorizaciones"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "{{tenant}}",
+                "valorizaciones"
+              ]
             },
-            "description": "No falla, pero la respuesta trae un aviso en `supuestos`: sin lista, el ERP usa la que tiene asignada el cliente.\n\nVerificado contra el ERP: el mismo artículo, la misma cantidad y el mismo cliente dan neto **63.175** en la lista 2 y **59.976** en la lista 3. El **porcentaje de descuento sale igual en los dos casos**, así que si la tienda manda la lista equivocada el error NO se ve mirando el descuento — solo el importe."
+            "description": "No falla, pero la respuesta trae **`SIN_PRECIO_NI_LISTA`** en `supuestos`, **nombrando los\nítems** que quedaron sin precio propio: el ERP los valorizó con la lista asignada al cliente.\n\nEl neto de esos ítems puede no coincidir con el que mostraste. El **porcentaje de descuento sí\nes el correcto** — verificado: la lista cambia el precio, no el criterio que aplica.\n\nUn carrito mixto (algunos ítems con precio y otros sin) es válido a propósito: el supuesto dice\ncuáles quedaron sin precio."
           }
         },
         {
@@ -147,8 +223,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "x-api-key", "value": "{{apiKey}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -156,8 +238,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/v1/{{tenant}}/valorizaciones",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "{{tenant}}", "valorizaciones"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "{{tenant}}",
+                "valorizaciones"
+              ]
             },
             "description": "400 `PEDIDO_INVALIDO`. Las validaciones corren antes de llamar al ERP: cada llamada cuesta un token y tiempo de checkout.\n\nTodos los errores vienen con la misma forma `{codigo, mensaje, crudo}`. **Ramificá por `codigo`, no por el texto**: el `mensaje` es para humanos y puede cambiar."
           }
@@ -186,15 +274,26 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"usuario\": \"{{usuarioPanel}}\",\n  \"clave\": \"{{clavePanel}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/admin/v1/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "login"
+              ]
             },
             "description": "Guarda el token en la variable `tokenPanel` solo. Es el único endpoint de administración sin proteger."
           }
@@ -203,11 +302,22 @@
           "name": "Listar distribuidoras",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenPanel}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/v1/distribuidoras",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "distribuidoras"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "distribuidoras"
+              ]
             },
             "description": "Incluye las inactivas: una distribuidora que desapareció del listado es una pregunta de soporte.\n\nDevuelve el usuario de GESCOM con el que quedó cargada — **nunca la clave**. Verlo sirve: los usuarios de dos distribuidoras se parecen peligrosamente, así que es como se descubre que alguien copió de la colección equivocada."
           }
@@ -217,8 +327,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tokenPanel}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenPanel}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -226,8 +342,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/v1/distribuidoras",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "distribuidoras"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "distribuidoras"
+              ]
             },
             "description": "**Prueba la credencial contra GESCOM antes de guardar**: mintea el token y trae el catálogo. Si algo falla, no se guarda nada — es preferible a que quede una distribuidora rota que nadie descubre hasta que falla el checkout de esa tienda.\n\nResponde cuántos criterios trajo, que es la prueba de que anda de verdad.\n\n`host` y `realm` son opcionales: salen del código por convención (`https://<codigo>.gescom.online` y `gcw-<codigo>`).\n\n**Devuelve la clave de la tienda en claro, y es la única vez que se puede ver.**"
           }
@@ -236,11 +358,24 @@
           "name": "Reprobar la credencial guardada",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenPanel}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/verificar",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "verificar"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "distribuidoras",
+                "{{tenant}}",
+                "verificar"
+              ]
             },
             "description": "\"¿El alta que hice ayer anda hoy?\". Una clave que rotaron del lado del ERP se detecta acá y no en un checkout."
           }
@@ -249,11 +384,24 @@
           "name": "Regenerar la clave de la tienda",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenPanel}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/clave-tienda",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "clave-tienda"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "distribuidoras",
+                "{{tenant}}",
+                "clave-tienda"
+              ]
             },
             "description": "La anterior queda **revocada al instante** y la tienda deja de funcionar hasta que la cambie. Para cuando se filtró o se perdió."
           }
@@ -263,8 +411,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tokenPanel}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenPanel}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -272,8 +426,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/diagnostico/valorizacion",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "diagnostico", "valorizacion"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "distribuidoras",
+                "{{tenant}}",
+                "diagnostico",
+                "valorizacion"
+              ]
             },
             "description": "Cuando una tienda dice que el descuento está mal, hay tres sospechosos y desde afuera son indistinguibles: el ERP, nuestra normalización y lo que muestra la tienda.\n\nDevuelve las tres capas: `pedidoEnviadoAlErp` (con los nombres de GESCOM, se pega en Postman tal cual), `respuestaCrudaDelErp` (sin normalizar: el descuento acá es **fracción**), `nuestraRespuesta` (idéntica a la que recibe la tienda: **porcentaje**) y una `comparacion` línea por línea con un `veredicto`.\n\nA diferencia del endpoint público, **no falla** cuando el ERP devuelve líneas que no cierran: ese es justo el caso que hay que poder mirar."
           }
@@ -282,11 +445,22 @@
           "name": "Actividad por distribuidora",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenPanel}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/v1/metricas",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "metricas"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "metricas"
+              ]
             },
             "description": "Lo primero que hay que mirar cuando una tienda dice que no funciona: cuántas llamadas hizo, cuántas fallaron y **con qué código**.\n\nSi esa distribuidora no aparece, todavía no nos llamó — ahí el problema no es nuestro.\n\nContadores en memoria desde que arrancó el servicio. Para \"qué pasó ayer a las tres\" está el log del servidor, que se rota por día."
           }
@@ -295,11 +469,24 @@
           "name": "Criterios de una distribuidora",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPanel}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenPanel}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/v1/distribuidoras/{{tenant}}/criterios?incluirNoVigentes=false",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "v1", "distribuidoras", "{{tenant}}", "criterios"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "v1",
+                "distribuidoras",
+                "{{tenant}}",
+                "criterios"
+              ],
               "query": [
                 {
                   "key": "incluirNoVigentes",

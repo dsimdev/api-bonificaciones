@@ -95,7 +95,7 @@ class ValorizacionContraGescomRealIT {
     private LineaValorizada valoriza(String tenant, String cliente, String item, String lista,
                                      String cantidad) {
         var r = valorizador.valorizar(tenant, new PedidoAValorizar(cliente, lista,
-                List.of(new ItemAValorizar(item, new BigDecimal(cantidad), "Unidad", BigDecimal.ONE))));
+                List.of(new ItemAValorizar(item, new BigDecimal(cantidad), "Unidad", BigDecimal.ONE, null))));
         return r.lineas().get(0);
     }
 
@@ -114,7 +114,7 @@ class ValorizacionContraGescomRealIT {
                 "Sin credenciales de " + tenant + " en el entorno: se saltea");
 
         var pedido = new PedidoAValorizar(cliente, lista, List.of(
-                new ItemAValorizar(item, new BigDecimal("6"), "Unidad", BigDecimal.ONE)));
+                new ItemAValorizar(item, new BigDecimal("6"), "Unidad", BigDecimal.ONE, null)));
 
         var resultado = valorizador.valorizar(tenant, pedido);
 

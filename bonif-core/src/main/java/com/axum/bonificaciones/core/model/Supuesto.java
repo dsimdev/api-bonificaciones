@@ -9,11 +9,32 @@ package com.axum.bonificaciones.core.model;
  */
 public record Supuesto(String codigo, String mensaje) {
 
-    /** No vino la lista de precios, asi que el ERP uso la que tiene asignada el cliente. */
-    public static Supuesto listaDePrecioNoEnviada() {
-        return new Supuesto("LISTA_PRECIO_NO_ENVIADA",
-                "No se envio listaPrecio: se uso la lista asignada al cliente en el ERP. "
-                        + "La lista cambia el PRECIO, asi que el neto puede no coincidir con el "
-                        + "que muestra la tienda.");
+    /**
+     * Ni precio ni lista: el ERP uso la lista que tiene asignada el cliente.
+     *
+     * @param items los codigos que quedaron sin precio propio. Van en el mensaje porque en un
+     *              carrito mixto lo que importa es CUALES, no que haya alguno
+     */
+    public static Supuesto sinPrecioNiLista(java.util.List<String> items) {
+        return new Supuesto("SIN_PRECIO_NI_LISTA",
+                "Estos items no traen precioUnitario y el pedido no trae listaPrecio, asi que el "
+                        + "ERP los valorizo con la lista asignada al cliente: "
+                        + String.join(", ", items)
+                        + ". El neto de esos items puede no coincidir con el que muestra la tienda.");
+    }
+
+    /**
+     * Vinieron el precio y la lista. Gana el precio, verificado en vivo contra dyssa: con los dos
+     * presentes el ERP valoriza con PrecioUnitario e ignora la lista para el importe.
+     *
+     * No es un error -- la lista igual se manda porque puede condicionar algun criterio -- pero
+     * si el consumidor cree que esta valorizando por lista y le llega un neto que no entiende,
+     * esta es la explicacion.
+     */
+    public static Supuesto precioYListaJuntos() {
+        return new Supuesto("PRECIO_Y_LISTA_JUNTOS",
+                "El pedido trae listaPrecio Y precioUnitario en los items: el ERP uso el PRECIO "
+                        + "para el importe. La lista igual se envio, porque puede condicionar que "
+                        + "criterio aplica.");
     }
 }

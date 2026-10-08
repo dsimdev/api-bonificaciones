@@ -43,11 +43,20 @@ public final class Dtos {
             String referencia,
             @NotEmpty @Valid List<ItemRequest> items) {}
 
+    /**
+     * @param precioUnitario precio POR UNIDAD, no total de la linea. Opcional: si viene, el ERP
+     *                       valoriza con el; si no, usa la lista. Verificado en vivo contra dyssa
+     *                       el 2026-10-08: el ERP sigue aplicando los mismos criterios y sigue
+     *                       siendo el que calcula, asi que `calculadoPor` no deja de ser ERP
+     */
     public record ItemRequest(
             @NotBlank String codigo,
             @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal cantidad,
             String unidad,
-            BigDecimal unidadFactor) {
+            BigDecimal unidadFactor,
+            @DecimalMin(value = "0", inclusive = false,
+                    message = "si lo mandas, tiene que ser mayor que cero")
+            BigDecimal precioUnitario) {
 
         /** GESCOM exige la unidad; "Unidad" es el valor por defecto verificado contra la API. */
         public String unidadODefecto() {
@@ -183,7 +192,7 @@ public final class Dtos {
     public static PedidoAValorizar pedidoDe(PedidoRequest pedido) {
         var items = pedido.items().stream()
                 .map(i -> new ItemAValorizar(i.codigo(), i.cantidad(), i.unidadODefecto(),
-                        i.factorODefecto()))
+                        i.factorODefecto(), i.precioUnitario()))
                 .toList();
         return new PedidoAValorizar(pedido.cliente(), pedido.listaPrecio(), items);
     }
