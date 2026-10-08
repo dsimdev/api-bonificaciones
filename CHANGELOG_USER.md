@@ -6,6 +6,8 @@ tecnicismos.
 ## 0.6.1 — 2026-10-08
 
 - Arreglos menores de administración. Nada cambia para quien integra.
+- La guía de integración ya no sugiere dar de alta clientes en el ERP: este servicio no da de alta
+  clientes. Un cliente que no está en el ERP sigue igual: `CLIENTE_INEXISTENTE`, 0% y tu precio.
 
 ## 0.6.0 — 2026-10-08
 

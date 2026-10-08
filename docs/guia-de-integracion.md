@@ -195,10 +195,6 @@ que no está en el ERP se maneja del todo de tu lado. Recibís **400 `CLIENTE_IN
 0% de descuento y mostrás tu precio de lista. No hay nada que construir de ninguno de los dos
 lados.
 
-Si en algún momento necesitás que un cliente nuevo también reciba descuentos, ahí sí hay que
-resolverlo (que el alta pase primero por el ERP, o un cliente genérico por distribuidora) y
-ninguna opción es gratis. Hablemos antes de implementarlo.
-
 ---
 
 ## Errores
