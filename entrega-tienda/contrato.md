@@ -27,7 +27,8 @@ Si la tienda trabaja con más de una distribuidora, cada una tiene su código y 
 4. **Mandá el carrito entero**, en una llamada, con cada artículo una sola vez. Hay descuentos que
    dependen de toda la venta (cantidades mínimas, marcas, rubros).
 5. **Relacioná las líneas por `codigo`, no por posición.** El orden de la respuesta no es el del
-   carrito, y puede venir una línea de más: un regalo de una promo (`creadaPorPromo: true`).
+   carrito, y puede venir una línea de más: un regalo de una promo (`creadaPorPromo: true`), que se
+   muestra como regalo, **no se cobra y no va a MotorFiscal**.
 
 ---
 
@@ -110,7 +111,7 @@ mismo artículo da el mismo 10% con `precioUnitario: 1000` (neto 6000, tu precio
 | **`lineas[].descuento`** | **El porcentaje a aplicar** sobre tu neto de esa línea: `10` = 10%. `0` si no tiene descuento |
 | `lineas[].codigo` | El código del artículo, siempre como texto |
 | `lineas[].neto`, `lineas[].netoConDescuento` | El mismo cálculo hecho por el ERP (precio × cantidad, y menos el descuento). Con tu precio coincide con el tuyo salvo centavos de redondeo: sirve para verificar |
-| `lineas[].creadaPorPromo` | `true` = **no la pidió el cliente**: la agregó una promo que regala unidades |
+| `lineas[].creadaPorPromo` | `true` = **no la pidió el cliente**: la agregó una promo que regala unidades. Se muestra como regalo, no se cobra y no va a MotorFiscal |
 | `lineas[].bonificaciones` | Qué bonificación dio el descuento (`id`, `nombre`, `descuento` en %) y qué `condiciones` la dispararon. Vacía si no hay descuento |
 | `totales` | La suma de las líneas. **Acá `descuento` está en pesos**, no en porcentaje |
 | `supuestos` | Lista de `{ codigo, mensaje }`. Vacía es lo normal. Ver abajo |
@@ -157,8 +158,8 @@ Algunas promos **regalan unidades**. La respuesta trae entonces una línea de m�
 - **La línea regalada trae el precio del ERP** (10362,87), no el tuyo: nunca le pusiste precio a algo
   que no se pidió. Por eso `totales.neto` y `totales.descuento` no sirven para un "te ahorraste $X":
   sumá el descuento de las líneas pedidas y mostrá los regalos aparte.
-- **Qué hace la tienda con un regalo** (si se agrega al pedido, cómo se entrega, si va a MotorFiscal)
-  lo define el negocio, no este servicio: preguntalo.
+- **Un regalo se trata como regalo**: se le muestra al cliente como regalo, **no se cobra** y **no va
+  a MotorFiscal**. Su `neto` es solo informativo; no se suma a nada.
 
 ---
 

@@ -51,7 +51,8 @@ de la tienda, como MotorFiscal en `/api/impuestos`.
      item.descuento = linea ? linea.descuento : 0;        // porcentaje, para mostrar
      item.netoConDescuento = aplicarDescuento(item.precio * item.cantidad, linea); // base para MotorFiscal
    }
-   const regalados = regalos(r);                          // unidades que agregó una promo
+   const regalados = regalos(r);   // unidades que regaló una promo: se muestran, no se cobran
+                                   // y no van a MotorFiscal
    ```
 4. `conDescuentos` **nunca corta la venta**. Si no se puede saber el descuento (el servicio no
    responde, el cliente no está en el ERP, etc.), devuelve 0% y el motivo en
@@ -85,15 +86,9 @@ Capturados del servicio contra el ERP real de `dyssa`, con el cliente `8380` (sa
 | `07-cliente-inexistente` | 400 `CLIENTE_INEXISTENTE`: va 0% |
 | `08-pedido-invalido` | 400 `PEDIDO_INVALIDO` (cantidad 0) |
 
-## Lo que tenés que preguntar
+## Si algo no está en el contrato
 
-Este servicio resuelve el descuento, no el resto del checkout. Los códigos de cliente y de artículo
-son los que ya usa la tienda (vienen del ERP o de Axum). Antes de implementar, confirmá con quien
-te pasó esta carpeta:
-
-- **Qué hace la tienda con un regalo** (`creadaPorPromo: true`): si se agrega al pedido, cómo se
-  entrega y si va a MotorFiscal.
-
-Lo demás está en `contrato.md`. El servicio **no** crea pedidos, **no** da de alta clientes y **no**
-calcula impuestos: si algo de la integración parece necesitarlo, es una pregunta, no algo a
-construir.
+Los códigos de cliente y de artículo son los que ya usa la tienda (vienen del ERP o de Axum). Lo
+demás está en `contrato.md`. Si algo no está ahí, preguntáselo a quien te pasó esta carpeta antes
+de suponerlo. El servicio **no** crea pedidos, **no** da de alta clientes y **no** calcula
+impuestos: si algo de la integración parece necesitarlo, es una pregunta, no algo a construir.

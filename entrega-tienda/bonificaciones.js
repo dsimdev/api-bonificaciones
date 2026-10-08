@@ -167,7 +167,10 @@ export function lineaDelItem(respuesta, codigo) {
   return respuesta.lineas.find((l) => String(l.codigo) === String(codigo) && !l.creadaPorPromo) || null;
 }
 
-/** Las líneas que agregó una promo (unidades regaladas). No las pidió el cliente. */
+/**
+ * Las líneas que agregó una promo (unidades regaladas). No las pidió el cliente: se muestran como
+ * regalo, no se cobran y no van a MotorFiscal.
+ */
 export function regalos(respuesta) {
   return respuesta.lineas.filter((l) => l.creadaPorPromo);
 }
