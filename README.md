@@ -25,7 +25,7 @@ tiene que resolver todo eso de nuevo. Este servicio lo resuelve una vez.
 
 ## El panel
 
-En **<http://localhost:8080/admin>**, embebido en el mismo jar. Desde ahí se da de alta una
+En **<http://localhost:8081/admin>**, embebido en el mismo jar. Desde ahí se da de alta una
 distribuidora **probando la credencial contra GESCOM antes de guardar** (si no anda, no se guarda
 nada), se vuelve a probar una credencial ya cargada, y se **prueba una valorización mostrando las
 tres capas**: lo que le pedimos al ERP, lo que el ERP contestó crudo y lo que devolvemos nosotros.
@@ -45,9 +45,9 @@ falta instalarlo, está el wrapper. **Node** solo si se va a tocar el panel.
 .\arrancar.ps1 -Build
 ```
 
-- panel: <http://localhost:8080/admin>
-- salud: <http://localhost:8080/health> — dice si está leyendo de la base (`"origen": "BASE"`)
-- swagger: <http://localhost:8080/swagger-ui.html>
+- panel: <http://localhost:8081/admin>
+- salud: <http://localhost:8081/health> — dice si está leyendo de la base (`"origen": "BASE"`)
+- swagger: <http://localhost:8081/swagger-ui.html>
 
 En el `.env` (gitignored) van los secretos del entorno: `CIFRADO_KEY` (cifra las claves de GESCOM),
 y `USUARIO_INICIAL` / `CLAVE_INICIAL` para el primer usuario del panel. **Las credenciales de las

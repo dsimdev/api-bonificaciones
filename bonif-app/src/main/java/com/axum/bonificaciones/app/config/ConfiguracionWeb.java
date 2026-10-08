@@ -2,6 +2,7 @@ package com.axum.bonificaciones.app.config;
 
 import com.axum.bonificaciones.app.seguridad.InterceptorDeApiKey;
 import com.axum.bonificaciones.app.seguridad.InterceptorDeSesion;
+import com.axum.bonificaciones.app.soporte.InterceptorDeRegistro;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -19,15 +20,28 @@ public class ConfiguracionWeb implements WebMvcConfigurer {
 
     private final InterceptorDeSesion sesion;
     private final InterceptorDeApiKey apiKey;
+    private final InterceptorDeRegistro registro;
 
     ConfiguracionWeb(ObjectProvider<InterceptorDeSesion> sesion,
-                     ObjectProvider<InterceptorDeApiKey> apiKey) {
+                     ObjectProvider<InterceptorDeApiKey> apiKey,
+                     ObjectProvider<InterceptorDeRegistro> registro) {
         this.sesion = sesion.getIfAvailable();
         this.apiKey = apiKey.getIfAvailable();
+        this.registro = registro.getIfAvailable();
     }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // PRIMERO, y esto importa: Spring corre los preHandle en el orden en que se registran, y
+        // cuando uno rechaza el pedido solo llama al afterCompletion de los que ya habian pasado.
+        // Registrado al final, este interceptor no veia NINGUN pedido rechazado por la
+        // autenticacion -- justo el que hace que nadie entienda por que la tienda "no funciona".
+        // Verificado en vivo: con el orden invertido, un pedido sin api-key no quedaba registrado.
+        // Primero tambien significa que mide el tiempo completo, autenticacion incluida.
+        if (registro != null) {
+            registry.addInterceptor(registro).addPathPatterns("/v1/**");
+        }
+
         if (sesion != null) {
             // /admin/v1/** y NO /admin/**: bajo /admin viven dos cosas distintas -- la API de
             // administracion y los archivos del panel (/admin/index.html, /admin/_next/...).

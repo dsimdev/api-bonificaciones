@@ -1,10 +1,6 @@
 package com.axum.bonificaciones.app.web;
 
-import com.axum.bonificaciones.core.model.Condicion;
-import com.axum.bonificaciones.core.model.Criterio;
 import com.axum.bonificaciones.core.model.Fuente;
-import com.axum.bonificaciones.core.model.Modificador;
-import com.axum.bonificaciones.core.model.Operacion;
 import com.axum.bonificaciones.core.puerto.CatalogoDeCriterios;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,6 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * Es de consulta: sirve para ver que bonificaciones hay cargadas y para soporte ("por que este
  * cliente no tiene tal promo"). El numero de un pedido NO sale de aca, sale de /valorizaciones.
+ *
+ * Pide api-key de alcance ADMIN: es la estructura comercial completa de la distribuidora y la
+ * clave del checkout vive en un navegador. El panel lo lee por /admin con la sesion, no con una
+ * api-key -- ver CatalogoAdminController.
  */
 @RestController
 @RequestMapping("/v1/{tenant}")
@@ -46,63 +46,24 @@ public class CriteriosController {
             @RequestParam(defaultValue = "false") boolean incluirNoVigentes,
             @Parameter(description = "Fecha a la que evaluar la vigencia; por defecto, hoy")
             @RequestParam(required = false) LocalDate fecha) {
+        return catalogoDe(catalogo, reloj, tenant, incluirNoVigentes, fecha);
+    }
 
+    /**
+     * Compartido con el panel: el que opera tiene que ver EXACTAMENTE lo mismo que ve el
+     * integrador, no una segunda version del catalogo que se despegue de esta.
+     */
+    static Dtos.CriteriosResponse catalogoDe(CatalogoDeCriterios catalogo, Clock reloj,
+                                             String tenant, boolean incluirNoVigentes,
+                                             LocalDate fecha) {
         var alDia = fecha != null ? fecha : LocalDate.now(reloj);
 
         var criterios = catalogo.criterios(tenant).stream()
                 .filter(c -> incluirNoVigentes || c.aplicableEn(alDia))
-                .map(this::aResponse)
+                .map(Dtos::criterioDe)
                 .toList();
 
         return new Dtos.CriteriosResponse(Fuente.GESCOM, tenant, OffsetDateTime.now(reloj),
                 criterios.size(), criterios);
-    }
-
-    private Dtos.CriterioResponse aResponse(Criterio c) {
-        return new Dtos.CriterioResponse(
-                c.id(),
-                c.nombre(),
-                c.descripcion(),
-                c.activo(),
-                c.vigencia() == null ? null : c.vigencia().desde(),
-                c.vigencia() == null ? null : c.vigencia().hasta(),
-                c.clientes(),
-                // Solo las que estan en juego: el catalogo real trae condiciones huerfanas que
-                // ningun combinador referencia y que no participan de la evaluacion.
-                c.condicionesHoja().stream().map(this::aCondicion).toList(),
-                c.modificadores().stream().map(m -> aModificador(c, m)).toList());
-    }
-
-    private Dtos.ModificadorResponse aModificador(Criterio criterio, Modificador m) {
-        var aplicaA = criterio.condicionesDe(m).stream().map(this::aCondicion).toList();
-
-        return switch (m.operacion()) {
-            case Operacion.Descuento d -> new Dtos.ModificadorResponse(
-                    "DESCUENTO", m.descripcion(), d.descuento(), d.tope(),
-                    null, null, null, null, null, aplicaA);
-
-            case Operacion.EscalaDeDescuento e -> new Dtos.ModificadorResponse(
-                    "ESCALA", m.descripcion(), null, null,
-                    e.tramos().stream()
-                            .map(t -> new Dtos.TramoResponse(t.desdeCantidad(), t.descuento()))
-                            .toList(),
-                    null, null, null, null, aplicaA);
-
-            case Operacion.ItemSinCargo i -> new Dtos.ModificadorResponse(
-                    "ITEM_SIN_CARGO", m.descripcion(), null, null, null,
-                    i.codigoItem(), i.cantidad(), null, null, aplicaA);
-
-            // No se oculta: si GESCOM trae un modificador que no sabemos interpretar, el
-            // consumidor tiene que verlo. El numero de /valorizaciones igual sale bien, porque
-            // lo da eval-pedido; lo que no podemos es explicarlo.
-            case null -> new Dtos.ModificadorResponse(
-                    "NO_RECONOCIDO", m.descripcion(), null, null, null, null, null,
-                    m.tipo(), m.crudo(), aplicaA);
-        };
-    }
-
-    private Dtos.CondicionResponse aCondicion(Condicion c) {
-        return new Dtos.CondicionResponse(c.tipo().name(), c.descripcion(), c.valores(),
-                c.invertida(), c.cantidadMinima());
     }
 }

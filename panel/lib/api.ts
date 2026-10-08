@@ -1,6 +1,8 @@
 'use client';
 
-import type { Creada, Diagnostico, Distribuidora, Resultado, Sesion, Usuario } from './tipos';
+import type {
+  Actividad, Creada, Criterios, Diagnostico, Distribuidora, Resultado, Sesion, Usuario,
+} from './tipos';
 
 /**
  * Cliente de la API de administracion. Dos cosas definen como funciona:
@@ -120,6 +122,15 @@ export const api = {
   diagnosticar: (codigo: string, pedido: PedidoAProbar) =>
     pedir<Diagnostico>('POST',
       `/admin/v1/distribuidoras/${encodeURIComponent(codigo)}/diagnostico/valorizacion`, pedido),
+
+  // El catalogo por /admin y no por /v1/{tenant}/criterios: asi el panel no tiene que guardar
+  // una api-key de alcance ADMIN de cada distribuidora en el navegador.
+  criterios: (codigo: string, incluirNoVigentes: boolean) =>
+    pedir<Criterios>('GET',
+      `/admin/v1/distribuidoras/${encodeURIComponent(codigo)}/criterios`
+      + `?incluirNoVigentes=${incluirNoVigentes}`),
+
+  actividad: () => pedir<Actividad[]>('GET', '/admin/v1/metricas'),
 
   usuarios: () => pedir<Usuario[]>('GET', '/admin/v1/usuarios'),
   crearUsuario: (usuario: string, clave: string, nombre: string) =>

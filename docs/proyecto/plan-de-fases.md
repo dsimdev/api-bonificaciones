@@ -217,7 +217,7 @@ artefacto para deployar.
 > aplicación anidada, hay que compilarlo con el prefijo de ruta completo o queda en blanco con
 > 404. En `api-impuestos` ese bug **llegó a producción tres veces** (el redirect de `/admin`,
 > `swagger-ui.url` y `swagger-ui.config-url`). Toda URL que el panel arme para sí mismo sale de
-> configuración, y se prueba **a través** del proxy, nunca contra `localhost:8080` directo. Desde
+> configuración, y se prueba **a través** del proxy, nunca contra `localhost:8081` directo. Desde
 > que exista el panel, eso es parte del checklist de deploy.
 
 ### 3d — Endurecer y deployar · v0.6.x

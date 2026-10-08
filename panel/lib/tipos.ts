@@ -113,3 +113,60 @@ export interface ItemAProbar {
   codigo: string;
   cantidad: string;
 }
+
+// --- El catalogo de criterios de venta (las bonificaciones cargadas en GESCOM)
+
+export interface Tramo {
+  desdeCantidad: number;
+  /** PORCENTAJE a partir de esa cantidad */
+  descuento: number;
+}
+
+/**
+ * Que hace la bonificacion. `tipo` discrimina que campos vienen cargados.
+ *
+ * NO_RECONOCIDO = GESCOM trajo un tipo que no sabemos interpretar. No se oculta a proposito:
+ * tragarselo hace que una promo desaparezca sin que nadie se entere.
+ */
+export interface Modificador {
+  tipo: 'DESCUENTO' | 'ESCALA' | 'ITEM_SIN_CARGO' | 'NO_RECONOCIDO';
+  descripcion: string | null;
+  descuento: number | null;
+  tope: number | null;
+  tramos: Tramo[] | null;
+  codigoItem: string | null;
+  cantidad: number | null;
+  tipoEnElErp: string | null;
+  crudo: string | null;
+  aplicaA: Condicion[];
+}
+
+export interface Criterio {
+  id: string;
+  nombre: string | null;
+  descripcion: string | null;
+  activo: boolean;
+  vigenteDesde: string | null;
+  vigenteHasta: string | null;
+  clientes: string[];
+  condiciones: Condicion[];
+  bonificaciones: Modificador[];
+}
+
+export interface Criterios {
+  fuente: string;
+  tenant: string;
+  consultadoEn: string;
+  total: number;
+  criterios: Criterio[];
+}
+
+/** Contadores en memoria desde que arranco el servicio. */
+export interface Actividad {
+  tenant: string;
+  total: number;
+  fallidas: number;
+  msPromedio: number;
+  /** cuantas veces salio cada codigo de error. Vacio = ninguna fallo */
+  porCodigo: Record<string, number>;
+}

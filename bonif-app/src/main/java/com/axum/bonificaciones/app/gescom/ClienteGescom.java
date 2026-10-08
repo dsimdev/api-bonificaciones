@@ -40,16 +40,19 @@ public class ClienteGescom {
     private final RestClient http;
     private final ServicioDeToken tokens;
     private final ObjectMapper json;
+    private final Resiliencia resiliencia;
 
-    ClienteGescom(RestClient http, ServicioDeToken tokens, ObjectMapper json) {
+    ClienteGescom(RestClient http, ServicioDeToken tokens, ObjectMapper json,
+                  Resiliencia resiliencia) {
         this.http = http;
         this.tokens = tokens;
         this.json = json;
+        this.resiliencia = resiliencia;
     }
 
     public <T> T get(String tenant, Gescom config, String servicio, String comando,
                      ParameterizedTypeReference<T> tipo) {
-        return ejecutar(config, servicio, comando, () -> http.get()
+        return ejecutar(tenant, config, servicio, comando, () -> http.get()
                 .uri(url(config, servicio, comando))
                 .header("Authorization", "Bearer " + tokens.token(tenant, config))
                 .retrieve()
@@ -62,7 +65,7 @@ public class ClienteGescom {
      */
     public <T> T getConCredenciales(Gescom config, String servicio, String comando,
                                     ParameterizedTypeReference<T> tipo) {
-        return ejecutar(config, servicio, comando, () -> http.get()
+        return ejecutar(null, config, servicio, comando, () -> http.get()
                 .uri(url(config, servicio, comando))
                 .header("Authorization", "Bearer " + tokens.tokenSinCache(config))
                 .retrieve()
@@ -71,7 +74,7 @@ public class ClienteGescom {
 
     public <T> T post(String tenant, Gescom config, String servicio, String comando,
                       Object cuerpo, Class<T> tipo) {
-        return ejecutar(config, servicio, comando, () -> http.post()
+        return ejecutar(tenant, config, servicio, comando, () -> http.post()
                 .uri(url(config, servicio, comando))
                 .header("Authorization", "Bearer " + tokens.token(tenant, config))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -95,7 +98,7 @@ public class ClienteGescom {
     public <T> ConCrudo<T> postConCrudo(String tenant, Gescom config, String servicio,
                                         String comando, Object cuerpo, Class<T> tipo) {
         var enviado = aJson(cuerpo);
-        var crudo = ejecutar(config, servicio, comando, () -> http.post()
+        var crudo = ejecutar(tenant, config, servicio, comando, () -> http.post()
                 .uri(url(config, servicio, comando))
                 .header("Authorization", "Bearer " + tokens.token(tenant, config))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -145,7 +148,21 @@ public class ClienteGescom {
         return config.host() + "/data/cmd/" + servicio + "/api/v1/" + comando;
     }
 
-    private <T> T ejecutar(Gescom config, String servicio, String comando,
+    /**
+     * El unico punto por donde pasan TODAS las llamadas a GESCOM, incluido el minteo del token
+     * (que se evalua dentro del supplier). Por eso el reintento y el cortacircuito van aca y no
+     * repartidos: un solo lugar que clasifica errores y un solo lugar que decide si se insiste.
+     *
+     * @param tenant null cuando la credencial todavia no esta guardada (verificar un alta): ahi
+     *               no corre el cortacircuito. Ver {@link Resiliencia}.
+     */
+    private <T> T ejecutar(String tenant, Gescom config, String servicio, String comando,
+                           java.util.function.Supplier<T> llamada) {
+        return resiliencia.conReintento(tenant, servicio + "/" + comando,
+                () -> intentar(servicio, comando, llamada));
+    }
+
+    private <T> T intentar(String servicio, String comando,
                            java.util.function.Supplier<T> llamada) {
         try {
             return llamada.get();

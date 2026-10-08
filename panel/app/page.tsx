@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, sesion } from '../lib/api';
 import type { Distribuidora } from '../lib/tipos';
 import Acceso from './pantallas/Acceso';
+import Criterios from './pantallas/Criterios';
 import Distribuidoras from './pantallas/Distribuidoras';
 import Probar from './pantallas/Probar';
 import Usuarios from './pantallas/Usuarios';
@@ -11,6 +12,7 @@ import Usuarios from './pantallas/Usuarios';
 const TABS = [
   ['distribuidoras', 'Distribuidoras'],
   ['probar', 'Probar una valorizacion'],
+  ['criterios', 'Criterios'],
   ['usuarios', 'Usuarios'],
 ] as const;
 
@@ -82,6 +84,9 @@ export default function Panel() {
         )}
         {activa === 'probar' && (
           <Probar distribuidoras={distribuidoras ?? []} inicial={paraProbar} />
+        )}
+        {activa === 'criterios' && (
+          <Criterios distribuidoras={distribuidoras ?? []} inicial={paraProbar} />
         )}
         {activa === 'usuarios' && <Usuarios />}
       </div>

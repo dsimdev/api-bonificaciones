@@ -3,9 +3,12 @@ package com.axum.bonificaciones.app.web;
 import com.axum.bonificaciones.core.model.BonificacionAplicada;
 import com.axum.bonificaciones.core.model.CalculadoPor;
 import com.axum.bonificaciones.core.model.Condicion;
+import com.axum.bonificaciones.core.model.Criterio;
 import com.axum.bonificaciones.core.model.Fuente;
 import com.axum.bonificaciones.core.model.ItemAValorizar;
 import com.axum.bonificaciones.core.model.LineaValorizada;
+import com.axum.bonificaciones.core.model.Modificador;
+import com.axum.bonificaciones.core.model.Operacion;
 import com.axum.bonificaciones.core.model.PedidoAValorizar;
 import com.axum.bonificaciones.core.model.Valorizacion;
 import jakarta.validation.Valid;
@@ -209,5 +212,52 @@ public final class Dtos {
     public static CondicionResponse condicionDe(Condicion c) {
         return new CondicionResponse(c.tipo().name(), c.descripcion(), c.valores(),
                 c.invertida(), c.cantidadMinima());
+    }
+
+    // --- El catalogo. Lo necesitan el endpoint publico (/v1/{tenant}/criterios, con api-key de
+    // alcance ADMIN) y el panel (/admin/v1/..., con la sesion). Un solo mapeo: el panel tiene que
+    // mostrar lo mismo que ve un integrador, no una segunda version que se despegue.
+
+    public static CriterioResponse criterioDe(Criterio c) {
+        return new CriterioResponse(
+                c.id(),
+                c.nombre(),
+                c.descripcion(),
+                c.activo(),
+                c.vigencia() == null ? null : c.vigencia().desde(),
+                c.vigencia() == null ? null : c.vigencia().hasta(),
+                c.clientes(),
+                // Solo las que estan en juego: el catalogo real trae condiciones huerfanas que
+                // ningun combinador referencia y que no participan de la evaluacion.
+                c.condicionesHoja().stream().map(Dtos::condicionDe).toList(),
+                c.modificadores().stream().map(m -> modificadorDe(c, m)).toList());
+    }
+
+    private static ModificadorResponse modificadorDe(Criterio criterio, Modificador m) {
+        var aplicaA = criterio.condicionesDe(m).stream().map(Dtos::condicionDe).toList();
+
+        return switch (m.operacion()) {
+            case Operacion.Descuento d -> new ModificadorResponse(
+                    "DESCUENTO", m.descripcion(), d.descuento(), d.tope(),
+                    null, null, null, null, null, aplicaA);
+
+            case Operacion.EscalaDeDescuento e -> new ModificadorResponse(
+                    "ESCALA", m.descripcion(), null, null,
+                    e.tramos().stream()
+                            .map(t -> new TramoResponse(t.desdeCantidad(), t.descuento()))
+                            .toList(),
+                    null, null, null, null, aplicaA);
+
+            case Operacion.ItemSinCargo i -> new ModificadorResponse(
+                    "ITEM_SIN_CARGO", m.descripcion(), null, null, null,
+                    i.codigoItem(), i.cantidad(), null, null, aplicaA);
+
+            // No se oculta: si GESCOM trae un modificador que no sabemos interpretar, el
+            // consumidor tiene que verlo. El numero de /valorizaciones igual sale bien, porque
+            // lo da eval-pedido; lo que no podemos es explicarlo.
+            case null -> new ModificadorResponse(
+                    "NO_RECONOCIDO", m.descripcion(), null, null, null, null, null,
+                    m.tipo(), m.crudo(), aplicaA);
+        };
     }
 }

@@ -238,7 +238,7 @@ habilitar CORS explícitamente y es un cambio nuestro.
 ## Para probar
 
 ```bash
-curl -X POST http://localhost:8080/v1/dyssa/valorizaciones \
+curl -X POST http://localhost:8081/v1/dyssa/valorizaciones \
   -H "x-api-key: bon_tuClaveAca" \
   -H "Content-Type: application/json" \
   -d '{"cliente":"8380","listaPrecio":"2","items":[{"codigo":"5000014792","cantidad":6}]}'

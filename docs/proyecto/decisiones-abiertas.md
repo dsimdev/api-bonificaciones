@@ -206,7 +206,7 @@ ese problema llegó a producción tres veces (Swagger y el panel armando URLs ab
 raíz del dominio). Toda URL que la app arme para sí misma sale de configuración, nunca asumida.
 
 **Recomendación**: definirlo antes de la Fase 4, y si hay IIS anidado, probar **a través** del
-proxy, nunca contra `localhost:8080` directo. Lo más probable es que convenga el mismo servidor
+proxy, nunca contra `localhost:8081` directo. Lo más probable es que convenga el mismo servidor
 donde ya corre MotorFiscal, por una razón boba pero real: la tienda ya le pega ahí.
 
 ---

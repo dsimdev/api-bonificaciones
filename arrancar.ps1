@@ -1,4 +1,4 @@
-# Levanta el gateway de bonificaciones en http://localhost:8080
+# Levanta el gateway de bonificaciones en http://localhost:8081
 #
 #   .\arrancar.ps1          usa el jar ya compilado, o lo compila si no existe
 #   .\arrancar.ps1 -Build   fuerza recompilar antes de levantar
@@ -38,8 +38,8 @@ if (-not $env:CIFRADO_KEY) {
     Write-Host "     Generala con: openssl rand -hex 32   (y ponela en el .env)"
 }
 
-Write-Host "Levantando api-bonificaciones $version en http://localhost:8080  (Ctrl+C para cortar)"
-Write-Host "  panel:   http://localhost:8080/admin"
-Write-Host "  salud:   http://localhost:8080/health"
-Write-Host "  swagger: http://localhost:8080/swagger-ui.html"
+Write-Host "Levantando api-bonificaciones $version en http://localhost:8081  (Ctrl+C para cortar)"
+Write-Host "  panel:   http://localhost:8081/admin"
+Write-Host "  salud:   http://localhost:8081/health"
+Write-Host "  swagger: http://localhost:8081/swagger-ui.html"
 java -jar $jar

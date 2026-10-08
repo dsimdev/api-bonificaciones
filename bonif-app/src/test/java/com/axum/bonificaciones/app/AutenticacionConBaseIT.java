@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.axum.bonificaciones.app.seguridad.Credencial;
 import com.axum.bonificaciones.app.seguridad.RepositorioDeCredenciales;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -26,10 +27,11 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
  * No pega contra GESCOM: las distribuidoras se insertan a mano. Lo que se prueba aca es la puerta,
  * no el conector.
  *
- * <b>OJO: VACIA las tablas `credencial` y `distribuidora` de la base local</b> antes de cada test.
- * Si tenias distribuidoras cargadas a mano para probar el panel, despues de correr el build con
- * -PincludeDbTests ya no estan -- y peor, quedan las de este test, que parecen validas (activa=1)
- * pero apuntan a un puerto cerrado. Volve a darlas de alta. La tabla `usuario` no se toca.
+ * <b>No toca los datos reales de la base local.</b> Usa codigos con el prefijo "zzz-test-" y borra
+ * SOLO esos. La primera version borraba las dos tablas enteras y usaba los codigos de verdad
+ * (dyssa, senderolaser): correr el build te dejaba sin las distribuidoras que tenias cargadas para
+ * probar el panel y, peor, con las del test en su lugar -- activas, asi que parecian buenas, pero
+ * apuntando a un puerto cerrado. Paso dos veces en una tarde.
  */
 @Tag("db")
 @SpringBootTest(properties = {
@@ -58,21 +60,46 @@ class AutenticacionConBaseIT {
     RepositorioDeCredenciales credenciales;
 
     @Autowired
+    com.axum.bonificaciones.app.soporte.RegistroDeLlamadas registro;
+
+    @Autowired
     com.axum.bonificaciones.app.seguridad.CifradoDeSecretos cifrado;
 
-    private String claveDeDyssa;
-    private String claveDeSenderolaser;
-    private String claveAdminDeDyssa;
+    /**
+     * Prefijo que no puede chocar con una distribuidora de verdad: el codigo es lo que va en la
+     * URL, asi que nadie va a tener una llamada "zzz-test-...". Es lo que permite limpiar solo lo
+     * de este test en vez de vaciar las tablas.
+     */
+    private static final String UNA = "zzz-test-una";
+    private static final String OTRA = "zzz-test-otra";
+
+    private String claveDeUna;
+    private String claveDeOtra;
+    private String claveAdminDeUna;
 
     @BeforeEach
     void datos() {
-        jdbc.sql("DELETE FROM credencial").update();
-        jdbc.sql("DELETE FROM distribuidora").update();
-
-        claveDeDyssa = alta("dyssa", Credencial.Alcance.VALORIZACION);
-        claveAdminDeDyssa = credenciales.generar(idDe("dyssa"), Credencial.Alcance.ADMIN,
+        limpiar();
+        claveDeUna = alta(UNA, Credencial.Alcance.VALORIZACION);
+        claveAdminDeUna = credenciales.generar(idDe(UNA), Credencial.Alcance.ADMIN,
                 "back-office", "test");
-        claveDeSenderolaser = alta("senderolaser", Credencial.Alcance.VALORIZACION);
+        claveDeOtra = alta(OTRA, Credencial.Alcance.VALORIZACION);
+    }
+
+    @AfterEach
+    void limpiarAlFinal() {
+        // Tambien al final, no solo al principio: si no, las filas del ultimo test quedan en la
+        // base pareciendo distribuidoras validas.
+        limpiar();
+    }
+
+    private void limpiar() {
+        jdbc.sql("""
+                        DELETE FROM credencial
+                        WHERE distribuidora_id IN
+                              (SELECT id FROM distribuidora WHERE codigo LIKE 'zzz-test-%')
+                        """).update();
+        jdbc.sql("DELETE FROM distribuidora WHERE codigo LIKE 'zzz-test-%'").update();
     }
 
     /**
@@ -100,7 +127,7 @@ class AutenticacionConBaseIT {
 
     @Test
     void sinClaveNoSePuedeValorizar() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/" + UNA + "/valorizaciones")
                         .contentType("application/json").content(PEDIDO))
                 .andExpect(MockMvcResultMatchers.status().isUnauthorized())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.codigo").value("NO_AUTORIZADO"));
@@ -108,7 +135,7 @@ class AutenticacionConBaseIT {
 
     @Test
     void unaClaveInventadaNoSirve() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/" + UNA + "/valorizaciones")
                         .header("x-api-key", "bon_cualquiera")
                         .contentType("application/json").content(PEDIDO))
                 .andExpect(MockMvcResultMatchers.status().isUnauthorized());
@@ -123,12 +150,12 @@ class AutenticacionConBaseIT {
      */
     @Test
     void laClaveDeUnaDistribuidoraNoSirveParaOtra() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
-                        .header("x-api-key", claveDeSenderolaser)
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/" + UNA + "/valorizaciones")
+                        .header("x-api-key", claveDeOtra)
                         .contentType("application/json").content(PEDIDO))
                 .andExpect(MockMvcResultMatchers.status().isUnauthorized())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.mensaje")
-                        .value("Esa clave no es de la distribuidora dyssa."));
+                        .value("Esa clave no es de la distribuidora " + UNA + "."));
     }
 
     /**
@@ -137,8 +164,8 @@ class AutenticacionConBaseIT {
      */
     @Test
     void laClaveDelCheckoutNoPuedeLeerElCatalogo() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.get("/v1/dyssa/criterios")
-                        .header("x-api-key", claveDeDyssa))
+        mockMvc.perform(MockMvcRequestBuilders.get("/v1/" + UNA + "/criterios")
+                        .header("x-api-key", claveDeUna))
                 .andExpect(MockMvcResultMatchers.status().isForbidden())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.codigo").value("ALCANCE_INSUFICIENTE"));
     }
@@ -147,21 +174,47 @@ class AutenticacionConBaseIT {
     void laClaveAdminSiPuedeLeerElCatalogo() throws Exception {
         // Pasa la puerta y muere en el conector contra un puerto cerrado: 503, no 403. Lo que se
         // prueba es que el alcance ADMIN NO la rechaza.
-        mockMvc.perform(MockMvcRequestBuilders.get("/v1/dyssa/criterios")
-                        .header("x-api-key", claveAdminDeDyssa))
+        mockMvc.perform(MockMvcRequestBuilders.get("/v1/" + UNA + "/criterios")
+                        .header("x-api-key", claveAdminDeUna))
                 .andExpect(MockMvcResultMatchers.status().isServiceUnavailable())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.codigo").value("FUENTE_NO_DISPONIBLE"));
     }
 
     @Test
     void generarUnaClaveNuevaRevocaLaAnterior() throws Exception {
-        var vieja = claveDeDyssa;
-        var nueva = credenciales.generar(idDe("dyssa"), Credencial.Alcance.VALORIZACION,
+        var vieja = claveDeUna;
+        var nueva = credenciales.generar(idDe(UNA), Credencial.Alcance.VALORIZACION,
                 "checkout", "test");
 
         assertNotEquals(vieja, nueva);
         assertTrue(credenciales.buscarPorClave(vieja).isEmpty(), "la vieja tiene que quedar revocada");
-        assertEquals("dyssa", credenciales.buscarPorClave(nueva).orElseThrow().tenant());
+        assertEquals(UNA, credenciales.buscarPorClave(nueva).orElseThrow().tenant());
+    }
+
+    /**
+     * EL TEST QUE ATRAPA UN BUG DE ORDEN DE INTERCEPTORES.
+     *
+     * Un pedido rechazado por la autenticacion tiene que quedar REGISTRADO. Es el caso que mas
+     * seguido explica un "la tienda dice que no funciona": la clave vencio o la cambiaron, y sin
+     * esto en el panel no se ve ni un intento, asi que parece que la tienda nunca llamo.
+     *
+     * Spring solo llama al afterCompletion de los interceptores que ya habian pasado cuando otro
+     * rechaza el pedido. Con el de registro anotado DESPUES del de api-key, estos 401 no se
+     * contaban -- y este es el unico test que puede verlo, porque el interceptor de api-key solo
+     * existe con la base enchufada.
+     */
+    @Test
+    void unPedidoSinClaveQuedaRegistrado() throws Exception {
+        registro.olvidarTodo();
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/" + UNA + "/valorizaciones")
+                        .contentType("application/json").content(PEDIDO))
+                .andExpect(MockMvcResultMatchers.status().isUnauthorized());
+
+        var actividad = registro.actividad();
+        assertEquals(1, actividad.size(), "el 401 tiene que quedar registrado");
+        assertEquals(1, actividad.get(0).fallidas());
+        assertEquals(1L, actividad.get(0).porCodigo().get("NO_AUTORIZADO"));
     }
 
     /** /health no pide clave: lo mira el monitoreo y no expone nada de ninguna distribuidora. */

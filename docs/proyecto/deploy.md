@@ -67,7 +67,7 @@ deploy detrás de proxy anidado es un artefacto distinto** del que se prueba en 
 
 | Cómo entra el navegador | Cómo se compila | Jar que sale |
 |---|---|---|
-| `http://servidor:8080/admin` (directo a Spring) | `gradlew build` | `bonif-app-X.Y.Z.jar` |
+| `http://servidor:8081/admin` (directo a Spring) | `gradlew build` | `bonif-app-X.Y.Z.jar` |
 | `https://dominio/api/bonificaciones/admin` (IIS lo cuelga anidado) | `gradlew build -PpanelBasePath=/api/bonificaciones/admin` | `bonif-app-X.Y.Z-prod.jar` |
 
 El `-prod` del nombre no es cosmético: sin él los dos jars se llaman igual y un build local
@@ -77,7 +77,7 @@ Si se compila con el basePath equivocado, **el panel queda en blanco con 404 en 
 API no es el problema. En api-impuestos ese bug llegó a producción **tres veces**. El detalle de
 por qué está en el comentario de `panel/next.config.mjs`.
 
-**Probar el panel a través del proxy, nunca contra `localhost:8080` directo.** Contra localhost
+**Probar el panel a través del proxy, nunca contra `localhost:8081` directo.** Contra localhost
 anda igual con el basePath mal, así que esa prueba no detecta nada.
 
 ### Verificación del panel

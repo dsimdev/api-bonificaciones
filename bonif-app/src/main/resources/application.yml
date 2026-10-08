@@ -1,5 +1,9 @@
 server:
-  port: ${PORT:8080}
+  # 8081 y no 8080: en el servidor esto convive con MotorFiscal, que escucha en 8080 (ver su
+  # motorfiscal.xml). Dos servicios en el mismo puerto no arrancan los dos, y el segundo falla
+  # con un "Address already in use" que no dice de quien es el puerto. El default local es el
+  # mismo que el de produccion a proposito: asi lo que se prueba en local es lo que corre.
+  port: ${PORT:8081}
 
 spring:
   application:
@@ -17,6 +21,21 @@ spring:
     locations: classpath:db/migration
 
 bonificaciones:
+  gescom:
+    # Timeouts hacia GESCOM. Cortos a propósito: esto se llama en un checkout, y una fuente que
+    # tarda 30 segundos es una venta perdida igual que una caída, pero además deja al consumidor
+    # colgado. Configurables porque no sabemos cuánto tarda GESCOM en el servidor real.
+    timeout-conexion-segundos: ${GESCOM_TIMEOUT_CONEXION:5}
+    timeout-lectura-segundos: ${GESCOM_TIMEOUT_LECTURA:15}
+
+    # Cortacircuito por distribuidora: después de N INTENTOS fallidos seguidos se falla rápido en
+    # vez de esperar el timeout completo en cada checkout. Son INTENTOS, no pedidos: cada
+    # valorización que falla gasta dos (el original y el reintento), así que 4 = dos
+    # valorizaciones fallidas seguidas. Ver Resiliencia.
+    intentos-fallidos-para-abrir: ${GESCOM_INTENTOS_PARA_ABRIR:4}
+    cortacircuito-segundos: ${GESCOM_CORTACIRCUITO_SEGUNDOS:30}
+    espera-reintento-ms: ${GESCOM_ESPERA_REINTENTO_MS:200}
+
   # Clave de cifrado de los secretos de terceros (las claves de API de GESCOM). Sin esto, dar de
   # alta una distribuidora falla explicito: preferible eso a guardar una clave sin cifrar de
   # verdad. Generarla con: openssl rand -hex 32

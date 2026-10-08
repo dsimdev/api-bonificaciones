@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api } from '../../lib/api';
 import type { Creada, Distribuidora } from '../../lib/tipos';
 import { Tarjeta, Aviso, cuando, useAccion } from '../componentes';
+import ActividadCard from './ActividadCard';
 
 /**
  * Alta de distribuidoras y estado de las que ya estan.
@@ -79,6 +80,10 @@ export default function Distribuidoras(
     <>
       <Aviso tipo="error">{a.error}</Aviso>
       <Aviso tipo="ok">{a.ok}</Aviso>
+
+      {/* Arriba de todo: "la tienda dice que no funciona" empieza por saber si las llamadas
+          estan llegando. Se oculta sola si todavia no hubo ninguna. */}
+      <ActividadCard />
 
       {creada && (
         <Tarjeta titulo={'Clave de la tienda — ' + creada.codigo}>

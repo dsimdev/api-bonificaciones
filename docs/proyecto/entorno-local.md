@@ -27,10 +27,10 @@ UNIQUE.
 .\arrancar.ps1            # usa el jar ya compilado
 ```
 
-- **panel: <http://localhost:8080/admin>**
-- salud: <http://localhost:8080/health>
-- swagger: <http://localhost:8080/swagger-ui.html>
-- spec OpenAPI: <http://localhost:8080/v3/api-docs>
+- **panel: <http://localhost:8081/admin>**
+- salud: <http://localhost:8081/health>
+- swagger: <http://localhost:8081/swagger-ui.html>
+- spec OpenAPI: <http://localhost:8081/v3/api-docs>
 
 `/health` devuelve la versión que está corriendo de verdad (la embebe el build), **de dónde está
 leyendo las distribuidoras** (`"origen": "BASE"` o `CONFIGURACION`) y cuáles son. Un deploy que
