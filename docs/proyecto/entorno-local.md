@@ -89,10 +89,9 @@ reales, o una base. Así `gradlew build` sigue verde en cualquier máquina y sin
 **`cleanTest` no es opcional** en los dos últimos: sin él Gradle los da por *up to date* y no los
 vuelve a correr, con lo cual parece que pasaron.
 
-> ⚠️ **`-PincludeDbTests` vacía `distribuidora` y `credencial` de la base local.** Si tenías
-> distribuidoras cargadas a mano para probar el panel, después del build ya no están — y quedan las
-> del test, que parecen válidas pero apuntan a un puerto cerrado. Hay que volver a darlas de alta.
-> La tabla `usuario` no se toca.
+Los de `-PincludeDbTests` usan distribuidoras con prefijo `zzz-test-` y borran solo esas, antes y
+después de cada test: lo que tengas cargado a mano en la base local no se toca. (Hasta el
+2026-10-08 vaciaban las tablas enteras y se llevaron las altas manuales dos veces.)
 ## Pegarle a GESCOM a mano
 
 El token de Keycloak dura **5 minutos**, así que hay que mintearlo y usarlo en el mismo script —

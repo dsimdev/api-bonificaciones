@@ -13,7 +13,7 @@ esta — el que integra la tienda nunca lo toca.
 
 ```
 LEEME.md                       ← esto
-bonif-app-0.2.0-prod.jar       ← el jar de producción, YA compilado (ver abajo)
+bonif-app-0.6.0-prod.jar       ← el jar de producción, YA compilado (ver abajo)
 scripts/
   crear-base.sql               ← crea la base y el login de SQL
   deploy.ps1                   ← build + subida + restart por FTP/WinRM (para los RE-deploys)
@@ -38,20 +38,15 @@ dos diferencias por venir el jar ya hecho.
 
 ## El jar ya está compilado — saltate el paso 2 de la guía
 
-El paso 2 de la guía te dice que compiles el jar vos. **No hace falta: `bonif-app-0.2.0-prod.jar` ya
-está en esta carpeta**, horneado para la ruta `/api/bonificaciones/admin` (verificado abriendo el
-jar). Copialo tal cual como dice el paso 3.
+El paso 2 de la guía te dice que compiles el jar vos. **No hace falta: `bonif-app-0.6.0-prod.jar` ya
+está en esta carpeta**, horneado para la ruta `/api/bonificaciones` (verificado abriendo el jar, y
+probado a través del simulador de proxy anidado: `/health`, el panel, el login y Swagger). Copialo
+tal cual como dice el paso 3. El `/health` del servidor tiene que decir `"version": "0.6.0"`.
 
 **La única condición es que IIS lo cuelgue en `/api/bonificaciones`** (paso 4 de la guía). El
 `basePath` del panel está horneado en el jar: si lo montás en otra ruta, el panel carga en blanco con
 404 y hay que **recompilar** — y para eso necesitás el repo `api-bonificaciones`, no alcanza esta
 carpeta. Pedilo si la ruta va a ser otra. Si es la planificada, no toques nada.
-
-## La versión va a decir 0.2.0, y está bien
-
-El `/health` del servidor va a reportar **0.2.0**. El código es el actual, con todo lo que hay; el
-número sube a 0.6.0 recién en el próximo deploy, porque el bump va atado al push y al CHANGELOG. Para
-este primer deploy, 0.2.0 es el artefacto real — **no es un jar viejo**.
 
 ## Los secretos se generan en el servidor, no viajan en esta carpeta
 
@@ -59,6 +54,10 @@ este primer deploy, 0.2.0 es el artefacto real — **no es un jar viejo**.
 primer usuario del panel. **Nada de eso está acá a propósito**: un `.xml` o `.env` con secretos
 adentro se sube por FTP y todo lo que tenga viaja. Guardá lo que imprime ese paso; la `CIFRADO_KEY`
 es la que no se puede perder, porque cifra las claves de GESCOM de todas las distribuidoras.
+
+Tiene que quedar como variable de entorno **de máquina** (así la deja el script). Si el servicio
+arranca sin ella, levanta igual, pero toda valorización falla con un 500 al querer descifrar la
+clave de GESCOM. Si ves eso, es lo primero que hay que revisar.
 
 ---
 

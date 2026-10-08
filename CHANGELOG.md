@@ -6,6 +6,107 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-10-08
+
+First release that actually reaches the remote. 0.3.0 to 0.5.0 were planned as separate releases
+but every push failed until 2026-10-08, so their changes are folded in here. The local `v0.2.0` tag
+sits on the commit that introduced the database without bumping the version, so that work is listed
+here too and is not part of 0.2.0.
+
+### Breaking
+No deployed consumer exists yet, so nothing actually breaks — listed because the contract changed.
+- **`/v1/**` now requires `x-api-key`.** It was open: anyone with the URL could read any
+  distributor's prices and discounts.
+- The `LISTA_PRECIO_NO_ENVIADA` assumption is replaced by `SIN_PRECIO_NI_LISTA` (names the items
+  left without a price) and `PRECIO_Y_LISTA_JUNTOS`.
+- Default port is **8081**. It shares the server with MotorFiscal, which listens on 8080, and the
+  second service to start would die with an `Address already in use` that does not say whose port it is.
+
+### Added
+- **Distributors live in SQL Server + Flyway**, not in env vars: ~1000 tenants, and onboarding one
+  cannot mean restarting the service. GESCOM passwords are third-party secrets we must read back to
+  mint tokens, so they are **encrypted** (AES-256-GCM, `CIFRADO_KEY`), not hashed; without the key
+  onboarding fails explicitly. `/health` reports where distributors are read from (`BASE` or
+  `CONFIGURACION`) so a deploy that lost its database shows up there.
+- **Named panel users** (BCrypt, revocable session token), not a shared password: a shared one
+  cannot tell who misconfigured a distributor nor be revoked for one person. The first user is
+  created only on an empty table and defaults to `admin`; the name is a convention, not a role.
+- **Onboarding tests end to end before saving**: mints a token and pulls the catalogue; if that
+  fails nothing is stored. Errors are 400 in plain Spanish, because a mis-pasted password is the
+  operator's mistake, not the source's.
+- **API keys bound to the route's tenant, with scopes.** dyssa's key on `/v1/senderolaser` is 401,
+  not 200 with someone else's data. The checkout key lives in a browser, so `VALORIZACION` can only
+  valorize; the full catalogue needs `ADMIN` (403 `ALCANCE_INSUFICIENTE` otherwise). Keys are stored
+  as SHA-256, compared in constant time, shown in clear once. Per-tenant `DEMASIADOS_INTENTOS` (429)
+  so a 32-hex key cannot be brute-forced silently.
+- **`items[].precioUnitario`** (optional, per unit). The store sets its own price and wants our
+  discount trace. Verified live that GESCOM's `PrecioUnitario` works and the ERP still applies the
+  same criteria, which is why `calculadoPor` stays `ERP` — had it not worked we would have had to
+  compute the number ourselves. Mixed carts (some items priced, some not) are valid on purpose;
+  unpriced items omit the field (`NON_NULL`) so the ERP uses the list for them.
+- **Admin panel at `/admin`**, a Next static export inside the jar (same origin: no CORS, one
+  artifact). Screens: onboarding, status, valorisation diagnostic, criteria, users.
+- **Valorisation diagnostic** (`POST /admin/v1/distribuidoras/{codigo}/diagnostico/valorizacion`).
+  When a store disputes a discount there are three suspects indistinguishable from outside: the ERP,
+  our normalisation, the store. It returns all three layers — the request in GESCOM's field names
+  (pastes into Postman), the ERP's raw response, ours, and a line-by-line comparison. Unlike the
+  public endpoint it does **not** reject incoherent lines: that is the case one needs to look at.
+- **Criteria screen** via `GET /admin/v1/distribuidoras/{codigo}/criterios` with the panel session,
+  so the panel never stores an `ADMIN` key per distributor in a browser. Shows non-current criteria
+  behind a filter ("it worked last week" is usually an expired promo) and unrecognised modifiers raw.
+- **Resilience** at the single choke point for GESCOM calls (token minting included): one retry, not
+  three — safe because `eval-pedido` is a dry run, but someone is waiting at a checkout. Only
+  `FUENTE_NO_DISPONIBLE` is retried; a rejected order neither retries nor counts toward the breaker,
+  or one store's integration bug would mark its distributor down for everyone. **Per-tenant circuit
+  breaker**, skipped for unsaved credentials. Timeouts are configuration.
+- **Per-tenant metrics** (`GET /admin/v1/metricas`) and one log line per call, with no secrets and
+  no request body. The domain error code travels from the error handler to the interceptor as a
+  request attribute, otherwise the panel would show `HTTP_502` instead of `FUENTE_NO_DISPONIBLE`.
+- **Deploy kit** (`scripts/`): system and IIS preparation, WinSW service, `web.config`, `deploy.ps1`
+  (builds the production jar, opens it to verify the panel's baked base path, uploads versioned,
+  verifies through the proxy) and `simular-proxy-anidado.ps1`, which reproduces the nested-proxy
+  topology locally. Secrets stay in machine env vars, never in files that travel by FTP.
+- The production jar is a separate artifact (`-PpanelBasePath`, `-prod` classifier): the panel's
+  base path is baked at build time, and without the classifier a later local build silently
+  overwrote the verified one.
+- Postman collection and two self-contained handoff folders: `entrega-tienda/` (checkout
+  integration: rules, ES module, contract, eight live examples) and `entrega-servidor/` (first
+  deploy; the jar itself is gitignored).
+
+### Fixed
+- **Swagger behind the nested proxy** built its URLs against the domain root and would have shown
+  "Failed to load remote configuration". Found by the simulator before any deploy. Both
+  `swagger-ui.url` **and** `config-url` must be set: springdoc builds `configUrl` with its own
+  auto-detection and ignores `url`. `externalBasePath` is a declared `processResources` input, or
+  Gradle would not invalidate it when the base path changes.
+- The session interceptor covered `/admin/**`, which includes the panel's own files: the login page
+  itself would have been 401. Now `/admin/v1/**`. `/admin` forwards (never redirects — a redirect
+  builds `Location` from the path this process sees and lands at the domain root behind the proxy).
+- The call-recording interceptor ran after the API-key one, and Spring only calls `afterCompletion`
+  on interceptors that already passed: **no auth-rejected call was recorded** — exactly the case
+  that explains most "it doesn't work" reports. Found live; it now runs first.
+- The breaker counts **attempts**, not orders, so with the retry it opened after half the failed
+  valorisations its name suggested. Renamed to `intentos-fallidos-para-abrir`, maths in the javadoc.
+- `AutenticacionConBaseIT` emptied `distribuidora` and `credencial` using real codes, wiping
+  manually onboarded distributors twice and leaving active-looking ones pointing at a closed port.
+  Now uses `zzz-test-` codes and deletes only those.
+- `bonificaciones.xml` and `web.config` were invalid XML (`--` inside comments). WinSW and IIS would
+  have rejected both.
+
+### Notes
+- **A free line created by a promo carries the ERP's price in `neto`**, even when the store sent
+  `precioUnitario`. `netoConDescuento` is still right (0 on that line), but `totales.neto` mixes both
+  prices and a savings figure computed from it is inflated. The handoff module's `ahorro()` splits
+  savings into an exact discount amount plus a list of gifts with no amount, since the gateway never
+  saw the store's price for an item nobody ordered.
+- The item's price list changes the price but **not** which criterion applies (verified with lists
+  2 and 3).
+- Unverified: `precioUnitario` with `unidadFactor` ≠ 1 (the ERP validates the unit against the
+  item), and how two discounts on one line compose.
+- A valorisation takes 1.7–2.0 s with everything cached, almost all of it `eval-pedido`.
+- The deploy scripts pass the PowerShell parser and the XML validates, but **none has run against
+  the real server yet**. Per-credential quotas are deferred until there is real traffic to measure.
+
 ## [0.2.0] - 2026-10-07
 
 ### Added

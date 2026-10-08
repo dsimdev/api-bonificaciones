@@ -3,14 +3,18 @@
 Gateway de **bonificaciones / criterios de venta**. Consume la API de **GESCOM** y la devuelve
 detrás de un contrato propio y estable.
 
-**Versión actual: 0.2.0** — valoriza pedidos contra GESCOM. **Solo GESCOM**: Axum quedó fuera de
+**Versión actual: 0.6.0** — valoriza pedidos contra GESCOM con el precio de la tienda o una lista
+del ERP, con clave por distribuidora y panel de administración. **Solo GESCOM**: Axum quedó fuera de
 alcance (la tienda lo consume directo).
 
 ```
-POST /v1/{tenant}/valorizaciones
-{ "cliente": "8380", "listaPrecio": "2",
-  "items": [ { "codigo": "5000014792", "cantidad": 6, "unidad": "Unidad" } ] }
+POST /v1/{tenant}/valorizaciones            x-api-key: <clave de la distribuidora>
+{ "cliente": "8380",
+  "items": [ { "codigo": "5000014792", "cantidad": 6, "precioUnitario": 1000 } ] }
 ```
+
+Cada ítem lleva el precio de la tienda (`precioUnitario`, por unidad) o se valoriza con
+`listaPrecio`. El descuento lo calcula siempre el ERP.
 
 Devuelve cada línea con su neto, su descuento y **qué bonificación lo otorgó, con las condiciones
 que la dispararon**. El descuento va en **porcentaje** (`10` = 10%). `calculadoPor` dice si el
@@ -63,8 +67,8 @@ distribuidoras ya no van en el `.env`**: se cargan desde el panel. Detalle en
 ```
 
 `cleanTest` no es opcional en los dos últimos: sin él Gradle los da por *up to date* y no los
-corre. **Los que llevan `-PincludeDbTests` vacían `distribuidora` y `credencial` de la base
-local** — después hay que volver a dar de alta lo que tuvieras cargado a mano.
+corre. Los de `-PincludeDbTests` usan distribuidoras con prefijo `zzz-test-` y borran solo esas:
+lo que tengas cargado a mano en la base local no se toca.
 
 Para un deploy detrás de un proxy anidado, el panel se compila distinto:
 `-PpanelBasePath=/api/bonificaciones/admin`. Ver [docs/proyecto/deploy.md](docs/proyecto/deploy.md),
@@ -80,12 +84,16 @@ que explica por qué saltearlo deja el panel en blanco.
 
 ## Documentación
 
-- **[docs/guia-de-integracion.md](docs/guia-de-integracion.md) — el contrato, para quien integra la
-  tienda.** Es lo que hay que pasarle al dev del checkout, junto con
-  [`postman/`](postman/ApiBonificaciones.postman_collection.json).
+- **[entrega-tienda/](entrega-tienda/LEEME.md) — la carpeta para quien integra el checkout.** Se
+  pasa entera: reglas, módulo JS, contrato, Postman y ejemplos reales.
+- **[entrega-servidor/](entrega-servidor/LEEME.md) — la carpeta para quien instala en el
+  servidor.** Lleva el jar de producción (que no está en git: se compila con
+  `-PpanelBasePath=/api/bonificaciones/admin`) y los scripts.
 
-- **[scripts/servidor/GUIA-PRIMER-DEPLOY.md](scripts/servidor/GUIA-PRIMER-DEPLOY.md)** — los pasos
-  del primer deploy, en orden, para quien instala en el servidor.
+- [docs/guia-de-integracion.md](docs/guia-de-integracion.md) — el contrato (fuente de verdad del que
+  está en `entrega-tienda/`).
+- [scripts/servidor/GUIA-PRIMER-DEPLOY.md](scripts/servidor/GUIA-PRIMER-DEPLOY.md) — los pasos del
+  primer deploy, en orden.
 
 - [docs/proyecto/deploy.md](docs/proyecto/deploy.md) — el *por qué* del deploy: el puerto, la ruta
   de IIS y por qué el jar de producción es otro artefacto.

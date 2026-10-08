@@ -3,6 +3,27 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
+## 0.6.0 — 2026-10-08
+
+- **Ahora hace falta una clave.** Cada llamada a `/v1/{tenant}/…` lleva el header `x-api-key` con
+  la clave de esa distribuidora. La clave de una distribuidora no sirve para otra (da 401).
+- La clave del checkout **solo sirve para valorizar**. El catálogo completo de bonificaciones
+  (`GET /v1/{tenant}/criterios`) pide una clave de administración y con la del checkout da 403.
+- **Podés mandar tu propio precio** por ítem, en `items[].precioUnitario` (por unidad, no el total
+  de la línea). El descuento lo sigue calculando el ERP, con tu precio. Si un ítem no trae precio,
+  se valoriza con `listaPrecio`. Se pueden mezclar ítems con y sin precio en el mismo carrito.
+- **El número a aplicar es `lineas[].descuento`.** No sumes `bonificaciones[].descuento`: es el
+  detalle de qué bonificación otorgó qué, y una línea puede tener más de una.
+- Avisos nuevos en `supuestos`: `SIN_PRECIO_NI_LISTA` (dice qué ítems quedaron sin precio) y
+  `PRECIO_Y_LISTA_JUNTOS` (mandaste los dos; gana el precio). Reemplazan a `LISTA_PRECIO_NO_ENVIADA`.
+- Errores nuevos: `NO_AUTORIZADO` (401), `ALCANCE_INSUFICIENTE` (403) y `DEMASIADOS_INTENTOS` (429).
+- Si el ERP no responde, el servicio **reintenta una vez solo** antes de devolver
+  `FUENTE_NO_DISPONIBLE`. Ese sí conviene reintentarlo de tu lado; los demás errores, no.
+- Ojo con las **líneas regaladas** (`creadaPorPromo: true`): traen el precio del ERP en `neto`,
+  no el tuyo. Para cobrar usá `totales.netoConDescuento`, que siempre está bien.
+- En producción va a vivir en `/api/bonificaciones`, al lado de MotorFiscal. Se confirma con el
+  primer deploy.
+
 ## 0.2.0 — 2026-10-07
 
 - Ya se puede **valorizar un pedido**: `POST /v1/{tenant}/valorizaciones`. Se le manda el cliente
