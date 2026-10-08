@@ -83,7 +83,10 @@ public enum CodigoDeError {
      * Administrar esta deshabilitado porque falta CIFRADO_KEY. Preferible fallar explicito a
      * guardar mil claves de produccion sin cifrar.
      */
-    ADMINISTRACION_DESHABILITADA(503);
+    ADMINISTRACION_DESHABILITADA(503),
+
+    /** Algo que no se esperaba. El detalle queda en el log del servidor, no en la respuesta. */
+    ERROR_INTERNO(500);
 
     private final int http;
 

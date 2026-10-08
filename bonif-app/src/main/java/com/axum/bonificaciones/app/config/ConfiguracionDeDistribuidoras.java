@@ -69,7 +69,12 @@ public record ConfiguracionDeDistribuidoras(Map<String, Distribuidora> distribui
      * @param usuario usuario de API (client gcw-web-api)
      * @param clave   clave de ese usuario
      */
-    public record Gescom(String host, String realm, String usuario, String clave) {}
+    public record Gescom(String host, String realm, String usuario, String clave) {
+        @Override
+        public String toString() {
+            return "Gescom[host=" + host + ", realm=" + realm + ", usuario=" + usuario + ", clave=***]";
+        }
+    }
 
     public static class DistribuidoraDesconocidaException extends RuntimeException {
         public DistribuidoraDesconocidaException(String tenant) {

@@ -5,10 +5,13 @@ import com.axum.bonificaciones.app.dominio.CodigoDeError;
 import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
 import com.axum.bonificaciones.app.soporte.InterceptorDeRegistro;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Traduce todo a {codigo, mensaje, crudo}.
@@ -18,6 +21,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice
 class ManejadorDeErrores {
+
+    private static final Logger log = LoggerFactory.getLogger(ManejadorDeErrores.class);
 
     @ExceptionHandler(ErrorDeGateway.class)
     ResponseEntity<Dtos.ErrorResponse> deGateway(ErrorDeGateway e, HttpServletRequest request) {
@@ -38,6 +43,20 @@ class ManejadorDeErrores {
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("pedido invalido");
         return responder(request, CodigoDeError.PEDIDO_INVALIDO, detalle, null);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<Dtos.ErrorResponse> noEncontrado(NoResourceFoundException e,
+                                                     HttpServletRequest request) {
+        return ResponseEntity.status(404)
+                .body(new Dtos.ErrorResponse("NO_ENCONTRADO", "Ruta no encontrada.", null));
+    }
+
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<Dtos.ErrorResponse> inesperado(Exception e, HttpServletRequest request) {
+        log.error("Error inesperado en {}", request.getRequestURI(), e);
+        return responder(request, CodigoDeError.ERROR_INTERNO,
+                "Error interno del gateway. Revisa los logs del servidor.", null);
     }
 
     /**

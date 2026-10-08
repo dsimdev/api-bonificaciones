@@ -126,7 +126,12 @@ class MapeadorGescom {
     private Operacion operacion(String tipo, JsonNode config) {
         if (tipo == null) return null;
         return switch (tipo) {
-            case "DescuentoItem" -> new Operacion.Descuento(porcentaje(config.path("descuento")), null);
+            case "DescuentoItem" -> {
+                var nodo = config.path("descuento");
+                yield nodo.isNumber()
+                        ? new Operacion.Descuento(nodo.decimalValue().multiply(A_PORCENTAJE), null)
+                        : null;
+            }
             case "TablaDescuentoItem" -> new Operacion.EscalaDeDescuento(
                     tramos(config.path("tabla")),
                     config.path("descuentoPorCantidad").asBoolean(false));

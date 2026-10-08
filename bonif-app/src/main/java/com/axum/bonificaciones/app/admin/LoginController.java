@@ -6,11 +6,15 @@ import com.axum.bonificaciones.app.seguridad.ContextoDeLlamada;
 import com.axum.bonificaciones.app.seguridad.RepositorioDeUsuarios;
 import com.axum.bonificaciones.app.seguridad.ServicioDeSesiones;
 import com.axum.bonificaciones.app.seguridad.Usuario;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
         matchIfMissing = true)
 public class LoginController {
 
+    private static final int MAX_INTENTOS_LOGIN = 5;
+    private static final Duration VENTANA_LOGIN = Duration.ofMinutes(15);
+
+    private final Cache<String, AtomicInteger> intentosLogin =
+            Caffeine.newBuilder().expireAfterWrite(VENTANA_LOGIN).build();
+
     private final ServicioDeSesiones sesiones;
     private final RepositorioDeUsuarios usuarios;
 
@@ -40,12 +50,21 @@ public class LoginController {
                     + "el resto de /admin. Es el unico endpoint de administracion sin proteger.")
     @PostMapping("/login")
     public Sesion login(@Valid @RequestBody LoginRequest req) {
+        var cuenta = intentosLogin.get(req.usuario(), u -> new AtomicInteger());
+        if (cuenta.get() >= MAX_INTENTOS_LOGIN) {
+            throw new ErrorDeGateway(CodigoDeError.DEMASIADOS_INTENTOS,
+                    "Demasiados intentos fallidos. Espera unos minutos.");
+        }
         return sesiones.ingresar(req.usuario(), req.clave())
-                .map(token -> new Sesion(token, req.usuario(), sesiones.duracionEnMinutos()))
-                // Mismo mensaje si el usuario no existe o si la clave esta mal: decir cual de las
-                // dos cosas fallo regala la mitad de la credencial.
-                .orElseThrow(() -> new ErrorDeGateway(CodigoDeError.NO_AUTORIZADO,
-                        "Usuario o contrasenia incorrectos."));
+                .map(token -> {
+                    intentosLogin.invalidate(req.usuario());
+                    return new Sesion(token, req.usuario(), sesiones.duracionEnMinutos());
+                })
+                .orElseGet(() -> {
+                    cuenta.incrementAndGet();
+                    throw new ErrorDeGateway(CodigoDeError.NO_AUTORIZADO,
+                            "Usuario o contrasenia incorrectos.");
+                });
     }
 
     @Operation(summary = "Salir: invalida el token al instante")
@@ -73,12 +92,17 @@ public class LoginController {
                 .findFirst().orElseThrow();
     }
 
-    @Operation(summary = "Cambia la contrasenia de un usuario")
+    @Operation(summary = "Cambia la contrasenia de un usuario",
+            description = "Requiere la contrasenia actual para verificar la identidad.")
     @PostMapping("/usuarios/{usuario}/clave")
     public void cambiarClave(@PathVariable String usuario, @Valid @RequestBody ClaveRequest req) {
         if (!usuarios.existe(usuario)) {
             throw new ErrorDeGateway(CodigoDeError.USUARIO_INEXISTENTE,
                     "No hay un usuario que se llame " + usuario + ".");
+        }
+        if (usuarios.autenticar(usuario, req.claveActual()).isEmpty()) {
+            throw new ErrorDeGateway(CodigoDeError.NO_AUTORIZADO,
+                    "La contrasenia actual no es correcta.");
         }
         usuarios.cambiarClave(usuario, req.clave());
     }
@@ -107,5 +131,6 @@ public class LoginController {
             String nombre) {}
 
     public record ClaveRequest(
+            @NotBlank String claveActual,
             @NotBlank @Size(min = 12, message = "al menos 12 caracteres") String clave) {}
 }

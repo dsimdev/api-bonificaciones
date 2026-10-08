@@ -35,9 +35,11 @@ export default function Usuarios() {
   }, 'Usuario creado.');
 
   const cambiarClave = (usuario: string) => {
+    const claveActual = prompt(`Contrasenia actual de ${usuario}:`);
+    if (!claveActual) return;
     const clave = prompt(`Contrasenia nueva para ${usuario} (minimo 12 caracteres):`);
     if (!clave) return;
-    void a.correr(() => api.cambiarClave(usuario, clave), 'Contrasenia cambiada.',
+    void a.correr(() => api.cambiarClave(usuario, claveActual, clave), 'Contrasenia cambiada.',
       { recargar: false });
   };
 

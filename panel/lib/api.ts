@@ -135,8 +135,8 @@ export const api = {
   usuarios: () => pedir<Usuario[]>('GET', '/admin/v1/usuarios'),
   crearUsuario: (usuario: string, clave: string, nombre: string) =>
     pedir<Usuario>('POST', '/admin/v1/usuarios', { usuario, clave, nombre }),
-  cambiarClave: (usuario: string, clave: string) =>
-    pedir<void>('POST', `/admin/v1/usuarios/${encodeURIComponent(usuario)}/clave`, { clave }),
+  cambiarClave: (usuario: string, claveActual: string, clave: string) =>
+    pedir<void>('POST', `/admin/v1/usuarios/${encodeURIComponent(usuario)}/clave`, { claveActual, clave }),
   desactivarUsuario: (usuario: string) =>
     pedir<void>('DELETE', `/admin/v1/usuarios/${encodeURIComponent(usuario)}`),
 };
