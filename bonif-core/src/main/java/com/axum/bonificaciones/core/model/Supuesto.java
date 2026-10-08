@@ -27,14 +27,15 @@ public record Supuesto(String codigo, String mensaje) {
      * Vinieron el precio y la lista. Gana el precio, verificado en vivo contra dyssa: con los dos
      * presentes el ERP valoriza con PrecioUnitario e ignora la lista para el importe.
      *
-     * No es un error -- la lista igual se manda porque puede condicionar algun criterio -- pero
-     * si el consumidor cree que esta valorizando por lista y le llega un neto que no entiende,
-     * esta es la explicacion.
+     * No es un error, pero la lista sobra: con precio propio no cambia el descuento, tampoco en
+     * los criterios con condicion ListaPrecioVenta (verificado contra dyssa el 2026-10-08,
+     * criterio 610: mismo 12% sin lista, con lista 2 y con lista 3). Si el consumidor cree que
+     * esta valorizando por lista y le llega un neto que no entiende, esta es la explicacion.
      */
     public static Supuesto precioYListaJuntos() {
         return new Supuesto("PRECIO_Y_LISTA_JUNTOS",
-                "El pedido trae listaPrecio Y precioUnitario en los items: el ERP uso el PRECIO "
-                        + "para el importe. La lista igual se envio, porque puede condicionar que "
-                        + "criterio aplica.");
+                "El pedido trae listaPrecio, pero todos los items traen precioUnitario: el ERP "
+                        + "uso los precios y la lista no se uso. Con precio propio no hace falta "
+                        + "mandarla: no cambia el descuento.");
     }
 }

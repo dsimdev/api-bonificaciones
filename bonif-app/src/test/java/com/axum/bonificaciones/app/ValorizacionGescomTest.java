@@ -356,9 +356,9 @@ class ValorizacionGescomTest {
     }
 
     /**
-     * Con precio Y lista gana el precio (verificado en vivo). No es un error -- la lista se manda
-     * igual porque puede condicionar que criterio aplica -- pero si el consumidor cree que
-     * valoriza por lista y le llega otro neto, esta es la explicacion.
+     * Con precio Y lista gana el precio (verificado en vivo). No es un error -- la lista sobra, no
+     * cambia el descuento -- pero si el consumidor cree que valoriza por lista y le llega otro
+     * neto, esta es la explicacion.
      */
     @Test
     void conPrecioYListaJuntosLoAvisaEnSupuestos() throws Exception {
@@ -370,6 +370,24 @@ class ValorizacionGescomTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.supuestos[0].codigo").value("PRECIO_Y_LISTA_JUNTOS"));
+    }
+
+    /**
+     * Carrito mixto con lista: la lista SE USA, para los items sin precio. Avisar
+     * PRECIO_Y_LISTA_JUNTOS aca era ruido, y la guia decia "saca la lista", que dejaba esos items
+     * sin precio. Encontrado revisando la entrega para la tienda.
+     */
+    @Test
+    void carritoMixtoConListaNoAvisaNada() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/v1/dyssa/valorizaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"cliente":"8380","listaPrecio":"2","items":[
+                                  {"codigo":"5000014792","cantidad":6,"precioUnitario":1000},
+                                  {"codigo":"1000031861","cantidad":50}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supuestos").isEmpty());
     }
 
     /** Con precio en todos los items y sin lista no hay nada que suponer: supuestos vacio. */

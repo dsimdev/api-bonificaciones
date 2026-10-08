@@ -4,9 +4,10 @@
 > dos formas distintas de instalar un servicio nuestro. Ver `api-impuestos/docs/proyecto/deploy-iis.md`
 > para el detalle de IIS y del servicio de Windows, que acá se replica.
 >
-> **Los pasos concretos, en orden, están en
-> [`scripts/servidor/GUIA-PRIMER-DEPLOY.md`](../../scripts/servidor/GUIA-PRIMER-DEPLOY.md).** Este
-> documento es el *por qué*; esa guía es el *cómo*.
+> **Los pasos concretos de instalación están en
+> [`entrega-servidor/LEEME.md`](../../entrega-servidor/LEEME.md)** (lo que sigue quien instala), y
+> cómo armar esa carpeta, en [`scripts/servidor/GUIA-PRIMER-DEPLOY.md`](../../scripts/servidor/GUIA-PRIMER-DEPLOY.md).
+> Este documento es el *por qué*.
 
 ## 0. Dónde corre, y las dos cosas que no se pueden improvisar
 
@@ -26,8 +27,8 @@ sitio ni a MotorFiscal.
 
 | Script | Qué hace | Dónde se corre |
 |---|---|---|
-| `scripts/servidor/preparar-sistema.ps1` | Java, base, variables de entorno de máquina, carpeta + WinSW. Idempotente | en el servidor, como admin |
-| `scripts/servidor/preparar-iis.ps1` | cuelga la aplicación de IIS en `/api/bonificaciones` | en el servidor, como admin |
+| `scripts/servidor/preparar-sistema.ps1` | Java, base y login propios, carpeta + WinSW, jar, secretos en el entorno del servicio, arranque y verificación. Idempotente; con `-Jar` también actualiza | en el servidor, como admin |
+| `scripts/servidor/preparar-iis.ps1` | cuelga la aplicación de IIS en `/api/bonificaciones`, en el sitio donde está `/api/impuestos`. Verifica ARR, no lo cambia | en el servidor, como admin |
 | `scripts/servidor/simular-proxy-anidado.ps1` | **reproduce la topología de producción en tu máquina, sin IIS** | en tu máquina |
 | `scripts/deploy.ps1` | build + verifica el jar + FTP + reinicia + verifica a través del proxy | en tu máquina |
 | `scripts/servidor/bonificaciones.xml` | el servicio de Windows (WinSW) | se copia al servidor |
@@ -39,20 +40,11 @@ el panel con sus chunks, el login, la administración y Swagger.
 
 ## 1. SQL Server
 
-Igual que en local, con dos diferencias: la contraseña de `bonificaciones` **no** es
-`bonificaciones`, y SQL Server escucha solo en `localhost` (la app corre en la misma máquina, así
-que **no hay que abrir el 1433**).
-
-```powershell
-& 'C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\SQLCMD.EXE' -S localhost,1433 -E -i scripts\crear-base.sql
-```
-
-Después, cambiá la contraseña y **restaurá la política**, que el script deja apagada para
-desarrollo (`CHECK_POLICY = OFF`):
-
-```sql
-ALTER LOGIN bonificaciones WITH PASSWORD = 'la-que-generaste', CHECK_POLICY = ON;
-```
+En el servidor la base y el login los crea `preparar-sistema.ps1`, con una clave aleatoria y
+`CHECK_POLICY = ON` desde el primer momento (`scripts/crear-base.sql` es solo para desarrollo
+local: su clave es `bonificaciones`). Misma instancia que MotorFiscal, en `localhost`: **no hay que
+abrir el 1433**. Necesita modo mixto (usuario y clave de SQL), igual que MotorFiscal; el script lo
+verifica.
 
 Las tablas las crea **Flyway** al arrancar. No hay que correr DDL a mano.
 
@@ -62,18 +54,31 @@ Las tablas las crea **Flyway** al arrancar. No hay que correr DDL a mano.
 
 ## 2. Variables de entorno
 
+**En el servidor no son variables de máquina.** MotorFiscal dejó `DB_PASSWORD` y `CIFRADO_KEY`
+como variables de máquina con SUS valores; si este servicio usara esos nombres, heredaría la clave
+de base de MotorFiscal (y no conectaría) o, peor, un script nuestro la pisaría y el que se rompe es
+MotorFiscal. Por eso:
+
+- Los secretos van en el **entorno propio del servicio** (registro:
+  `HKLM\SYSTEM\CurrentControlSet\Services\bonificaciones`, valor `Environment`), que Windows aplica
+  al arrancar el servicio — sin reiniciar el servidor y sin que lo vea otro proceso.
+- Con nombres propios: la app lee `BONIF_DB_PASSWORD` y `BONIF_CIFRADO_KEY` **antes** que
+  `DB_PASSWORD` y `CIFRADO_KEY`. En local se siguen usando los nombres cortos del `.env`.
+- `DB_URL`, `DB_USER` y `PORT` van en `bonificaciones.xml` (no son secretos).
+
 | Variable | Para qué | Si falta |
 |---|---|---|
-| `DB_URL`, `DB_USER`, `DB_PASSWORD` | la base | no arranca |
-| `CIFRADO_KEY` | cifra las claves de GESCOM (AES-256-GCM). `openssl rand -hex 32` | **dar de alta falla explícito**, a propósito: mejor eso que guardar mil claves de producción sin cifrar |
+| `DB_URL`, `DB_USER`, `BONIF_DB_PASSWORD` (o `DB_PASSWORD`) | la base | no arranca |
+| `BONIF_CIFRADO_KEY` (o `CIFRADO_KEY`) | cifra las claves de GESCOM (AES-256-GCM). `openssl rand -hex 32` | **las distribuidoras no se pueden leer ni dar de alta**: falla explícito |
 | `CLAVE_INICIAL` | la contraseña del primer usuario, que se llama **`admin`** en todas las instalaciones (`USUARIO_INICIAL` lo pisa, pero no hace falta) | si no hay usuarios, nadie puede administrar y avisa por log |
 
 > ⚠️ **`CIFRADO_KEY` no se puede perder ni rotar a la ligera.** Si cambia, las claves guardadas no
-> se pueden descifrar y hay que volver a cargar las credenciales de todas las distribuidoras.
-> Guardala donde se guardan los secretos del servidor, no en el repo.
+> se pueden descifrar y hay que volver a cargar las credenciales de todas las distribuidoras
+> (desde el panel; desde la v0.6.1 eso funciona aunque la clave vieja ya no exista). Guardala en el
+> gestor de contraseñas, no en el repo.
 
 El usuario inicial se crea **solo si la tabla está vacía**. Después de usarlo: cambiarle la
-contraseña y **sacar `CLAVE_INICIAL` del entorno**.
+contraseña y correr `preparar-sistema.ps1 -OlvidarClaveInicial`.
 
 ## 3. Verificación post-deploy
 

@@ -133,7 +133,9 @@ public class ValorizadorGescom implements Valorizador {
         if (!hayLista && !sinPrecio.isEmpty()) {
             supuestos.add(Supuesto.sinPrecioNiLista(sinPrecio));
         }
-        if (hayLista && sinPrecio.size() < pedido.items().size()) {
+        // Solo si la lista no se uso para nada: en un carrito mixto le pone precio a los items que
+        // no lo traen, y avisar ahi seria ruido.
+        if (hayLista && sinPrecio.isEmpty()) {
             supuestos.add(Supuesto.precioYListaJuntos());
         }
         return supuestos;

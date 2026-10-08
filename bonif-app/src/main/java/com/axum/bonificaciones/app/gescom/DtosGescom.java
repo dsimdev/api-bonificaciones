@@ -34,8 +34,8 @@ final class DtosGescom {
      * PrecioUnitario es POR UNIDAD y es opcional. Verificado en vivo (dyssa, 2026-10-08): con el
      * presente el ERP valoriza con ese precio en vez del de la lista, sigue aplicando los mismos
      * criterios y sigue siendo el que calcula el descuento. Con precio Y lista juntos, gana el
-     * precio para el importe; la lista se manda igual porque puede condicionar que criterio
-     * aplica (hay criterios con condicion ListaPrecioVenta).
+     * precio para el importe, y la lista no cambia el descuento: ni siquiera en los criterios con
+     * condicion ListaPrecioVenta (criterio 610: mismo 12% sin lista, con la 2 y con la 3).
      *
      * Jackson no serializa los null si la propiedad esta anotada, asi que un item sin precio viaja
      * sin el campo -- que es lo que el ERP espera para usar la lista.

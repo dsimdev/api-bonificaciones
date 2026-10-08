@@ -1,48 +1,35 @@
 <#
 .SYNOPSIS
-  Cuelga api-bonificaciones de un sitio de IIS que YA existe, como aplicacion anidada
-  (ej. tudominio.com/api/bonificaciones) -- sin tocar el sitio ni las otras aplicaciones.
+  Cuelga api-bonificaciones en IIS como /api/bonificaciones, en el MISMO sitio donde ya esta
+  /api/impuestos (MotorFiscal). No modifica el sitio, ni MotorFiscal, ni la configuracion global.
 
 .DESCRIPTION
-  Mucho mas corto que el preparar-iis.ps1 de MotorFiscal, y a proposito: ese tenia que resolver un
-  IIS vacio (crear el sitio, el binding HTTPS, instalar ARR y URL Rewrite). Aca eso ya esta hecho,
-  porque MotorFiscal corre en este mismo servidor detras de este mismo IIS. Lo unico que falta es
-  una aplicacion mas.
+  Crea tres cosas, todas propias:
+    - la carpeta C:\inetpub\bonificaciones, con un web.config que hace de proxy a localhost:8081
+    - el application pool `bonificaciones`
+    - la aplicacion /api/bonificaciones dentro del sitio
 
-  Una "aplicacion" de IIS tiene su PROPIO web.config y su PROPIO application pool: IIS no mezcla
-  su configuracion con la del sitio padre ni con la de sus hermanas. Por eso esto no puede romper
-  lo que ya funciona ahi.
+  Busca el sitio solo: es el que tiene la aplicacion /api/impuestos. Si no la encuentra, pide
+  -SitioExistente con el nombre exacto.
 
-  ⚠️ NO probado contra un servidor real. Si `New-Item -type Application` da un error raro, el
-  camino manual por IIS Manager es mas confiable que insistir con PowerShell:
-    Sites -> [tu sitio] -> click derecho en la carpeta "api" -> Add Application
-    Alias: bonificaciones   Physical path: la misma que -RutaFisica
-  Despues copiar el web.config a esa carpeta a mano.
+  Necesita ARR y URL Rewrite con el proxy de ARR habilitado. MotorFiscal ya los usa, asi que tienen
+  que estar: si falta algo, este script FRENA y avisa, no instala ni cambia nada global.
+
+  Se puede correr varias veces. Correrlo en "Windows PowerShell" (no PowerShell 7) y como
+  administrador.
+
+  NO probado todavia contra el servidor real. Si `New-Item -Type Application` da un error raro,
+  el camino manual por el Administrador de IIS esta al final del mensaje de error.
 
 .PARAMETER SitioExistente
-  Nombre EXACTO del sitio de IIS, tal cual lo muestra `Get-Website`. Correrlo primero.
-
-.PARAMETER RutaVirtual
-  La ruta dentro del sitio. Default 'api/bonificaciones'.
-
-  ⚠️ Lo que se pase aca tiene que coincidir con el -PpanelBasePath con el que se compilo el jar
-  (/<RutaVirtual>/admin). Si no coinciden, la API anda y EL PANEL QUEDA EN BLANCO con 404 en la
-  consola del navegador. Es el bug que en api-impuestos llego a produccion tres veces.
-
-.PARAMETER RutaFisica
-  Carpeta para el web.config de la aplicacion. Default 'C:\inetpub\bonificaciones'.
-  No tiene contenido: lo unico que hay ahi es el web.config que hace el proxy.
+  Solo si el script no encuentra solo el sitio. El nombre exacto, tal cual lo muestra Get-Website.
 
 .EXAMPLE
-  Get-Website
-  .\preparar-iis.ps1 -SitioExistente 'tienda.midominio.com'
+  .\preparar-iis.ps1
 #>
 
 param(
-    [Parameter(Mandatory = $true)][string]$SitioExistente,
-    [string]$RutaVirtual = 'api/bonificaciones',
-    [string]$RutaFisica = 'C:\inetpub\bonificaciones',
-    [string]$Puerto = '8081'
+    [string]$SitioExistente = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,119 +39,103 @@ function Bien($texto) { Write-Host "    $texto" -ForegroundColor Green }
 function Ya($texto) { Write-Host "    $texto (ya estaba)" -ForegroundColor DarkGray }
 function Mal($texto) { Write-Host "    $texto" -ForegroundColor Red }
 function Ojo($texto) { Write-Host "    $texto" -ForegroundColor Yellow }
+function Frenar($texto) { Mal $texto; Write-Host "`nNo se siguio. Nada de lo anterior a este paso se deshizo." -ForegroundColor Red; exit 1 }
+
+# La ruta es fija: el jar de produccion trae el panel armado para /api/bonificaciones.
+$rutaVirtual = 'api/bonificaciones'
+$rutaFisica = 'C:\inetpub\bonificaciones'
+$pool = 'bonificaciones'
+$puerto = 8081
 
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
         ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Mal 'Hace falta correr esto como administrador.'
-    exit 1
+    Frenar 'Hace falta correr esto como administrador.'
+}
+if ($PSVersionTable.PSEdition -eq 'Core') {
+    Frenar 'Esto es PowerShell 7. Abri "Windows PowerShell" (el azul, 5.1) como administrador y correlo ahi.'
+}
+try { Import-Module WebAdministration } catch {
+    Frenar 'Falta el modulo de PowerShell de IIS ("Herramientas y scripts de administracion de IIS"). Es una caracteristica de Windows: se agrega desde "Agregar roles y caracteristicas" sin reiniciar IIS.'
 }
 
-Import-Module WebAdministration -ErrorAction Stop
-
-$RutaVirtual = $RutaVirtual.Trim('/')
-
-Write-Host "api-bonificaciones -> $SitioExistente/$RutaVirtual -> localhost:$Puerto" -ForegroundColor White
-
-# --- 1. Que el sitio exista de verdad -----------------------------------------------------------
-Paso 1 "El sitio '$SitioExistente'"
+# --- 1. El sitio ------------------------------------------------------------------------------
+Paso 1 'El sitio de IIS'
+$motorFiscal = @(Get-WebApplication | Where-Object { $_.path -eq '/api/impuestos' })
+if (-not $SitioExistente) {
+    if ($motorFiscal.Count -eq 1) {
+        $SitioExistente = [regex]::Match($motorFiscal[0].ItemXPath, "@name='([^']+)'").Groups[1].Value
+        Bien "'$SitioExistente' (es donde esta /api/impuestos de MotorFiscal)"
+    } else {
+        Ojo 'No encontre la aplicacion /api/impuestos. Los sitios que hay:'
+        Get-Website | ForEach-Object { Ojo "  $($_.Name)" }
+        Frenar 'Volve a correrlo con -SitioExistente "<el nombre exacto>" (el de la tienda).'
+    }
+}
 $sitio = Get-Website -Name $SitioExistente -ErrorAction SilentlyContinue
-if (-not $sitio) {
-    Mal "No existe un sitio llamado '$SitioExistente'."
-    Ojo 'Los que hay:'
-    Get-Website | ForEach-Object { Ojo "  $($_.Name)" }
-    exit 1
-}
+if (-not $sitio) { Frenar "No existe un sitio llamado '$SitioExistente'." }
 Bien "encontrado (estado: $($sitio.State))"
 
-# --- 2. ARR y URL Rewrite -----------------------------------------------------------------------
-# No se instalan desde aca: si MotorFiscal anda en este servidor, ya estan. Si faltan, instalarlos
-# reinicia IIS y eso lo decide quien administra el servidor, no un script nuestro.
-Paso 2 'ARR y URL Rewrite (los necesita el proxy)'
+# --- 2. ARR y URL Rewrite: se verifican, no se instalan ni se cambian ---------------------------
+Paso 2 'ARR y URL Rewrite'
 $rewrite = Test-Path 'HKLM:\SOFTWARE\Microsoft\IIS Extensions\URL Rewrite'
-$arr = (Get-WebGlobalModule -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*ApplicationRequestRouting*' })
-if ($rewrite) { Bien 'URL Rewrite instalado' } else { Mal 'FALTA URL Rewrite' }
-if ($arr) { Bien 'ARR instalado' } else { Mal 'FALTA Application Request Routing' }
-if (-not ($rewrite -and $arr)) {
-    Ojo 'Sin esos dos modulos el proxy no funciona. Si MotorFiscal ya corre detras de este IIS,'
-    Ojo 'tendrian que estar: verificar que este script este corriendo en el servidor correcto.'
-    Ojo 'Descargas: https://www.iis.net/downloads/microsoft/url-rewrite'
-    Ojo '            https://www.iis.net/downloads/microsoft/application-request-routing'
-    exit 1
-}
-
-# El proxy global de ARR tiene que estar habilitado. Lo esta si MotorFiscal anda, pero se verifica
-# porque sin esto el rewrite devuelve 404 y parece un problema de la regla.
-$proxyActivo = (Get-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
+$arr = Get-WebGlobalModule -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*ApplicationRequestRouting*' }
+# El proxy se mira donde ya funciona: en /api/impuestos, que tiene el mismo web.config que el
+# nuestro. Asi da igual si MotorFiscal lo habilito a nivel servidor o en su propio web.config.
+$dondeMirar = 'MACHINE/WEBROOT/APPHOST'
+if ($motorFiscal.Count -eq 1) { $dondeMirar = "MACHINE/WEBROOT/APPHOST/$SitioExistente/api/impuestos" }
+$proxyActivo = (Get-WebConfigurationProperty -PSPath $dondeMirar `
         -Filter 'system.webServer/proxy' -Name 'enabled' -ErrorAction SilentlyContinue).Value
-if ($proxyActivo) {
-    Bien 'el proxy de ARR esta habilitado'
-} else {
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
-        -Filter 'system.webServer/proxy' -Name 'enabled' -Value $true
-    Bien 'proxy de ARR habilitado'
+if (-not ($rewrite -and $arr -and $proxyActivo)) {
+    if (-not $rewrite) { Mal 'falta URL Rewrite' }
+    if (-not $arr) { Mal 'falta Application Request Routing (ARR)' }
+    if ($arr -and -not $proxyActivo) { Mal 'ARR esta, pero su proxy esta deshabilitado' }
+    Frenar 'MotorFiscal necesita esto mismo para funcionar, asi que en este servidor tendria que estar. Revisar que sea el servidor correcto antes de tocar nada global.'
 }
+Bien 'URL Rewrite, ARR y el proxy de ARR: OK'
 
-# --- 3. Carpeta fisica + web.config -------------------------------------------------------------
-Paso 3 "Carpeta $RutaFisica"
-if (-not (Test-Path $RutaFisica)) {
-    New-Item -ItemType Directory $RutaFisica -Force | Out-Null
-    Bien 'creada'
-} else {
-    Ya 'existe'
-}
-
+# --- 3. Carpeta y web.config ------------------------------------------------------------------
+Paso 3 "Carpeta $rutaFisica"
+if (Test-Path $rutaFisica) { Ya 'existe' } else { New-Item -ItemType Directory $rutaFisica -Force | Out-Null; Bien 'creada' }
 $plantilla = Join-Path $PSScriptRoot 'web.config'
-if (-not (Test-Path $plantilla)) {
-    Mal "Falta $plantilla. Copiar la carpeta scripts\servidor\ completa al servidor."
-    exit 1
-}
-# El puerto se reemplaza por si alguien corre esto con otro: el web.config del repo dice 8081.
-(Get-Content $plantilla -Raw).Replace('localhost:8081', "localhost:$Puerto") |
-    Set-Content (Join-Path $RutaFisica 'web.config') -Encoding UTF8
-Bien "web.config escrito, apuntando a localhost:$Puerto"
+if (-not (Test-Path $plantilla)) { Frenar "Falta $plantilla junto a este script." }
+Copy-Item $plantilla (Join-Path $rutaFisica 'web.config') -Force
+Bien "web.config copiado (proxy a localhost:$puerto)"
 
-# --- 4. Application pool propio -----------------------------------------------------------------
-# Propio y no el del sitio: asi un reciclado o un cuelgue de la aplicacion del proxy no afecta al
-# sitio padre ni a MotorFiscal. Sin codigo administrado adentro (el proxy es nativo).
-Paso 4 'Application pool'
-$pool = 'bonificaciones'
+# --- 4. Application pool propio ---------------------------------------------------------------
+Paso 4 "Application pool '$pool'"
 if (Get-ChildItem IIS:\AppPools | Where-Object { $_.Name -eq $pool }) {
-    Ya "pool '$pool'"
+    Ya $pool
 } else {
     New-WebAppPool -Name $pool | Out-Null
     Set-ItemProperty "IIS:\AppPools\$pool" -Name managedRuntimeVersion -Value ''
-    Bien "pool '$pool' creado (sin runtime administrado)"
+    Bien 'creado (sin .NET: el proxy es nativo de IIS)'
 }
 
-# --- 5. La aplicacion anidada -------------------------------------------------------------------
-Paso 5 "Aplicacion /$RutaVirtual"
-$rutaIIS = "IIS:\Sites\$SitioExistente\$RutaVirtual"
+# --- 5. La aplicacion -------------------------------------------------------------------------
+Paso 5 "Aplicacion /$rutaVirtual"
+$rutaIIS = "IIS:\Sites\$SitioExistente\$rutaVirtual"
 if (Test-Path $rutaIIS) {
-    Ya "/$RutaVirtual"
-    Set-ItemProperty $rutaIIS -Name physicalPath -Value $RutaFisica
+    Set-ItemProperty $rutaIIS -Name physicalPath -Value $rutaFisica
     Set-ItemProperty $rutaIIS -Name applicationPool -Value $pool
-    Bien 'ruta fisica y pool actualizados'
+    Ya "/$rutaVirtual (se le confirmo carpeta y pool)"
 } else {
     try {
-        New-Item $rutaIIS -Type Application -PhysicalPath $RutaFisica -ApplicationPool $pool | Out-Null
-        Bien "/$RutaVirtual creada"
+        New-Item $rutaIIS -Type Application -PhysicalPath $rutaFisica -ApplicationPool $pool | Out-Null
+        Bien "/$rutaVirtual creada"
     } catch {
-        Mal "No se pudo crear la aplicacion: $($_.Exception.Message)"
-        Ojo 'Hacelo por IIS Manager (ver el encabezado de este script) y copia el web.config a mano.'
+        Mal "No se pudo crear: $($_.Exception.Message)"
+        Ojo 'A mano, en el Administrador de IIS:'
+        Ojo "  Sitios -> $SitioExistente -> api -> click derecho -> Agregar aplicacion"
+        Ojo "  Alias: bonificaciones   Grupo de aplicaciones: $pool   Ruta fisica: $rutaFisica"
+        Ojo '  (igual que esta /api/impuestos)'
         exit 1
     }
 }
 
-# --- Cierre -------------------------------------------------------------------------------------
+# --- Cierre -----------------------------------------------------------------------------------
+$binding = ($sitio.Bindings.Collection | Select-Object -First 1).bindingInformation
 Write-Host "`n--- IIS listo ---" -ForegroundColor White
-Write-Host ''
-Write-Host "⚠️  El jar tiene que estar compilado con esta MISMA ruta:" -ForegroundColor Yellow
-Write-Host "      .\gradlew.bat build -PpanelBasePath=/$RutaVirtual/admin" -ForegroundColor Yellow
-Write-Host '    Si no coincide, la API anda y el PANEL QUEDA EN BLANCO con 404 en la consola.' -ForegroundColor Yellow
-Write-Host ''
-Write-Host 'Verificar A TRAVES del proxy, nunca contra localhost directo' -ForegroundColor White
-Write-Host '(contra localhost anda igual con el basePath mal, asi que esa prueba no detecta nada):' -ForegroundColor DarkGray
-$host1 = ($sitio.Bindings.Collection | Select-Object -First 1).bindingInformation
-Write-Host "  https://<el dominio del sitio>/$RutaVirtual/health" -ForegroundColor Green
-Write-Host "  https://<el dominio del sitio>/$RutaVirtual/admin" -ForegroundColor Green
-Write-Host "  (bindings del sitio: $host1)" -ForegroundColor DarkGray
+Write-Host 'Verificalo desde un navegador, con el dominio de la tienda (no con localhost):' -ForegroundColor White
+Write-Host "  https://<dominio>/$rutaVirtual/health   -> tiene que decir la version y origen BASE" -ForegroundColor Green
+Write-Host "  https://<dominio>/$rutaVirtual/admin    -> tiene que cargar el panel y pedir usuario" -ForegroundColor Green
+Write-Host "  (primer binding del sitio: $binding)" -ForegroundColor DarkGray

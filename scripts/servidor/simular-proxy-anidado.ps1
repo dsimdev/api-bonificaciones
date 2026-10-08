@@ -25,8 +25,7 @@
   este script esta hecho para mostrar antes de un deploy.
 
 .PARAMETER RutaVirtual
-  Mismo nombre y mismo default que preparar-iis.ps1 -RutaVirtual: donde IIS lo cuelga en
-  produccion.
+  Donde IIS lo cuelga en produccion. preparar-iis.ps1 usa siempre api/bonificaciones.
 
 .PARAMETER PuertoProxy
   Donde escucha este script, o sea lo que el navegador usa para simular "el dominio de la tienda".

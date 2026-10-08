@@ -14,7 +14,9 @@ spring:
     # servidor, con la app y SQL Server en la misma maquina, revisar esto antes de asumirlo.
     url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=bonificaciones;encrypt=true;trustServerCertificate=true}
     username: ${DB_USER:bonificaciones}
-    password: ${DB_PASSWORD:bonificaciones}
+    # BONIF_DB_PASSWORD primero: en el servidor convive con MotorFiscal, que deja DB_PASSWORD como
+    # variable de MAQUINA con su propia clave. Con el nombre propio nunca se toma la de el.
+    password: ${BONIF_DB_PASSWORD:${DB_PASSWORD:bonificaciones}}
 
   flyway:
     enabled: true
@@ -39,7 +41,9 @@ bonificaciones:
   # Clave de cifrado de los secretos de terceros (las claves de API de GESCOM). Sin esto, dar de
   # alta una distribuidora falla explicito: preferible eso a guardar una clave sin cifrar de
   # verdad. Generarla con: openssl rand -hex 32
-  cifrado-key: ${CIFRADO_KEY:}
+  # BONIF_CIFRADO_KEY primero por lo mismo que BONIF_DB_PASSWORD: MotorFiscal tiene su CIFRADO_KEY
+  # de maquina, y compartirla mezclaria los secretos de los dos servicios.
+  cifrado-key: ${BONIF_CIFRADO_KEY:${CIFRADO_KEY:}}
 
   # Primer usuario del panel. Se llama `admin` en todas las instalaciones: lo unico que hay que
   # definir es CLAVE_INICIAL. Solo se crea si la tabla de usuarios esta VACIA -- es para arrancar

@@ -3,12 +3,11 @@
 
   Mismo enfoque que MotorFiscal: un servicio propio y no el HttpPlatformHandler de IIS, porque el
   ciclo de vida del gateway no deberia depender del reciclado del application pool. IIS reinicia
-  pools por inactividad o por memoria, y eso cortaria una valorizacion a la mitad — en un checkout,
+  pools por inactividad o por memoria, y eso cortaria una valorizacion a la mitad: en un checkout,
   con alguien esperando.
 
-  Instalacion (una vez, como administrador, en C:\bonificaciones):
-    WinSW.exe install
-    WinSW.exe start
+  No se instala a mano: lo hace preparar-sistema.ps1, que ademas pone la ruta completa de java en
+  <executable> y guarda los secretos.
 -->
 <service>
   <id>bonificaciones</id>
@@ -16,17 +15,15 @@
   <description>Gateway de bonificaciones (criterios de venta de GESCOM). Escucha en localhost:8081; IIS le hace de reverse proxy.</description>
 
   <executable>java</executable>
-  <arguments>-jar "C:\bonificaciones\bonificaciones.jar"</arguments>
+  <!-- -Xmx: comparte la maquina con MotorFiscal; sin tope, cada JVM puede tomar 1/4 de la RAM. -->
+  <arguments>-Xmx768m -jar "C:\bonificaciones\bonificaciones.jar"</arguments>
   <workingdirectory>C:\bonificaciones</workingdirectory>
 
   <!--
-    8081 y NO 8080: en este servidor tambien corre MotorFiscal, que usa el 8080. Dos servicios en
-    el mismo puerto no arrancan los dos, y el segundo falla con un "Address already in use" que no
-    dice de quien es el puerto que ya esta tomado.
+    8081 y NO 8080: en este servidor tambien corre MotorFiscal, que usa el 8080.
 
-    Los SECRETOS no van aca: ni la clave de la base ni CIFRADO_KEY. Este archivo se sube por FTP,
-    asi que todo lo que tenga adentro viaja y queda en el servidor en texto plano. Se definen como
-    variables de entorno de MAQUINA (lo hace preparar-sistema.ps1) y el servicio las hereda.
+    Los SECRETOS no van aca (este archivo es texto plano y se copia de un lado a otro). Van en el
+    entorno propio del servicio, con nombres BONIF_*, que es lo que escribe preparar-sistema.ps1.
   -->
   <env name="DB_URL" value="jdbc:sqlserver://localhost:1433;databaseName=bonificaciones;encrypt=true;trustServerCertificate=true" />
   <env name="DB_USER" value="bonificaciones" />
