@@ -6,6 +6,30 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-10-08
+
+### Security
+- **Admin login now rate-limited.** 5 failed attempts per username in 15 minutes, then
+  `DEMASIADOS_INTENTOS` (429). A successful login resets the counter.
+- **Password change requires the current password.** `claveActual` is now mandatory in `ClaveRequest`.
+  A stolen session token can no longer change passwords without knowing the current one. The panel
+  prompts for it before the new one.
+- **Catch-all exception handler.** Unhandled exceptions (missing CIFRADO_KEY, database errors,
+  NPEs) now return `ERROR_INTERNO` (500) with a generic message. The stack trace goes to the server
+  log, never to the client. Spring's 404 for unknown routes is preserved.
+- **`Gescom` record masks the password in `toString()`.** The auto-generated `toString()` would
+  have printed the cleartext GESCOM password if the record were ever logged. Now prints `clave=***`.
+- **Corrupted `configuracionJson` on a `DescuentoItem` no longer silently yields 0%.** If the
+  `descuento` field is missing or not a number, the modifier is now marked `noReconocido()` with
+  its raw JSON, instead of passing as a recognized modifier with 0% — which would have made a
+  promo disappear without anyone noticing.
+
+### Changed
+- Delivery docs (`contrato.md`, `LEEME.md`, `bonificaciones.js`, `guia-de-integracion.md`): the
+  API call goes server-side (Node 18+), not from the browser. The `x-api-key` and the discount
+  percentage must not be exposed in DevTools. `bonificaciones.js` now accepts a `url` parameter in
+  `configurarBonificaciones()` to point at the service from the store's server.
+
 ## [0.6.2] - 2026-10-08
 
 ### Changed

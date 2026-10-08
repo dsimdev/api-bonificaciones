@@ -3,6 +3,15 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
+## 0.6.3 — 2026-10-08
+
+- **Seguridad: el login del panel ahora tiene límite de intentos** (5 en 15 minutos).
+- **Cambiar la contraseña requiere la contraseña actual.** Una sesión robada ya no alcanza.
+- **Las excepciones inesperadas no filtran detalles internos** al que llama.
+- **La llamada al servicio va desde el servidor de la tienda**, no desde el navegador. La clave y
+  el descuento ya no quedan expuestos en DevTools. El módulo `bonificaciones.js` acepta la URL del
+  servicio en `configurarBonificaciones({ url })`.
+
 ## 0.6.2 — 2026-10-08
 
 - El contrato ahora deja claro qué hace la tienda con una unidad regalada por una promo

@@ -3,7 +3,7 @@
 Gateway de **bonificaciones / criterios de venta**. Consume la API de **GESCOM** y la devuelve
 detrás de un contrato propio y estable.
 
-**Versión actual: 0.6.2** — valoriza pedidos contra GESCOM con el precio de la tienda o una lista
+**Versión actual: 0.6.3** — valoriza pedidos contra GESCOM con el precio de la tienda o una lista
 del ERP, con clave por distribuidora y panel de administración. **Solo GESCOM**: Axum quedó fuera de
 alcance (la tienda lo consume directo).
 
