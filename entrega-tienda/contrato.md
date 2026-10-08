@@ -18,8 +18,8 @@ Si la tienda trabaja con más de una distribuidora, cada una tiene su código y 
 
 ## Las reglas
 
-1. **Los códigos son los del ERP de la distribuidora**: el del cliente y el de cada artículo. Si los
-   de la tienda son otros, preguntá antes de seguir: el servicio no traduce.
+1. **Los códigos son los que ya usa la tienda**, que vienen del ERP de la distribuidora o de Axum:
+   el del cliente y el de cada artículo. El servicio no traduce códigos.
 2. **El precio lo ponés vos.** Mandá `items[].precioUnitario`: **por unidad** y **sin impuestos**.
    Con tu precio **no hace falta `listaPrecio`**: no cambia el descuento (verificado).
 3. **Aplicá `lineas[].descuento` sobre tu neto de cada línea.** Está en **porcentaje** (`10` =
@@ -186,7 +186,7 @@ el texto:
 | `CREDENCIALES_INVALIDAS` | 502 | Falló la conexión del servicio con el ERP | **Sí**, del lado del servicio: avisá |
 | `CLIENTE_INEXISTENTE` | 400 | El cliente no está en el ERP | No: le toca 0% |
 | `PEDIDO_RECHAZADO_POR_LA_FUENTE` | 400 | El ERP rechazó el pedido, p. ej. un artículo que no conoce. `mensaje` dice qué | No, pero conviene revisarlo si se repite |
-| `DEMASIADOS_INTENTOS` | 429 | Hubo muchos intentos con claves inválidas para esa distribuidora y quedó bloqueada 5 minutos | No, salvo que la clave inválida sea la tuya |
+| `DEMASIADOS_INTENTOS` | 429 | Tu clave es inválida y hubo muchos intentos fallidos para esa distribuidora en 5 minutos. Una clave válida nunca recibe esto | **Sí**: la configuración de la clave |
 | `FUENTE_NO_DISPONIBLE` | 503 | El ERP no respondió (el servicio ya reintentó una vez) | No |
 | `FUENTE_ERROR_DESCONOCIDO` | 502 | El ERP falló sin decir por qué. `crudo` trae su respuesta | No |
 | `RESPUESTA_INCOHERENTE` | 502 | El ERP devolvió números que no cierran: no se pasa un precio que no cuadra | No, pero avisá si se repite |

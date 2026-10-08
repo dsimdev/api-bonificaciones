@@ -40,8 +40,9 @@ public class InterceptorDeApiKey implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
                              Object handler) {
+        // El limitador se consulta solo cuando la clave NO sirve: una clave valida nunca queda
+        // bloqueada por los intentos de otro. Ver LimitadorDeIntentos.
         var tenant = tenantDeLaRuta(request);
-        if (tenant != null) limitador.verificarNoBloqueado(tenant);
 
         var clave = request.getHeader(HEADER);
         if (clave == null || clave.isBlank()) {
@@ -68,7 +69,6 @@ public class InterceptorDeApiKey implements HandlerInterceptor {
                             + "checkout solo puede valorizar.");
         }
 
-        limitador.registrarExito(tenant);
         return true;
     }
 

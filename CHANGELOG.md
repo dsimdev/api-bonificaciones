@@ -33,6 +33,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
   without `precioUnitario`), and the docs told the store to remove the list — which would have left
   those items unpriced. It now fires only when every item has a price, i.e. the list was unused.
   Covered by `carritoMixtoConListaNoAvisaNada`.
+- **Denial of service through the attempt limiter.** `LimitadorDeIntentos` blocked the whole
+  tenant *before* looking at the key: ten requests with made-up keys in five minutes, from anywhere,
+  left the store's checkout without discounts even with its valid key. Now the key is validated
+  first and the limiter is only consulted for keys that fail: past the limit those get 429 instead
+  of 401, and a valid key always passes. A success no longer resets the count (normal store
+  traffic would erase an attacker's failures). Per tenant and not per IP on purpose: behind IIS
+  every request comes from 127.0.0.1. Covered by `losIntentosAjenosNoBloqueanLaClaveBuena`, which
+  fails against the previous code.
 
 ### Changed
 - **Deploy kit rewritten for the person who installs, who has no repo.** `preparar-sistema.ps1`

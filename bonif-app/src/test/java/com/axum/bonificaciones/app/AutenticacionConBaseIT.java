@@ -65,6 +65,9 @@ class AutenticacionConBaseIT {
     @Autowired
     com.axum.bonificaciones.app.seguridad.CifradoDeSecretos cifrado;
 
+    @Autowired
+    com.axum.bonificaciones.app.seguridad.LimitadorDeIntentos limitador;
+
     /**
      * Prefijo que no puede chocar con una distribuidora de verdad: el codigo es lo que va en la
      * URL, asi que nadie va a tener una llamada "zzz-test-...". Es lo que permite limpiar solo lo
@@ -80,6 +83,10 @@ class AutenticacionConBaseIT {
     @BeforeEach
     void datos() {
         limpiar();
+        // El limitador es un singleton: sin esto, los intentos fallidos de un test bloquean al
+        // siguiente.
+        limitador.olvidar(UNA);
+        limitador.olvidar(OTRA);
         claveDeUna = alta(UNA, Credencial.Alcance.VALORIZACION);
         claveAdminDeUna = credenciales.generar(idDe(UNA), Credencial.Alcance.ADMIN,
                 "back-office", "test");
@@ -139,6 +146,40 @@ class AutenticacionConBaseIT {
                         .header("x-api-key", "bon_cualquiera")
                         .contentType("application/json").content(PEDIDO))
                 .andExpect(MockMvcResultMatchers.status().isUnauthorized());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions conClave(String clave) throws Exception {
+        return mockMvc.perform(MockMvcRequestBuilders.post("/v1/" + UNA + "/valorizaciones")
+                .header("x-api-key", clave)
+                .contentType("application/json").content(PEDIDO));
+    }
+
+    /** Pasado el limite, quien prueba claves recibe 429 en vez de 401. */
+    @Test
+    void pasadoElLimiteLasClavesInvalidasRecibenDemasiadosIntentos() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            conClave("bon_inventada_" + i).andExpect(MockMvcResultMatchers.status().isUnauthorized());
+        }
+        conClave("bon_inventada_11")
+                .andExpect(MockMvcResultMatchers.status().isTooManyRequests())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.codigo").value("DEMASIADOS_INTENTOS"));
+    }
+
+    /**
+     * EL TEST DEL BUG DE DENEGACION DE SERVICIO.
+     *
+     * La primera version bloqueaba al tenant ENTERO antes de mirar la clave: diez pedidos con
+     * claves inventadas, desde cualquier lado, dejaban a la tienda con su clave buena sin descuentos
+     * cinco minutos. La clave valida tiene que pasar la puerta igual (y morir en el 503 del
+     * conector contra el puerto cerrado, que es lo que prueba que paso).
+     */
+    @Test
+    void losIntentosAjenosNoBloqueanLaClaveBuena() throws Exception {
+        for (int i = 0; i < 15; i++) conClave("bon_inventada_" + i);
+
+        conClave(claveDeUna)
+                .andExpect(MockMvcResultMatchers.status().isServiceUnavailable())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.codigo").value("FUENTE_NO_DISPONIBLE"));
     }
 
     /**

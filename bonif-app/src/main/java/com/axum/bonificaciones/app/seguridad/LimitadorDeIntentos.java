@@ -9,14 +9,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.stereotype.Component;
 
 /**
- * Frena la fuerza bruta contra las api-keys, contando por tenant.
+ * Frena la fuerza bruta contra las api-keys, contando los intentos FALLIDOS por tenant.
  *
- * Cuenta solo los intentos FALLIDOS: el objetivo es que nadie pruebe claves de a millones, no
- * limitar el trafico legitimo (para eso esta la cuota, que es otra cosa).
+ * **Solo frena a quien falla, nunca a una clave valida.** La primera version frenaba al tenant
+ * entero antes de mirar la clave: con diez pedidos con claves inventadas en cinco minutos,
+ * cualquiera dejaba sin descuentos el checkout de una distribuidora. Ahora el interceptor valida la
+ * clave primero y solo consulta esto cuando la clave NO sirve: pasado el limite, esos intentos
+ * reciben 429 en vez de 401, y la tienda con su clave buena no se entera.
  *
- * Por tenant y no por IP: una distribuidora con varias cajas comparte una sola clave, y quien
- * prueba claves puede cambiar de IP. La contra es que alguien podria bloquear a una distribuidora
- * a proposito -- por eso el bloqueo es corto y no permanente.
+ * Por tenant y no por IP: detras de IIS todos los pedidos llegan desde 127.0.0.1, y quien prueba
+ * claves puede cambiar de IP. Un exito NO reinicia la cuenta: si lo hiciera, el trafico normal de
+ * la tienda le borraria los fallos a quien esta probando claves.
  */
 @Component
 public class LimitadorDeIntentos {
@@ -27,21 +30,22 @@ public class LimitadorDeIntentos {
     private final Cache<String, AtomicInteger> fallidos =
             Caffeine.newBuilder().expireAfterWrite(VENTANA).build();
 
-    public void verificarNoBloqueado(String tenant) {
-        var cuenta = fallidos.getIfPresent(tenant);
-        if (cuenta != null && cuenta.get() >= MAXIMO) {
+    /**
+     * Registra un intento fallido. Si el tenant ya paso el limite, tira DEMASIADOS_INTENTOS en vez
+     * de dejar que se informe el 401.
+     */
+    public void registrarFallo(String tenant) {
+        if (tenant == null) return;
+        var cuenta = fallidos.get(tenant, t -> new AtomicInteger());
+        if (cuenta.incrementAndGet() > MAXIMO) {
             throw new ErrorDeGateway(CodigoDeError.DEMASIADOS_INTENTOS,
-                    "Demasiados intentos fallidos para " + tenant
+                    "Demasiados intentos con claves invalidas para " + tenant
                             + ". Espera unos minutos.");
         }
     }
 
-    public void registrarFallo(String tenant) {
-        if (tenant == null) return;
-        fallidos.get(tenant, t -> new AtomicInteger()).incrementAndGet();
-    }
-
-    public void registrarExito(String tenant) {
-        if (tenant != null) fallidos.invalidate(tenant);
+    /** Para los tests: el limitador es un singleton y la cuenta sobrevive entre tests. */
+    public void olvidar(String tenant) {
+        fallidos.invalidate(tenant);
     }
 }

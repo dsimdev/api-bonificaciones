@@ -105,7 +105,8 @@ export async function valorizar(tenant, cliente, items, opciones = {}) {
 }
 
 /** Errores que no se arreglan solos: alguien tiene que corregir algo. */
-const HAY_QUE_CORREGIR = new Set(['SIN_CONFIGURAR', 'NO_AUTORIZADO', 'PEDIDO_INVALIDO', 'CREDENCIALES_INVALIDAS']);
+const HAY_QUE_CORREGIR = new Set(['SIN_CONFIGURAR', 'NO_AUTORIZADO', 'DEMASIADOS_INTENTOS',
+  'PEDIDO_INVALIDO', 'CREDENCIALES_INVALIDAS']);
 
 /**
  * Lo que conviene usar en el checkout. **Nunca corta la venta**: si no se puede saber el
@@ -113,8 +114,8 @@ const HAY_QUE_CORREGIR = new Set(['SIN_CONFIGURAR', 'NO_AUTORIZADO', 'PEDIDO_INV
  *
  *   { codigo, mensaje, hayQueCorregir }
  *
- * `hayQueCorregir: true` (clave inválida o sin configurar, pedido mal armado, credenciales del
- * servicio con el ERP) significa que no se va a arreglar solo: además se registra en la consola,
+ * `hayQueCorregir: true` (clave inválida, sin configurar o bloqueada por intentos fallidos, pedido
+ * mal armado, credenciales del servicio con el ERP) significa que no se va a arreglar solo: además se registra en la consola,
  * y conviene avisarlo. Con `false` (el servicio no respondió, el cliente no está en el ERP, etc.)
  * es una situación esperable.
  *

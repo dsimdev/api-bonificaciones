@@ -5,6 +5,9 @@ tecnicismos.
 
 ## 0.6.1 — 2026-10-08
 
+- **Una clave válida nunca queda bloqueada.** Antes, muchos intentos con claves inválidas para una
+  distribuidora la bloqueaban 5 minutos para todos. Ahora `DEMASIADOS_INTENTOS` (429) solo le llega
+  a quien usa una clave inválida.
 - **Si mandás tu precio, no mandes `listaPrecio`**: verificado que no cambia el descuento. Antes
   la guía decía lo contrario.
 - **Las líneas de la respuesta no vienen en el orden del carrito**: relacionalas por `codigo` (y

@@ -38,8 +38,8 @@ de la tienda, como MotorFiscal en `/api/impuestos`.
    import { configurarBonificaciones } from './bonificaciones.js';
    configurarBonificaciones({ tenant: 'dyssa', clave: config.claveBonificaciones });
    ```
-3. En el checkout, con el carrito **entero**, códigos del ERP y tu precio **por unidad y sin
-   impuestos**:
+3. En el checkout, con el carrito **entero**, los códigos que ya usa la tienda y tu precio **por
+   unidad y sin impuestos**:
    ```js
    import { conDescuentos, lineaDelItem, aplicarDescuento, regalos } from './bonificaciones.js';
 
@@ -87,11 +87,10 @@ Capturados del servicio contra el ERP real de `dyssa`, con el cliente `8380` (sa
 
 ## Lo que tenés que preguntar
 
-Este servicio resuelve el descuento, no el resto del checkout. Antes de implementar, confirmá con
-quien te pasó esta carpeta:
+Este servicio resuelve el descuento, no el resto del checkout. Los códigos de cliente y de artículo
+son los que ya usa la tienda (vienen del ERP o de Axum). Antes de implementar, confirmá con quien
+te pasó esta carpeta:
 
-- **Que los códigos de la tienda sean los del ERP de la distribuidora**: el del cliente y el de los
-  artículos. Si no, hace falta una traducción que este servicio no hace.
 - **Qué hace la tienda con un regalo** (`creadaPorPromo: true`): si se agrega al pedido, cómo se
   entrega y si va a MotorFiscal.
 
