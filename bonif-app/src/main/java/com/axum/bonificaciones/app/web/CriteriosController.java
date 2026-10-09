@@ -1,10 +1,11 @@
 package com.axum.bonificaciones.app.web;
 
+import com.axum.bonificaciones.app.gescom.CatalogoGescom;
 import com.axum.bonificaciones.core.model.Fuente;
-import com.axum.bonificaciones.core.puerto.CatalogoDeCriterios;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,10 +28,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/{tenant}")
 public class CriteriosController {
 
-    private final CatalogoDeCriterios catalogo;
+    private final CatalogoGescom catalogo;
     private final Clock reloj;
 
-    CriteriosController(CatalogoDeCriterios catalogo, Clock reloj) {
+    CriteriosController(CatalogoGescom catalogo, Clock reloj) {
         this.catalogo = catalogo;
         this.reloj = reloj;
     }
@@ -38,7 +39,8 @@ public class CriteriosController {
     @Operation(summary = "Lista los criterios de venta (bonificaciones) de la distribuidora",
             description = "Por defecto devuelve SOLO los vigentes y activos a la fecha: un "
                     + "criterio vencido no viaja en el payload para que el consumidor lo "
-                    + "descarte. Los descuentos van en PORCENTAJE (10 = 10%).")
+                    + "descarte. Los descuentos van en PORCENTAJE (10 = 10%). Los criterios "
+                    + "se cachean: `actualizadoEn` dice cuando se trajeron de GESCOM.")
     @GetMapping("/criterios")
     public Dtos.CriteriosResponse criterios(
             @PathVariable String tenant,
@@ -53,7 +55,7 @@ public class CriteriosController {
      * Compartido con el panel: el que opera tiene que ver EXACTAMENTE lo mismo que ve el
      * integrador, no una segunda version del catalogo que se despegue de esta.
      */
-    static Dtos.CriteriosResponse catalogoDe(CatalogoDeCriterios catalogo, Clock reloj,
+    static Dtos.CriteriosResponse catalogoDe(CatalogoGescom catalogo, Clock reloj,
                                              String tenant, boolean incluirNoVigentes,
                                              LocalDate fecha) {
         var alDia = fecha != null ? fecha : LocalDate.now(reloj);
@@ -63,7 +65,12 @@ public class CriteriosController {
                 .map(Dtos::criterioDe)
                 .toList();
 
+        var actualizadoInstant = catalogo.actualizadoEn(tenant);
+        var actualizadoEn = actualizadoInstant != null
+                ? OffsetDateTime.ofInstant(actualizadoInstant, reloj.getZone())
+                : OffsetDateTime.now(reloj);
+
         return new Dtos.CriteriosResponse(Fuente.GESCOM, tenant, OffsetDateTime.now(reloj),
-                criterios.size(), criterios);
+                actualizadoEn, criterios.size(), criterios);
     }
 }

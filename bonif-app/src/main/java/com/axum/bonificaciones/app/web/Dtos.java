@@ -128,10 +128,15 @@ public final class Dtos {
 
     // --- GET /v1/{tenant}/criterios
 
+    /**
+     * @param actualizadoEn cuando se trajeron los criterios de GESCOM. Si es anterior a
+     *                      {@code consultadoEn} es porque se sirvieron del cache
+     */
     public record CriteriosResponse(
             Fuente fuente,
             String tenant,
             OffsetDateTime consultadoEn,
+            OffsetDateTime actualizadoEn,
             int total,
             List<CriterioResponse> criterios) {}
 

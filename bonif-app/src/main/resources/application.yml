@@ -30,6 +30,13 @@ bonificaciones:
     timeout-conexion-segundos: ${GESCOM_TIMEOUT_CONEXION:5}
     timeout-lectura-segundos: ${GESCOM_TIMEOUT_LECTURA:15}
 
+    # Cache de criterios por distribuidora. Solo se cargan cuando alguien los pide (lazy), y se
+    # refrescan en la proxima consulta despues de vencidos. Si GESCOM falla al refrescar, se sirve
+    # el dato en cache (aunque vencido) en vez de voltear la consulta. Con ~1000 distribuidoras
+    # posibles, solo las activas ocupan memoria: las que nadie pide en evict-horas se descartan.
+    cache-criterios-minutos: ${GESCOM_CACHE_CRITERIOS_MINUTOS:60}
+    cache-criterios-evict-horas: ${GESCOM_CACHE_CRITERIOS_EVICT_HORAS:4}
+
     # Cortacircuito por distribuidora: después de N INTENTOS fallidos seguidos se falla rápido en
     # vez de esperar el timeout completo en cada checkout. Son INTENTOS, no pedidos: cada
     # valorización que falla gasta dos (el original y el reintento), así que 4 = dos

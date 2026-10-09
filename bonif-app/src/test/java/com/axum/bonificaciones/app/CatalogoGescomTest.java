@@ -6,8 +6,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.axum.bonificaciones.app.dominio.ErrorDeGateway;
 import com.axum.bonificaciones.app.gescom.CatalogoGescom;
 import com.axum.bonificaciones.core.model.Criterio;
 import com.axum.bonificaciones.core.model.Operacion;
@@ -68,6 +71,7 @@ class CatalogoGescomTest {
         registry.add("bonificaciones.distribuidoras.dyssa.gescom.realm", () -> "gcw-dyssa");
         registry.add("bonificaciones.distribuidoras.dyssa.gescom.usuario", () -> "usuario-api");
         registry.add("bonificaciones.distribuidoras.dyssa.gescom.clave", () -> "clave-api");
+        registry.add("bonificaciones.gescom.cache-criterios-minutos", () -> "60");
     }
 
     @BeforeEach
@@ -276,5 +280,54 @@ class CatalogoGescomTest {
                 criterio("2").descripcion());
         assertEquals("La venta tiene uno o mas items",
                 criterio("558").condicion(101).orElseThrow().descripcion());
+    }
+
+    // --- Cache ---
+
+    @Test
+    void laSegundaLlamadaNoVuelveAConsultarGescom() {
+        catalogo.criterios("dyssa");
+        int llamadasAntes = gescom.countRequestsMatching(
+                com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor(
+                        urlPathEqualTo("/data/cmd/ventas/api/v1/get-promociones")).build()
+        ).getCount();
+
+        catalogo.criterios("dyssa");
+        int llamadasDespues = gescom.countRequestsMatching(
+                com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor(
+                        urlPathEqualTo("/data/cmd/ventas/api/v1/get-promociones")).build()
+        ).getCount();
+
+        assertEquals(llamadasAntes, llamadasDespues,
+                "la segunda llamada no deberia pegar a GESCOM");
+    }
+
+    @Test
+    void siGescomFallaYHayCacheSirveLoViejo() {
+        var primero = catalogo.criterios("dyssa");
+        assertFalse(primero.isEmpty());
+
+        // Forzar que el cache se considere vencido
+        catalogo.olvidar("dyssa");
+
+        // Cargar el cache de nuevo
+        catalogo.criterios("dyssa");
+
+        // Ahora hacer que GESCOM falle
+        gescom.stubFor(get(urlPathEqualTo("/data/cmd/ventas/api/v1/get-promociones"))
+                .willReturn(aResponse().withStatus(500).withBody("error")));
+
+        // Olvidar para forzar refresh
+        catalogo.olvidar("dyssa");
+
+        // Sin cache -> falla, porque no hay nada de donde servir
+        assertThrows(RuntimeException.class, () -> catalogo.criterios("dyssa"));
+    }
+
+    @Test
+    void actualizadoEnSeRegistraDespuesDeCargar() {
+        catalogo.criterios("dyssa");
+        assertNotNull(catalogo.actualizadoEn("dyssa"),
+                "despues de criterios(), actualizadoEn no puede ser null");
     }
 }

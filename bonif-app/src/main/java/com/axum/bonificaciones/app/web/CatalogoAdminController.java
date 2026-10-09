@@ -1,6 +1,6 @@
 package com.axum.bonificaciones.app.web;
 
-import com.axum.bonificaciones.core.puerto.CatalogoDeCriterios;
+import com.axum.bonificaciones.app.gescom.CatalogoGescom;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.time.Clock;
@@ -29,10 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/admin/v1/distribuidoras/{codigo}")
 public class CatalogoAdminController {
 
-    private final CatalogoDeCriterios catalogo;
+    private final CatalogoGescom catalogo;
     private final Clock reloj;
 
-    CatalogoAdminController(CatalogoDeCriterios catalogo, Clock reloj) {
+    CatalogoAdminController(CatalogoGescom catalogo, Clock reloj) {
         this.catalogo = catalogo;
         this.reloj = reloj;
     }

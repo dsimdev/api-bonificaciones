@@ -62,6 +62,7 @@ class CriteriosControllerTest {
         registry.add("bonificaciones.distribuidoras.dyssa.gescom.realm", () -> "gcw-dyssa");
         registry.add("bonificaciones.distribuidoras.dyssa.gescom.usuario", () -> "u");
         registry.add("bonificaciones.distribuidoras.dyssa.gescom.clave", () -> "p");
+        registry.add("bonificaciones.gescom.cache-criterios-minutos", () -> "60");
     }
 
     @BeforeEach
@@ -155,6 +156,14 @@ class CriteriosControllerTest {
                 .andExpect(jsonPath(
                         "$.criterios[?(@.id == '9999')].bonificaciones[?(@.tipo == 'NO_RECONOCIDO')].tipoEnElErp")
                         .value("ModificadorQueTodaviaNoExiste"));
+    }
+
+    @Test
+    void laRespuestaIncluyeActualizadoEn() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/v1/dyssa/criterios?fecha=2026-10-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.actualizadoEn").isNotEmpty())
+                .andExpect(jsonPath("$.consultadoEn").isNotEmpty());
     }
 
     @Test
