@@ -93,40 +93,46 @@ export default function Criterios(
               </thead>
               <tbody>
                 {visibles.map((c) => (
-                  <tr key={c.id} className="clicable"
-                      data-activa={abierto === c.id}
-                      onClick={() => setAbierto(abierto === c.id ? null : c.id)}>
-                    <td className="mono">{c.id}</td>
-                    <td style={{ whiteSpace: 'normal' }}>{c.nombre ?? '—'}</td>
-                    <td><Vigencia c={c} /></td>
-                    <td style={{ whiteSpace: 'normal' }}>
-                      {c.bonificaciones.map((b, i) => <Que key={i} b={b} />)}
-                    </td>
-                    <td className="tenue">{abierto === c.id ? 'ocultar' : 'ver por que'}</td>
-                  </tr>
+                  <FilaCriterio key={c.id} c={c}
+                    abierto={abierto === c.id}
+                    toggle={() => setAbierto(abierto === c.id ? null : c.id)} />
                 ))}
               </tbody>
             </table>
           )}
         </Tarjeta>
       )}
+    </>
+  );
+}
 
-      {abierto && r && (() => {
-        const c = r.criterios.find((x) => x.id === abierto);
-        if (!c) return null;
-        return (
-          <Tarjeta titulo={`${c.id} — ${c.nombre ?? 'sin nombre'}`}
-                   ayuda="Las condiciones que tienen que cumplirse para que aplique. Solo las que participan de la evaluacion: el ERP trae condiciones huerfanas que no se alcanzan nunca y esas no se muestran.">
-            {c.descripcion && <p>{c.descripcion}</p>}
+function FilaCriterio({ c, abierto, toggle }: { c: Criterio; abierto: boolean; toggle: () => void }) {
+  return (
+    <>
+      <tr className="clicable" data-activa={abierto} onClick={toggle}>
+        <td className="mono">{c.id}</td>
+        <td style={{ whiteSpace: 'normal' }}>{c.nombre ?? '—'}</td>
+        <td><Vigencia c={c} /></td>
+        <td style={{ whiteSpace: 'normal' }}>
+          {c.bonificaciones.map((b, i) => <Que key={i} b={b} />)}
+        </td>
+        <td className="tenue">{abierto ? 'ocultar' : 'ver por que'}</td>
+      </tr>
+      {abierto && (
+        <tr>
+          <td colSpan={5} style={{ padding: '8px 16px 16px', background: 'var(--fondo-card, #1a1a2e)' }}>
+            {c.descripcion && (
+              <p style={{ margin: '0 0 8px', color: 'var(--texto-tenue)' }}>{c.descripcion}</p>
+            )}
             {c.clientes.length > 0 && (
-              <p className="tenue">
+              <p style={{ margin: '0 0 8px' }} className="tenue">
                 Clientes: <span className="mono">{c.clientes.join(', ')}</span>
               </p>
             )}
             {c.condiciones.length === 0
-              ? <p className="tenue">Sin condiciones: cae sobre todo lo que califique.</p>
+              ? <p className="tenue" style={{ margin: 0 }}>Sin condiciones: cae sobre todo lo que califique.</p>
               : (
-                <table>
+                <table style={{ margin: 0 }}>
                   <thead>
                     <tr><th>Condicion</th><th>Valores</th><th>Cant. min.</th><th /></tr>
                   </thead>
@@ -151,9 +157,21 @@ export default function Criterios(
                   </tbody>
                 </table>
               )}
-          </Tarjeta>
-        );
-      })()}
+            {c.bonificaciones.some((b) => b.aplicaA && b.aplicaA.length > 0) && (
+              <div style={{ marginTop: 8 }}>
+                {c.bonificaciones.filter((b) => b.aplicaA && b.aplicaA.length > 0).map((b, i) => (
+                  <p key={i} className="tenue" style={{ margin: '4px 0' }}>
+                    {porcentaje(b.descuento)} aplica a:{' '}
+                    <span className="mono">
+                      {b.aplicaA!.map((a) => a.valores.join(', ')).join(' · ')}
+                    </span>
+                  </p>
+                ))}
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
     </>
   );
 }
