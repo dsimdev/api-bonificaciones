@@ -200,21 +200,20 @@ class AutenticacionConBaseIT {
     }
 
     /**
-     * El catalogo es la estructura comercial completa de la distribuidora. La clave del checkout
-     * vive en un navegador y se lee del DevTools: no puede abrir eso.
+     * Desde v0.7.0 VALORIZACION tambien lee el catalogo: la tienda lo necesita para armar la pagina
+     * de bonificaciones y la llamada va server-side (la clave ya no esta en un navegador).
      */
     @Test
-    void laClaveDelCheckoutNoPuedeLeerElCatalogo() throws Exception {
+    void laClaveDelCheckoutPuedeLeerElCatalogo() throws Exception {
+        // Pasa la puerta y muere en el conector contra un puerto cerrado: 503, no 403.
         mockMvc.perform(MockMvcRequestBuilders.get("/v1/" + UNA + "/criterios")
                         .header("x-api-key", claveDeUna))
-                .andExpect(MockMvcResultMatchers.status().isForbidden())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.codigo").value("ALCANCE_INSUFICIENTE"));
+                .andExpect(MockMvcResultMatchers.status().isServiceUnavailable())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.codigo").value("FUENTE_NO_DISPONIBLE"));
     }
 
     @Test
     void laClaveAdminSiPuedeLeerElCatalogo() throws Exception {
-        // Pasa la puerta y muere en el conector contra un puerto cerrado: 503, no 403. Lo que se
-        // prueba es que el alcance ADMIN NO la rechaza.
         mockMvc.perform(MockMvcRequestBuilders.get("/v1/" + UNA + "/criterios")
                         .header("x-api-key", claveAdminDeUna))
                 .andExpect(MockMvcResultMatchers.status().isServiceUnavailable())

@@ -3,10 +3,9 @@ package com.axum.bonificaciones.app.seguridad;
 /**
  * Una api-key validada.
  *
- * @param alcance VALORIZACION es la que va en la tienda: solo puede valorizar. ADMIN ademas lee el
- *     catalogo y no sale del back-office. Separarlas es lo que limita el dano de una key filtrada
- *     en un navegador -- /criterios es la estructura comercial completa de la distribuidora, y un
- *     competidor paga por eso
+ * @param alcance VALORIZACION valoriza y lee el catalogo de criterios (la tienda lo necesita para
+ *     armar la pagina de bonificaciones). ADMIN ademas accede a la administracion. La llamada de
+ *     la tienda va server-side desde v0.6.3, asi que la clave ya no esta expuesta en un navegador.
  */
 public record Credencial(long id, String tenant, Alcance alcance, String descripcion) {
 
@@ -15,7 +14,7 @@ public record Credencial(long id, String tenant, Alcance alcance, String descrip
         ADMIN;
 
         public boolean puedeLeerElCatalogo() {
-            return this == ADMIN;
+            return true;
         }
     }
 }

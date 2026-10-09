@@ -19,8 +19,8 @@ import org.springframework.web.servlet.HandlerMapping;
  * 2. Que sea **del mismo tenant que la URL**. Sin esto, la tienda de una distribuidora podria
  *    pedir los precios y descuentos de otra cambiando la ruta. Es el mismo agujero que el test de
  *    aislamiento cubre del lado de GESCOM, pero del lado de la entrada.
- * 3. Que tenga alcance suficiente: el catalogo (/criterios) es la estructura comercial completa y
- *    **no va con la clave del checkout**, que vive en un navegador y se puede leer del DevTools.
+ * 3. Que tenga alcance suficiente. Desde v0.7.0 VALORIZACION tambien lee el catalogo de criterios
+ *    (la tienda lo necesita para la pagina de bonificaciones y la llamada va server-side).
  */
 @Component
 @ConditionalOnProperty(name = "bonificaciones.distribuidoras-en-base", havingValue = "true",
