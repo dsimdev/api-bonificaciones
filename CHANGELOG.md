@@ -6,6 +6,34 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-10-09
+
+### Added
+- **Lazy in-memory cache for the criteria catalogue, per distributor.** Each tenant's criteria are
+  fetched from GESCOM on first access and refreshed after a configurable TTL (default 60 min,
+  `GESCOM_CACHE_CRITERIOS_MINUTOS`). Unused tenants are evicted after 4 hours of no access
+  (`GESCOM_CACHE_CRITERIOS_EVICT_HORAS`). With ~1000 possible distributors only the active ones
+  occupy memory. Uses Caffeine `expireAfterAccess`, not `expireAfterWrite`, so the eviction clock
+  resets on every query.
+- **Fallback to stale data when GESCOM is down.** If a refresh fails and the cache still holds the
+  previous entry, it serves the stale data and logs a warning instead of failing the request. Only
+  the first load (no cache at all) propagates the error. This prevents losing the catalogue when
+  GESCOM is temporarily unavailable.
+- **`actualizadoEn` in the criteria response.** ISO 8601 timestamp of when the cached data was last
+  successfully fetched from GESCOM. The consumer knows how fresh the data is.
+- `CatalogoGescom.olvidar(tenant)` to invalidate a single tenant's cache entry (used by tests and
+  available for future admin endpoints).
+- Three cache-specific tests: second call does not hit GESCOM, GESCOM failure with cache serves
+  stale, `actualizadoEn` is set after load.
+
+### Changed
+- **Panel: criterion detail expands inline.** "Ver por qué" now opens as an expandable row directly
+  below the criterion in the table, instead of as a separate card at the bottom of the page. Allows
+  reviewing the list without losing scroll position.
+- `CriteriosController` and `CatalogoAdminController` now inject `CatalogoGescom` directly instead
+  of the `CatalogoDeCriterios` port, because `actualizadoEn` is a cache concern that does not
+  belong in the domain port.
+
 ## [0.6.3] - 2026-10-08
 
 ### Security

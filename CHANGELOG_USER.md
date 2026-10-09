@@ -3,6 +3,18 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
+## 0.7.0 — 2026-10-09
+
+- **Los criterios de venta se cachean en memoria.** En vez de consultar a GESCOM en cada pedido de
+  criterios, se guardan por distribuidora y se refrescan cada 60 minutos (configurable). Si GESCOM
+  no responde al refrescar, se sirven los datos que ya había en vez de fallar. Esto mejora la
+  velocidad del catálogo y permite que la tienda consulte los criterios sin preocuparse por el
+  tráfico a GESCOM.
+- **La respuesta de criterios ahora incluye `actualizadoEn`**: la fecha y hora en que se trajo el
+  catálogo de GESCOM. Sirve para saber qué tan frescos son los datos.
+- **En el panel, el detalle de un criterio se abre en la misma fila** en vez de en una tarjeta
+  separada abajo de todo. Más cómodo para revisar la lista.
+
 ## 0.6.3 — 2026-10-08
 
 - **Seguridad: el login del panel ahora tiene límite de intentos** (5 en 15 minutos).

@@ -3,9 +3,10 @@
 Gateway de **bonificaciones / criterios de venta**. Consume la API de **GESCOM** y la devuelve
 detrás de un contrato propio y estable.
 
-**Versión actual: 0.6.3** — valoriza pedidos contra GESCOM con el precio de la tienda o una lista
-del ERP, con clave por distribuidora y panel de administración. **Solo GESCOM**: Axum quedó fuera de
-alcance (la tienda lo consume directo).
+**Versión actual: 0.7.0** — valoriza pedidos contra GESCOM con el precio de la tienda o una lista
+del ERP, con clave por distribuidora y panel de administración. Los criterios se cachean por
+distribuidora (60 min, configurable) con fallback a datos vencidos si GESCOM no responde. **Solo
+GESCOM**: Axum quedó fuera de alcance (la tienda lo consume directo).
 
 ```
 POST /v1/{tenant}/valorizaciones            x-api-key: <clave de la distribuidora>
