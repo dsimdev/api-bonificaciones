@@ -6,6 +6,15 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-10-09
+
+### Fixed
+- **`aplicaATodo` field on each criterion.** `articulos: []` was ambiguous: it could mean "applies
+  to all articles" (no article conditions) or "couldn't resolve" (e.g. CALIBRE_ARTICULO, combos).
+  New boolean `aplicaATodo`: `true` when the criterion has no article conditions (applies to the
+  entire catalogue), `false` when it does (and `articulos` has the resolved codes, possibly empty
+  if resolution failed).
+
 ## [0.8.0] - 2026-10-09
 
 ### Added

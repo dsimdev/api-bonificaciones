@@ -3,6 +3,12 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
+## 0.8.1 — 2026-10-09
+
+- **Nuevo campo `aplicaATodo` en cada criterio.** `true` si el criterio no tiene condiciones de
+  artículo (aplica a todo el catálogo), `false` si tiene (y `articulos` lista los códigos). Antes,
+  `articulos` vacío podía significar las dos cosas.
+
 ## 0.8.0 — 2026-10-09
 
 - **Cada criterio ahora trae los artículos a los que aplica.** El campo `articulos` en
