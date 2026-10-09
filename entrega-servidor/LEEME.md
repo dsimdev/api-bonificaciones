@@ -27,7 +27,7 @@ global de IIS ni instalan componentes.
 | Archivo | Para qué |
 |---|---|
 | `LEEME.md` | Esto |
-| `bonif-app-X.Y.Z-prod.jar` | El servicio, ya compilado. No hay que compilar nada |
+| `bonif-app-0.7.0-prod.jar` | El servicio, ya compilado. No hay que compilar nada |
 | `preparar-sistema.ps1` | Instala, actualiza o vuelve atrás el servicio |
 | `preparar-iis.ps1` | Lo publica en IIS como `/api/bonificaciones` |
 | `bonificaciones.xml`, `web.config` | Los usan los dos scripts. No hace falta tocarlos |
