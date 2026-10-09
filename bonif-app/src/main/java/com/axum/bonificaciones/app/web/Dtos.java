@@ -146,9 +146,12 @@ public final class Dtos {
      *                    El ERP devuelve condiciones huerfanas que no participan de la evaluacion
      */
     /**
-     * @param articulos los codigos de articulo a los que aplica, ya resueltos cruzando las
-     *                  condiciones de articulo con el catalogo de GESCOM. Vacio si el criterio
-     *                  no tiene condiciones de articulo (aplica a todo). Sorted para determinismo
+     * @param aplicaATodo true si el criterio no tiene condiciones de articulo: vale para todo el
+     *                    catalogo. false si tiene condiciones de articulo: los codigos estan en
+     *                    {@code articulos} (que puede estar vacio si no se pudo resolver, ej.
+     *                    CALIBRE_ARTICULO o combos)
+     * @param articulos   los codigos de articulo a los que aplica, ya resueltos cruzando las
+     *                    condiciones de articulo con el catalogo de GESCOM. Sorted para determinismo
      */
     public record CriterioResponse(
             String id,
@@ -160,6 +163,7 @@ public final class Dtos {
             List<String> clientes,
             List<CondicionResponse> condiciones,
             List<ModificadorResponse> bonificaciones,
+            boolean aplicaATodo,
             List<String> articulos) {}
 
     /**
@@ -239,7 +243,8 @@ public final class Dtos {
     // alcance ADMIN) y el panel (/admin/v1/..., con la sesion). Un solo mapeo: el panel tiene que
     // mostrar lo mismo que ve un integrador, no una segunda version que se despegue.
 
-    public static CriterioResponse criterioDe(Criterio c, Set<String> articulosResueltos) {
+    public static CriterioResponse criterioDe(Criterio c, Set<String> articulosResueltos,
+                                              boolean aplicaATodo) {
         var articulos = articulosResueltos != null
                 ? articulosResueltos.stream().sorted().toList()
                 : List.<String>of();
@@ -254,6 +259,7 @@ public final class Dtos {
                 c.clientes(),
                 c.condicionesHoja().stream().map(Dtos::condicionDe).toList(),
                 c.modificadores().stream().map(m -> modificadorDe(c, m)).toList(),
+                aplicaATodo,
                 articulos);
     }
 

@@ -295,7 +295,8 @@ GET {URL}/v1/dyssa/criterios?cliente=8380
 
 | Campo | Qué es |
 |---|---|
-| `articulos` | Los códigos de artículo a los que aplica el criterio. Resueltos desde las condiciones: "marca pepsico-11" se traduce a los artículos que tienen esa marca. Vacío si el criterio no filtra por artículo (aplica a todo) |
+| `aplicaATodo` | `true` si el criterio no tiene condiciones de artículo: vale para todo el catálogo. `false` si tiene condiciones de artículo: los códigos están en `articulos` |
+| `articulos` | Los códigos de artículo a los que aplica el criterio. Resueltos desde las condiciones: "marca pepsico-11" se traduce a los artículos que tienen esa marca. Vacío con `aplicaATodo: false` significa que no se pudo resolver (ej. condición por calibre) |
 | `condiciones` | Las condiciones del criterio: por qué aplica (marca, rubro, cliente, etc.) |
 | `bonificaciones` | Qué descuento da (`descuento` en porcentaje) y a qué condiciones apunta (`aplicaA`) |
 | `actualizadoEn` | Cuándo se trajeron los datos de GESCOM. Si es anterior a `consultadoEn`, se sirvieron del cache |

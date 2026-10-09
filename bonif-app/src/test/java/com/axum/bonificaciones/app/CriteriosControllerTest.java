@@ -217,6 +217,29 @@ class CriteriosControllerTest {
                 .andExpect(jsonPath("$.criterios[?(@.id == '558')]").isNotEmpty());
     }
 
+    // --- aplicaATodo ---
+
+    /** El criterio 558 tiene CodigoItem: aplicaATodo = false y articulos con el codigo. */
+    @Test
+    void criterioConCondicionDeArticuloNoAplicaATodo() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/v1/dyssa/criterios?fecha=2026-10-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criterios[?(@.id == '558')].aplicaATodo").value(false))
+                .andExpect(jsonPath("$.criterios[?(@.id == '558')].articulos[0]")
+                        .value("5000014792"));
+    }
+
+    /**
+     * El criterio 294 solo tiene CodigoCliente, sin condicion de articulo: aplicaATodo = true
+     * y articulos vacio.
+     */
+    @Test
+    void criterioSinCondicionDeArticuloAplicaATodo() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/v1/dyssa/criterios?fecha=2026-10-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criterios[?(@.id == '294')].aplicaATodo").value(true));
+    }
+
     /** Sin ?cliente=, devuelve todos (no filtra). */
     @Test
     void sinClienteDevuelveTodos() throws Exception {

@@ -128,6 +128,17 @@ public final class ResolvedorDeArticulos {
         return resultado;
     }
 
+    /**
+     * true si el criterio tiene al menos una condicion de articulo en sus hojas en juego.
+     * Sirve para distinguir "aplica a todo" (no tiene) de "no pudimos resolver" (tiene pero
+     * el indice no matcheo nada, ej. CALIBRE_ARTICULO).
+     */
+    public static boolean tieneCondicionesDeArticulo(Criterio criterio,
+                                                      ArticulosGescom.IndiceDeArticulos indice) {
+        return criterio.condicionesHoja().stream()
+                .anyMatch(indice::esCondicionDeArticulo);
+    }
+
     // --- Filtro por cliente ---
 
     /**

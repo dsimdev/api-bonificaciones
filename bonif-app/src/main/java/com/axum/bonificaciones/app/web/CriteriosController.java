@@ -4,14 +4,12 @@ import com.axum.bonificaciones.app.gescom.ArticulosGescom;
 import com.axum.bonificaciones.app.gescom.CatalogoGescom;
 import com.axum.bonificaciones.app.gescom.ClientesGescom;
 import com.axum.bonificaciones.app.gescom.ResolvedorDeArticulos;
-import com.axum.bonificaciones.core.model.Criterio;
 import com.axum.bonificaciones.core.model.Fuente;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.Set;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -84,7 +82,8 @@ public class CriteriosController {
                         || ResolvedorDeArticulos.aplicaAlCliente(c, datosClienteFinal))
                 .map(c -> {
                     var arts = ResolvedorDeArticulos.resolver(c, indice);
-                    return Dtos.criterioDe(c, arts);
+                    boolean aplicaATodo = !ResolvedorDeArticulos.tieneCondicionesDeArticulo(c, indice);
+                    return Dtos.criterioDe(c, arts, aplicaATodo);
                 })
                 .toList();
 
