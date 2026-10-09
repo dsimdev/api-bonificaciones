@@ -3,6 +3,17 @@
 Qué cambió en cada versión, contado para quien integra contra esta API. En español, sin
 tecnicismos.
 
+## 0.8.0 — 2026-10-09
+
+- **Cada criterio ahora trae los artículos a los que aplica.** El campo `articulos` en
+  `GET /v1/{tenant}/criterios` lista los códigos de artículo que matchean las condiciones del
+  criterio (marca, rubro, proveedor, etc.), resueltos contra el catálogo de GESCOM. La tienda ya no
+  necesita hacer ese cruce.
+- **Filtro por cliente.** Con `?cliente=8380` se devuelven solo los criterios que aplican a ese
+  cliente (por tag, subramo o código). Sin el parámetro, se devuelven todos.
+- **Los artículos y los clientes se cachean** igual que los criterios: se traen de GESCOM una vez y
+  se refrescan cada 60 minutos. Si GESCOM no responde al refrescar, se sirven los datos anteriores.
+
 ## 0.7.0 — 2026-10-09
 
 - **Los criterios de venta se cachean en memoria.** En vez de consultar a GESCOM en cada pedido de

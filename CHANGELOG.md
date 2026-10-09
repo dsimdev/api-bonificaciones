@@ -6,6 +6,28 @@ and whoever runs the next 360 audit. Write **why**, not just what.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-09
+
+### Added
+- **Pre-resolved articles per criterion.** `GET /v1/{tenant}/criterios` now includes an `articulos`
+  field on each criterion: the item codes that match the criterion's article conditions (brand,
+  category, supplier, etc.), resolved against GESCOM's article catalogue via an inverted index. The
+  store no longer needs to resolve "brand pepsico-11" to individual item codes — the gateway does it.
+- **Client filter on criteria endpoint.** `?cliente=8380` filters the response to only the criteria
+  that apply to that client, checking tag, subramo, and explicit client code conditions. Without it,
+  all criteria are returned.
+- **Article cache (`ArticulosGescom`)** — lazy per-tenant Caffeine cache of GESCOM's `get-articulos`
+  (inventario service). Builds an inverted index on load: attribute value → set of item codes. Same
+  TTL config as the criteria cache. Fallback to stale data on refresh failure.
+- **Client cache (`ClientesGescom`)** — lazy per-tenant Caffeine cache of GESCOM's `get-clientes`
+  (ventas service). Stores code, subramo, and tags per client. Same TTL and fallback pattern.
+- **`ResolvedorDeArticulos`** — walks the condition tree (TODAS = intersection, ALGUNA = union) with
+  memoization to handle GESCOM's DAG structure (nodes with multiple parents). Client conditions are
+  skipped for article resolution and evaluated separately for the client filter.
+- Tests for article resolution (CODIGO_ITEM, MARCA_ARTICULO via inverted index), client filtering
+  (tag match, tag mismatch), and no-filter baseline. Fixtures for `get-articulos` and `get-clientes`.
+- Criteria endpoint documented in `entrega-tienda/contrato.md`.
+
 ## [0.7.0] - 2026-10-09
 
 ### Added
