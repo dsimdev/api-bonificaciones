@@ -225,3 +225,86 @@ curl -X POST "https://<dominio-de-la-tienda>/api/bonificaciones/v1/dyssa/valoriz
 ```
 
 `GET {URL}/health` no pide clave y dice si el servicio está arriba y qué versión corre.
+
+---
+
+## Catálogo de criterios (bonificaciones vigentes)
+
+```
+GET {URL}/v1/{tenant}/criterios
+x-api-key: {clave}
+```
+
+Devuelve todos los criterios de venta (bonificaciones) vigentes de la distribuidora. Cada criterio
+incluye **`articulos`**: los códigos de artículo a los que aplica, ya resueltos cruzando las
+condiciones con el catálogo de GESCOM. Si el criterio no tiene condiciones de artículo (aplica a
+todo), `articulos` viene vacío.
+
+### Parámetros opcionales
+
+| Parámetro | Default | Qué hace |
+|---|---|---|
+| `cliente` | — | Código de cliente: filtra solo los criterios que le aplican (por tag, subramo o código de cliente). Sin él, devuelve todos |
+| `incluirNoVigentes` | `false` | `true` para incluir los vencidos e inactivos |
+| `fecha` | hoy | Fecha a la que evaluar la vigencia (`2026-10-15`) |
+
+### Ejemplo
+
+```
+GET {URL}/v1/dyssa/criterios?cliente=8380
+```
+
+```json
+{
+  "fuente": "GESCOM",
+  "tenant": "dyssa",
+  "consultadoEn": "2026-10-09T13:10:19-03:00",
+  "actualizadoEn": "2026-10-09T12:05:00-03:00",
+  "total": 5,
+  "criterios": [
+    {
+      "id": "558",
+      "nombre": "GANCIA CERO - 14792",
+      "descripcion": "GANCIA CERO - 14792  - 10%",
+      "activo": true,
+      "vigenteDesde": "2026-05-11",
+      "vigenteHasta": "2026-10-12",
+      "clientes": [],
+      "condiciones": [
+        {
+          "tipo": "CODIGO_ITEM",
+          "descripcion": "La venta tiene uno o mas items",
+          "valores": ["5000014792"],
+          "invertida": false,
+          "cantidadMinima": 1
+        }
+      ],
+      "bonificaciones": [
+        {
+          "tipo": "DESCUENTO",
+          "descripcion": "Aplicar descuento en items",
+          "descuento": 10.0,
+          "aplicaA": [...]
+        }
+      ],
+      "articulos": ["5000014792"]
+    }
+  ]
+}
+```
+
+| Campo | Qué es |
+|---|---|
+| `articulos` | Los códigos de artículo a los que aplica el criterio. Resueltos desde las condiciones: "marca pepsico-11" se traduce a los artículos que tienen esa marca. Vacío si el criterio no filtra por artículo (aplica a todo) |
+| `condiciones` | Las condiciones del criterio: por qué aplica (marca, rubro, cliente, etc.) |
+| `bonificaciones` | Qué descuento da (`descuento` en porcentaje) y a qué condiciones apunta (`aplicaA`) |
+| `actualizadoEn` | Cuándo se trajeron los datos de GESCOM. Si es anterior a `consultadoEn`, se sirvieron del cache |
+| `cliente` (filtro) | Solo devuelve criterios que aplican a ese cliente. Sin él, devuelve todos |
+
+### Notas
+
+- Los datos se **cachean** (artículos, clientes y criterios): la primera llamada pega a GESCOM, las
+  siguientes sirven del cache hasta que vence (por defecto 60 minutos de refresh, 4 horas de evict).
+- **`articulos` no es la evaluación de criterios**: es un join contra el catálogo. El descuento real
+  depende del carrito completo y lo da `valorizaciones`.
+- Usa la **misma clave** (`x-api-key`) que la valorización.

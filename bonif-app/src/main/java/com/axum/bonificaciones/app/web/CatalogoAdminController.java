@@ -1,6 +1,8 @@
 package com.axum.bonificaciones.app.web;
 
+import com.axum.bonificaciones.app.gescom.ArticulosGescom;
 import com.axum.bonificaciones.app.gescom.CatalogoGescom;
+import com.axum.bonificaciones.app.gescom.ClientesGescom;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.time.Clock;
@@ -30,10 +32,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class CatalogoAdminController {
 
     private final CatalogoGescom catalogo;
+    private final ArticulosGescom articulos;
+    private final ClientesGescom clientes;
     private final Clock reloj;
 
-    CatalogoAdminController(CatalogoGescom catalogo, Clock reloj) {
+    CatalogoAdminController(CatalogoGescom catalogo, ArticulosGescom articulos,
+                            ClientesGescom clientes, Clock reloj) {
         this.catalogo = catalogo;
+        this.articulos = articulos;
+        this.clientes = clientes;
         this.reloj = reloj;
     }
 
@@ -48,7 +55,10 @@ public class CatalogoAdminController {
             @Parameter(description = "Incluir los criterios vencidos o inactivos")
             @RequestParam(defaultValue = "false") boolean incluirNoVigentes,
             @Parameter(description = "Fecha a la que evaluar la vigencia; por defecto, hoy")
-            @RequestParam(required = false) LocalDate fecha) {
-        return CriteriosController.catalogoDe(catalogo, reloj, codigo, incluirNoVigentes, fecha);
+            @RequestParam(required = false) LocalDate fecha,
+            @Parameter(description = "Codigo de cliente: filtra solo los criterios que le aplican")
+            @RequestParam(required = false) String cliente) {
+        return CriteriosController.catalogoDe(catalogo, articulos, clientes, reloj, codigo,
+                incluirNoVigentes, fecha, cliente);
     }
 }

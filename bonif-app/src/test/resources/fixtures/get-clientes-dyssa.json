@@ -1,0 +1,12 @@
+[
+	{
+		"codigo": "8380",
+		"codigoSubramo": "subramo-01",
+		"tags": ["GRUPO 10"]
+	},
+	{
+		"codigo": "1001",
+		"codigoSubramo": "subramo-02",
+		"tags": ["OTRO-TAG"]
+	}
+]

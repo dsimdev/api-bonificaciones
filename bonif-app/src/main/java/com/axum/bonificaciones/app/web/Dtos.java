@@ -11,6 +11,7 @@ import com.axum.bonificaciones.core.model.Modificador;
 import com.axum.bonificaciones.core.model.Operacion;
 import com.axum.bonificaciones.core.model.PedidoAValorizar;
 import com.axum.bonificaciones.core.model.Valorizacion;
+import java.util.Set;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -144,6 +145,11 @@ public final class Dtos {
      * @param condiciones solo las que estan EN JUEGO: se camina el arbol desde la condicion raiz.
      *                    El ERP devuelve condiciones huerfanas que no participan de la evaluacion
      */
+    /**
+     * @param articulos los codigos de articulo a los que aplica, ya resueltos cruzando las
+     *                  condiciones de articulo con el catalogo de GESCOM. Vacio si el criterio
+     *                  no tiene condiciones de articulo (aplica a todo). Sorted para determinismo
+     */
     public record CriterioResponse(
             String id,
             String nombre,
@@ -153,7 +159,8 @@ public final class Dtos {
             LocalDate vigenteHasta,
             List<String> clientes,
             List<CondicionResponse> condiciones,
-            List<ModificadorResponse> bonificaciones) {}
+            List<ModificadorResponse> bonificaciones,
+            List<String> articulos) {}
 
     /**
      * Que hace la bonificacion. `tipo` discrimina que campos vienen cargados.
@@ -232,7 +239,11 @@ public final class Dtos {
     // alcance ADMIN) y el panel (/admin/v1/..., con la sesion). Un solo mapeo: el panel tiene que
     // mostrar lo mismo que ve un integrador, no una segunda version que se despegue.
 
-    public static CriterioResponse criterioDe(Criterio c) {
+    public static CriterioResponse criterioDe(Criterio c, Set<String> articulosResueltos) {
+        var articulos = articulosResueltos != null
+                ? articulosResueltos.stream().sorted().toList()
+                : List.<String>of();
+
         return new CriterioResponse(
                 c.id(),
                 c.nombre(),
@@ -241,10 +252,9 @@ public final class Dtos {
                 c.vigencia() == null ? null : c.vigencia().desde(),
                 c.vigencia() == null ? null : c.vigencia().hasta(),
                 c.clientes(),
-                // Solo las que estan en juego: el catalogo real trae condiciones huerfanas que
-                // ningun combinador referencia y que no participan de la evaluacion.
                 c.condicionesHoja().stream().map(Dtos::condicionDe).toList(),
-                c.modificadores().stream().map(m -> modificadorDe(c, m)).toList());
+                c.modificadores().stream().map(m -> modificadorDe(c, m)).toList(),
+                articulos);
     }
 
     private static ModificadorResponse modificadorDe(Criterio criterio, Modificador m) {

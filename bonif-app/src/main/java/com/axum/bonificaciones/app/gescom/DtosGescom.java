@@ -138,4 +138,28 @@ final class DtosGescom {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record MarcadorCrudo(Integer codigo, String descripcion, String tipo, String configuracionJson) {}
+
+    // --- get-articulos (servicio inventario): el catalogo de articulos con sus atributos de
+    // clasificacion. Se usa para resolver "marca pepsico-11 = articulos X, Y, Z".
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Articulo(
+            String codigo,
+            String descripcion,
+            String codigoMarca,
+            String codigoRubro,
+            String codigoProveedor,
+            String codigoLinea,
+            String codigoFamilia,
+            List<String> tags,
+            Boolean bloqueado) {}
+
+    // --- get-clientes (servicio ventas): los clientes con sus tags y subramo, para poder filtrar
+    // criterios por cliente.
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ClienteGescomDto(
+            String codigo,
+            String codigoSubramo,
+            List<String> tags) {}
 }

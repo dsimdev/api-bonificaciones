@@ -1,0 +1,57 @@
+[
+	{
+		"codigo": "5000014792",
+		"descripcion": "GANCIA CERO 950ML",
+		"codigoMarca": "cepas-1",
+		"codigoRubro": "rubro-bebidas",
+		"codigoProveedor": "prov-cepas",
+		"codigoLinea": "linea-aperitivos",
+		"codigoFamilia": "fam-aperitivos",
+		"tags": [],
+		"bloqueado": false
+	},
+	{
+		"codigo": "ART-PEPSI-001",
+		"descripcion": "PEPSI 2.25L",
+		"codigoMarca": "pepsico-1",
+		"codigoRubro": "rubro-gaseosas",
+		"codigoProveedor": "prov-pepsico",
+		"codigoLinea": "linea-gaseosas",
+		"codigoFamilia": "fam-gaseosas",
+		"tags": ["GRUPO 10"],
+		"bloqueado": false
+	},
+	{
+		"codigo": "ART-PEPSI-002",
+		"descripcion": "7UP 1.5L",
+		"codigoMarca": "pepsico-2",
+		"codigoRubro": "rubro-gaseosas",
+		"codigoProveedor": "prov-pepsico",
+		"codigoLinea": "linea-gaseosas",
+		"codigoFamilia": "fam-gaseosas",
+		"tags": [],
+		"bloqueado": false
+	},
+	{
+		"codigo": "ART-PEHUAMAR-001",
+		"descripcion": "PEHUAMAR CLASICAS 150G",
+		"codigoMarca": "pepsico-11",
+		"codigoRubro": "rubro-snacks",
+		"codigoProveedor": "prov-pepsico",
+		"codigoLinea": "linea-snacks",
+		"codigoFamilia": "fam-snacks",
+		"tags": [],
+		"bloqueado": false
+	},
+	{
+		"codigo": "ART-OTRO-001",
+		"descripcion": "PRODUCTO SIN MARCA RELEVANTE",
+		"codigoMarca": "otra-marca",
+		"codigoRubro": "rubro-varios",
+		"codigoProveedor": "prov-otro",
+		"codigoLinea": "linea-otra",
+		"codigoFamilia": "fam-otra",
+		"tags": [],
+		"bloqueado": false
+	}
+]
