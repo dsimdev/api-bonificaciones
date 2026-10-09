@@ -12,6 +12,9 @@ tecnicismos.
   tráfico a GESCOM.
 - **La respuesta de criterios ahora incluye `actualizadoEn`**: la fecha y hora en que se trajo el
   catálogo de GESCOM. Sirve para saber qué tan frescos son los datos.
+- **La clave de la tienda (`VALORIZACION`) ahora puede leer el catálogo de criterios**
+  (`GET /v1/{tenant}/criterios`). Antes necesitaba una clave `ADMIN`. No hace falta generar una
+  clave nueva: la que ya tiene la tienda funciona.
 - **En el panel, el detalle de un criterio se abre en la misma fila** en vez de en una tarjeta
   separada abajo de todo. Más cómodo para revisar la lista.
 

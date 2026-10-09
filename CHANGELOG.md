@@ -27,6 +27,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning:
   stale, `actualizadoEn` is set after load.
 
 ### Changed
+- **`VALORIZACION` scope can now read `/v1/{tenant}/criterios`.** The restriction was added because
+  the checkout key lived in a browser and the catalogue is the full commercial structure. Since
+  v0.6.3 the call goes server-side, so the key is no longer exposed in DevTools. The store needs
+  the catalogue to build its bonifications page, and the data is not more sensitive than what
+  the valorisation response already returns per line (same bonifications, same conditions — just
+  all of them instead of the ones that matched a specific order).
 - **Panel: criterion detail expands inline.** "Ver por qué" now opens as an expandable row directly
   below the criterion in the table, instead of as a separate card at the bottom of the page. Allows
   reviewing the list without losing scroll position.
